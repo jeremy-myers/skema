@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
-project(sksvd)
+project(skema)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/include/")
 set(INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/tpls/primme/include")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -42,11 +42,9 @@ endif()
 target_include_directories(${PROJECT_NAME} PRIVATE "/usr/include" "/usr/local/include")
 
 # Add PRIMME
-# target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include/ ${CMAKE_SOURCE_DIR}/src/)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src/)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include/)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/tpls/primme/include/)
-# target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/lib/)
 target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/tpls/primme/lib/)
 target_link_libraries(${PROJECT_NAME} ${CMAKE_SOURCE_DIR}/tpls/primme/lib/libprimme.a -llapack -lblas)
 
@@ -67,9 +65,9 @@ add_link_options(-fsanitize=address)
 # FetchContent_MakeAvailable(googletest)
 # include(GoogleTest)
 
-# set(SKSVD_UNIT_TESTS
+# set(skema_UNIT_TESTS
 #     test/unitTestMain.cpp
 #     test/ThreeSketch_unitTest.cpp)
-# add_executable(sksvd_unit_test ${SKSVD_UNIT_TESTS})
-# target_include_directories(sksvd_unit_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test ${CMAKE_SOURCE_DIR}/src)
-# target_link_libraries(sksvd_unit_test GTest::gtest_main Kokkos::kokkoskernels)
+# add_executable(skema_unit_test ${skema_UNIT_TESTS})
+# target_include_directories(skema_unit_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test ${CMAKE_SOURCE_DIR}/src)
+# target_link_libraries(skema_unit_test GTest::gtest_main Kokkos::kokkoskernels)
