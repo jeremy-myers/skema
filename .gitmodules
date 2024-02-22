@@ -1,0 +1,3 @@
+[submodule "tpls/primme"]
+	path = tpls/primme
+	url = git@github.com:jeremy-myers/primme.git
