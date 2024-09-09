@@ -91,7 +91,6 @@ crs_matrix_type GaussRBFNew<crs_matrix_type>::compute(
     const range_type offsets) {
   std::cout << "Gauss RBF kernel mapping not available for sparse matrices"
             << std::endl;
-  crs_matrix_type data;
-  return data;
+  exit(0);
 }
 }  // namespace Skema
