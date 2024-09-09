@@ -1,5 +1,4 @@
 #include "Skema_Sampler.hpp"
-#include <sys/stat.h>
 #include <KokkosSparse.hpp>
 #include <KokkosSparse_CooMatrix.hpp>
 #include <KokkosSparse_crs2coo.hpp>

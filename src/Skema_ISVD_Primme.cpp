@@ -1,5 +1,4 @@
 #include "Skema_ISVD_Primme.hpp"
-#include <sys/_types/_int64_t.h>
 #include <KokkosSparse_IOUtils.hpp>
 #include <Kokkos_Bitset.hpp>
 #include <cstdio>
@@ -76,9 +75,11 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
     U.data()[i] = svecs.data()[i];
   }
 
-  for (int64_t i = nrow * rank, j = 0;
-       i < (nrow + ncol) * rank && j < ncol * rank; ++i, ++j) {
-    Vt.data()[j] = svecs.data()[i];
+  int64_t k{static_cast<int64_t>(nrow * rank)};
+  for (auto i = 0; i < rank; ++i) {
+    for (auto j = 0; j < ncol; ++j) {
+      Vt(i, j) = svecs.data()[k++];
+    }
   }
 
   if (ret != 0)
@@ -126,7 +127,6 @@ void ISVD_SVDS<crs_matrix_type>::set_u0(const crs_matrix_type& A,
 }
 
 /* Wrapper for compute that sets convtest & initial guess if desired */
-// Unclear why implicit instantiation doesn't work with set_opt()
 template <>
 void ISVD_SVDS<matrix_type>::compute(
     const matrix_type& matrix,
@@ -160,7 +160,7 @@ void ISVD_SVDS<crs_matrix_type>::compute(
   primme_svds::reinitialize();
 
   // Set convTestFun
-  if (algParams.sampling) {
+  if (algParams.isvd_sampling) {
     ISVD_SVDS_convTest<crs_matrix_type> convtest(
         sampler.matrix(), sampler.indices(), nrow,
         algParams.primme_convtest_eps, algParams.primme_convtest_skipitn);
@@ -177,25 +177,10 @@ void ISVD_SVDS<crs_matrix_type>::compute(
     primme_svds::params.convTestFun = isvd_sparse_convTestFun;
   }
 
-  /* Commented out but these debugs pass the test and can be removed 2024-09-03
-   */
-  // std::cout << "before" << std::endl;
-  // std::string a_debug1{"A_debug1.mtx"};
-  // std::string u_debug1{"U_debug1.txt"};
-  // std::string s_debug1{"S_debug1.txt"};
-  // std::string v_debug1{"V_debug1.txt"};
-  // KokkosSparse::Impl::write_kokkos_crst_matrix(matrix, a_debug1.c_str());
-  // KokkosKernels::Impl::kk_write_2Dview_to_file(U, u_debug1.c_str());
-  // KokkosKernels::Impl::kk_write_1Dview_to_file(S, s_debug1.c_str());
-  // KokkosKernels::Impl::kk_write_2Dview_to_file(Vt, v_debug1.c_str());
-
   // Set initial guess
   if (algParams.isvd_init_with_uvecs) {
     set_u0(matrix, nrow, ncol, rank, U, S, Vt);
   }
-  // std::cout << "after" << std::endl;
-  // std::string u_debug2{"U_debug2.txt"};
-  // KokkosKernels::Impl::kk_write_2Dview_to_file(U, u_debug2.c_str());
 
   compute(matrix, nrow, ncol, rank, U, S, Vt);
 }

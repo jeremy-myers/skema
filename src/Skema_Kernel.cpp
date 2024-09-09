@@ -21,12 +21,6 @@ matrix_type GaussRBFNew<matrix_type>::compute(const matrix_type& X,
   const size_type diag_range_start{offsets.first};
   const size_type diag_range_final{offsets.second};
 
-  // if (_nrow != X.extent(0) || _ncol != Y.extent(0)) {
-  //   reset(X.extent(0), Y.extent(0));
-  //   _nrow = X.extent(0);
-  //   _ncol = Y.extent(0);
-  // }
-
   const size_type league_size{my};  // Kokkos choosing the team size
   Kokkos::TeamPolicy<> policy(league_size, Kokkos::AUTO());
   typedef Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>::member_type

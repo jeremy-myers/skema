@@ -1,115 +1,55 @@
 #pragma once
-#include "primme_svds.h"
 #ifndef SKEMA_EIGSVD_HPP
 #define SKEMA_EIGSVD_HPP
-#include <lapacke.h>
 #include "Skema_AlgParams.hpp"
-#include "Skema_Primme_MatrixMatvec.hpp"
 #include "Skema_Sampler.hpp"
 #include "Skema_Utils.hpp"
 #include "primme.h"
-#include "primme_eigs.h"
+#include <lapacke.h>
 
 namespace Skema {
 
 extern "C" {
-void svds_monitorFun(void* basisSvals,
-                     int* basisSize,
-                     int* basisFlags,
-                     int* iblock,
-                     int* blockSize,
-                     void* basisNorms,
-                     int* numConverged,
-                     void* lockedSvals,
-                     int* numLocked,
-                     int* lockedFlags,
-                     void* lockedNorms,
-                     int* inner_its,
-                     void* LSRes,
-                     const char* msg,
-                     double* time,
-                     primme_event* event,
-                     int* stage,
-                     primme_svds_params* primme_svds,
-                     int* ierr);
+void svds_monitorFun(void *basisSvals, int *basisSize, int *basisFlags,
+                     int *iblock, int *blockSize, void *basisNorms,
+                     int *numConverged, void *lockedSvals, int *numLocked,
+                     int *lockedFlags, void *lockedNorms, int *inner_its,
+                     void *LSRes, const char *msg, double *time,
+                     primme_event *event, int *stage,
+                     primme_svds_params *primme_svds, int *ierr);
 }
 
-template <typename MatrixType>
-class XVDS {
- public:
+template <typename MatrixType> class XVDS {
+public:
   XVDS(){};
   virtual ~XVDS(){};
 
-  // virtual void compute(const MatrixType&,
-  //                      const size_type,
-  //                      const size_type,
-  //                      const size_type,
-  //                      matrix_type&,
-  //                      vector_type&) = 0;
-
-  virtual void compute(const MatrixType&,
-                       const size_type,
-                       const size_type,
-                       const size_type,
-                       matrix_type&,
-                       vector_type&,
-                       matrix_type&) = 0;
+  virtual void compute(const MatrixType &, const size_type, const size_type,
+                       const size_type, matrix_type &, vector_type &,
+                       matrix_type &) = 0;
 
   virtual void reinitialize() = 0;
 };
 
-// template <typename MatrixType>
-// class PRIMME_EIGS : public XVDS<MatrixType> {
-//  public:
-//   PRIMME_EIGS(const int nrow, const int ncol, const int rank) {
-//     primme_initialize(&params);
-//     evecs = vector_type("evecs", ncol * rank);
-//     evals = vector_type("evals", rank);
-//     rnrms = vector_type("rnrms", rank);
-//   };
-
-//   ~PRIMME_EIGS() { primme_free(&params); };
-
-//   inline void compute(const MatrixType&,
-//                       const size_type,
-//                       const size_type,
-//                       const size_type,
-//                       matrix_type&,
-//                       vector_type&) override {
-//     std::cout << "Not implemented yet" << std::endl;
-//   };
-
-//  protected:
-//   primme_params params;
-//   vector_type evals;
-//   vector_type evecs;
-//   vector_type rnrms;
-// };
-
-template <typename MatrixType>
-class PRIMME_SVDS : public XVDS<MatrixType> {
- public:
-  PRIMME_SVDS(const AlgParams& algParams_) : algParams(algParams_) {
+template <typename MatrixType> class PRIMME_SVDS : public XVDS<MatrixType> {
+public:
+  PRIMME_SVDS(const AlgParams &algParams_) : algParams(algParams_) {
     primme_svds_initialize(&params);
     params.monitorFun = svds_monitorFun;
   };
 
   ~PRIMME_SVDS() { primme_svds_free(&params); };
 
-  void compute(const MatrixType&,
-               const size_type,
-               const size_type,
-               const size_type,
-               matrix_type&,
-               vector_type&,
-               matrix_type&) override;
+  void compute(const MatrixType &, const size_type, const size_type,
+               const size_type, matrix_type &, vector_type &,
+               matrix_type &) override;
 
   inline void reinitialize() override {
     primme_svds_initialize(&params);
     params.monitorFun = svds_monitorFun;
   }
 
- protected:
+protected:
   primme_svds_params params;
   AlgParams algParams;
 };
@@ -118,61 +58,49 @@ template class PRIMME_SVDS<matrix_type>;
 template class PRIMME_SVDS<crs_matrix_type>;
 
 extern "C" {
-inline void svds_monitorFun(void* basisSvals,
-                            int* basisSize,
-                            int* basisFlags,
-                            int* iblock,
-                            int* blockSize,
-                            void* basisNorms,
-                            int* numConverged,
-                            void* lockedSvals,
-                            int* numLocked,
-                            int* lockedFlags,
-                            void* lockedNorms,
-                            int* inner_its,
-                            void* LSRes,
-                            const char* msg,
-                            double* time,
-                            primme_event* event,
-                            int* stage,
-                            primme_svds_params* primme_svds,
-                            int* ierr) {
+inline void svds_monitorFun(void *basisSvals, int *basisSize, int *basisFlags,
+                            int *iblock, int *blockSize, void *basisNorms,
+                            int *numConverged, void *lockedSvals,
+                            int *numLocked, int *lockedFlags, void *lockedNorms,
+                            int *inner_its, void *LSRes, const char *msg,
+                            double *time, primme_event *event, int *stage,
+                            primme_svds_params *primme_svds, int *ierr) {
   assert(event != NULL && primme_svds != NULL);
 
   if (primme_svds->outputFile &&
       (primme_svds->procID == 0 || *event == primme_event_profile)) {
     switch (*event) {
-      case primme_event_outer_iteration:
-        assert(basisSize && (!*basisSize || (basisSvals && basisFlags)) &&
-               blockSize && (!*blockSize || (iblock && basisNorms)) &&
-               numConverged);
-        for (int i = 0; i < *blockSize; ++i) {
-          fprintf(primme_svds->outputFile,
-                  "OUT %lld blk %d MV %lld Sec %E tMV %E tORTH %E SV %.16f "
-                  "|r| %.16f\n",
-                  primme_svds->primme.stats.numOuterIterations, iblock[i],
-                  primme_svds->primme.stats.numMatvecs,
-                  primme_svds->primme.stats.elapsedTime,
-                  primme_svds->primme.stats.timeMatvec,
-                  primme_svds->primme.stats.timeOrtho,
-                  ((double*)basisSvals)[iblock[i]],
-                  ((double*)basisNorms)[iblock[i]]);
-        }
-        break;
-      case primme_event_converged:
-        assert(numConverged && iblock && basisSvals && basisNorms);
+    case primme_event_outer_iteration:
+      assert(basisSize && (!*basisSize || (basisSvals && basisFlags)) &&
+             blockSize && (!*blockSize || (iblock && basisNorms)) &&
+             numConverged);
+      for (int i = 0; i < *blockSize; ++i) {
         fprintf(primme_svds->outputFile,
-                "#Converged %d blk %d MV %lld Sec %E tMV %E tORTH %E SV %.16f "
+                "OUT %lld blk %d MV %lld Sec %E tMV %E tORTH %E SV %.16f "
                 "|r| %.16f\n",
-                *numConverged, iblock[0], primme_svds->primme.stats.numMatvecs,
+                primme_svds->primme.stats.numOuterIterations, iblock[i],
+                primme_svds->primme.stats.numMatvecs,
                 primme_svds->primme.stats.elapsedTime,
                 primme_svds->primme.stats.timeMatvec,
                 primme_svds->primme.stats.timeOrtho,
-                ((double*)basisSvals)[iblock[0]],
-                ((double*)basisNorms)[iblock[0]]);
-        break;
-      default:
-        break;
+                ((double *)basisSvals)[iblock[i]],
+                ((double *)basisNorms)[iblock[i]]);
+      }
+      break;
+    case primme_event_converged:
+      assert(numConverged && iblock && basisSvals && basisNorms);
+      fprintf(primme_svds->outputFile,
+              "#Converged %d blk %d MV %lld Sec %E tMV %E tORTH %E SV %.16f "
+              "|r| %.16f\n",
+              *numConverged, iblock[0], primme_svds->primme.stats.numMatvecs,
+              primme_svds->primme.stats.elapsedTime,
+              primme_svds->primme.stats.timeMatvec,
+              primme_svds->primme.stats.timeOrtho,
+              ((double *)basisSvals)[iblock[0]],
+              ((double *)basisNorms)[iblock[0]]);
+      break;
+    default:
+      break;
     }
     fflush(primme_svds->outputFile);
   }
@@ -181,8 +109,8 @@ inline void svds_monitorFun(void* basisSvals,
 }
 
 template <typename MatrixType>
-void primme_svds(const MatrixType&, const AlgParams&);
+void primme_svds(const MatrixType &, const AlgParams &);
 
-}  // namespace Skema
+} // namespace Skema
 
 #endif /* SKEMA_EIGSVD_HPP */

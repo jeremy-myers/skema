@@ -1,9 +1,9 @@
 #pragma once
-#include <memory>
-#include "Skema_Common.hpp"
 #ifndef SKEMA_WINDOW_HPP
 #define SKEMA_WINDOW_HPP
+#include <memory>
 #include "Skema_AlgParams.hpp"
+#include "Skema_Common.hpp"
 #include "Skema_Kernel.hpp"
 #include "Skema_Utils.hpp"
 
@@ -84,6 +84,7 @@ inline crs_matrix_type GaussRBFWindow<crs_matrix_type>::get(
     const range_type idx) {
   std::cout << "get_window for kernel function on sparse matrix not available"
             << std::endl;
+  exit(1);
   crs_matrix_type data;
   return data;
 }

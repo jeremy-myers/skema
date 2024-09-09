@@ -1,7 +1,6 @@
 #pragma once
 #ifndef SKEMA_UTILS_H
 #define SKEMA_UTILS_H
-
 #include <KokkosKernels_default_types.hpp>
 #include <KokkosSparse.hpp>
 #include <Kokkos_Core.hpp>

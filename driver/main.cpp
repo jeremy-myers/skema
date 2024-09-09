@@ -109,7 +109,7 @@ int main(int argc, char* argv[]) {
 
     // Fix up options.
     if (algParams.isvd_num_samples > 0)
-      algParams.sampling = true;
+      algParams.isvd_sampling = true;
 
     // TODO move to SKETCH constructor
     algParams.sketch_range =

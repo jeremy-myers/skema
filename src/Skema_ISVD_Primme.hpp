@@ -54,28 +54,6 @@ class ISVD_SVDS : public PRIMME_SVDS<MatrixType> {
               vector_type&,
               matrix_type&);
 
-  /* These can be removed 2024-09-03 */
-  // inline vector_type svals() { return PRIMME_SVDS<MatrixType>::svals; }
-  // inline matrix_type vvecs() {
-  //   using primme_svds = PRIMME_SVDS<MatrixType>;
-  //   const auto m{primme_svds::params.m};
-  //   const auto n{primme_svds::params.n};
-  //   const auto k{primme_svds::params.numSvals};
-  //   return to_matrix(primme_svds::svecs, n, k, m * k);
-  // }
-  // inline matrix_type to_matrix(const vector_type& v,
-  //                              const size_type nrow,
-  //                              const size_type ncol,
-  //                              const int offset = 0) {
-  //   assert((nrow * ncol) <= v.extent(0));
-  //   matrix_type M("matrix", nrow, ncol);
-  //   for (auto i = 0, j = offset; i < nrow * ncol && j < v.extent(0); ++i,
-  //   ++j) {
-  //     M.data()[i] = v(j);
-  //   }
-  //   return M;
-  // };
-
  protected:
   AlgParams algParams;
   FILE* outputfile;

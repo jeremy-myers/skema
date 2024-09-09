@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SKEMA_ISVD_RESERVOIR_SAMPLER_HPP
-#define SKEMA_ISVD_RESERVOIR_SAMPLER_HPP
+#ifndef SKEMA_SAMPLER_HPP
+#define SKEMA_SAMPLER_HPP
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
 #include <Kokkos_Timer.hpp>
@@ -76,21 +76,5 @@ class ReservoirSampler : public Sampler<MatrixType> {
 
 template class ReservoirSampler<matrix_type>;
 template class ReservoirSampler<crs_matrix_type>;
-
-// template <>
-// class ReservoirSampler<crs_matrix_type> : public Sampler<crs_matrix_type> {
-//  public:
-//   ReservoirSampler(const AlgParams& algParams_)
-//       : Sampler<crs_matrix_type>(algParams_) {}
-
-//   void initialize() override { idxs = index_type("sample_indices", nsamples);
-//   } void sample(const crs_matrix_type& A) override; inline crs_matrix_type&
-//   matrix() override { return data; }; inline index_type& indices() override {
-//   return idxs; };
-
-//  protected:
-//   crs_matrix_type data;
-//   index_type idxs;
-// };
 }  // namespace Skema
-#endif /* SKEMA_ISVD_RESERVOIR_SAMPLER_HPP */
+#endif /* SKEMA_SAMPLER_HPP */

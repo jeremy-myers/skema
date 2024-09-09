@@ -14,11 +14,10 @@ add_executable(${PROJECT_NAME}
     ${CMAKE_SOURCE_DIR}/src/Skema_EIGSVD.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_Kernel.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_Sampler.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_ISVD_Primme.cpp    
-    ${CMAKE_SOURCE_DIR}/src/Skema_ISVD_MatrixMatvec.cpp 
+    ${CMAKE_SOURCE_DIR}/src/Skema_ISVD_Primme.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_ISVD_MatrixMatvec.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_ISVD.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_Primme_MatrixMatvec.cpp
-    )
+)
 
 # Add KokkosKernels
 find_package(KokkosKernels REQUIRED)

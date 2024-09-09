@@ -21,13 +21,10 @@ AlgParams::AlgParams()
       debug_level(0),
       window(1),
       traces(true),
-      dense_svd_solver(false),
+      isvd_dense_solver(false),
       isvd_sampler(Skema::Sampler_Type::default_type),
       isvd_num_samples(0),
-      sampling(false),
-      isvd_reduce_rank_alpha(0),
-      isvd_dynamic_tol_factor(1.0),
-      isvd_dynamic_tol_iters(0),
+      isvd_sampling(false),
       isvd_init_with_uvecs(false),
       primme_eps(1e-4),
       primme_convtest_eps(1e-4),
@@ -45,7 +42,6 @@ AlgParams::AlgParams()
       sketch_range(1),
       sketch_core(1),
       dim_redux(Skema::DimRedux_Map::default_type),
-      seed(0),
       seeds({0, 1, 2, 3}),
       kernel_func(Skema::Kernel_Map::default_type),
       kernel_gamma(1.0) {}
@@ -68,7 +64,6 @@ void AlgParams::print(std::ostream& out) const {
 
   switch (Skema::Solver_Method::types[solver]) {
     case Skema::Solver_Method::ISVD:
-      out << "  alpha = " << isvd_reduce_rank_alpha << std::endl;
       if (Skema::Decomposition_Type::types[decomposition_type] ==
           (Skema::Decomposition_Type::EIGS ||
            Skema::Decomposition_Type::SVDS)) {
@@ -107,14 +102,6 @@ void AlgParams::print(std::ostream& out) const {
         }
         std::cout << "    Use uvecs as initial guess = " << std::boolalpha
                   << isvd_init_with_uvecs << std::endl;
-        if (isvd_dynamic_tol_iters > 0) {
-          out << "    Dynamic tolerance factor = " << isvd_dynamic_tol_factor
-              << std::endl;
-          out << "    Dynamic tolerance iterations = " << isvd_dynamic_tol_iters
-              << std::endl;
-        } else {
-          out << "  svd solver = direct" << std::endl;
-        }
       }
 
       if (isvd_num_samples > 0) {
@@ -188,15 +175,9 @@ void AlgParams::parse(std::vector<std::string>& args) {
                       Skema::Solver_Method::types, Skema::Solver_Method::names);
   print_level = parse_int(args, "--print-level", print_level, 0, 5);
   debug_level = parse_int(args, "--debug-level", debug_level, 0, 5);
-  dim_redux_init_transpose =
-      parse_bool(args, "--init-dr-trans", "--init-dr-trans-off", true);
 
   // Streaming options
   window = parse_int(args, "--window", window, 1, INT_MAX);
-
-  // FDISVD options
-  isvd_reduce_rank_alpha =
-      parse_real(args, "--reduce-rank-alpha", 0.0, 0.0, 1.0);
 
   // SketchySVD options
   dim_redux =
@@ -204,7 +185,6 @@ void AlgParams::parse(std::vector<std::string>& args) {
                  Skema::DimRedux_Map::types, Skema::Solver_Method::names);
   sketch_range = parse_int(args, "--range", sketch_range, 0, INT_MAX);
   sketch_core = parse_int(args, "--core", sketch_core, 0, INT_MAX);
-  seed = parse_int(args, "--seed", seed, 0, INT_MAX);
   seeds = parse_int_array(args, "--seeds", seeds, 0, INT_MAX);
   sketch_eta =
       parse_real(args, "--eta", 1.0, 0.0, std::numeric_limits<double>::max());
@@ -212,7 +192,7 @@ void AlgParams::parse(std::vector<std::string>& args) {
       parse_real(args, "--nu", 1.0, 0.0, std::numeric_limits<double>::max());
 
   // PRIMME solver options
-  dense_svd_solver = parse_bool(args, "--svd", "--svds", false);
+  isvd_dense_solver = parse_bool(args, "--svd", "--svds", false);
   primme_printLevel = parse_int(args, "--primme_printLevel", 0, 0, 5);
   primme_eps = parse_real(args, "--primme_eps", primme_eps,
                           std::numeric_limits<double>::epsilon(), 1.0);
@@ -238,11 +218,6 @@ void AlgParams::parse(std::vector<std::string>& args) {
   isvd_init_with_uvecs = parse_bool(args, "--isvd-init-with-uvecs",
                                     "--isvd-init-with-uvecs-off", false);
 
-  isvd_dynamic_tol_factor = parse_real(args, "--dynamic-tol-factor", 1.0, 0.0,
-                                       std::numeric_limits<double>::max());
-  isvd_dynamic_tol_iters =
-      parse_int(args, "--dynamic-tol-iters", 0, 0, INT_MAX);
-
   // Kernel options
   kernel_func =
       parse_enum(args, "--kernel", kernel_func, Skema::Kernel_Map::num_types,
@@ -256,7 +231,7 @@ void AlgParams::parse(std::vector<std::string>& args) {
       Skema::Sampler_Type::types, Skema::Sampler_Type::names);
   isvd_num_samples = parse_int(args, "--isvd-num-samples", 0, 0, INT_MAX);
   if (isvd_num_samples > 0)
-    sampling = true;
+    isvd_sampling = true;
 }
 
 bool parse_bool(std::vector<std::string>& args,

@@ -1,9 +1,9 @@
 #pragma once
-#include <cstdio>
 #ifndef SKEMA_COMMON_HPP
 #define SKEMA_COMMON_HPP
 #include <KokkosSparse_Utils.hpp>
 #include <cstddef>
+#include <cstdio>
 #include <ostream>
 #include <utility>
 #include "Skema_Utils.hpp"
@@ -92,10 +92,19 @@ inline crs_matrix_type get_window(const crs_matrix_type& input,
   return window;
 }
 
+inline void print2Dview(const matrix_type& A) {
+  for (auto row = 0; row < A.extent(0); ++row) {
+    for (auto col = 0; col < A.extent(1); ++col) {
+      std::cout << std::setprecision(16) << " " << A(row, col);
+    }
+    std::cout << std::endl;
+  }
+}
+
 inline void write(const vector_type& input, const char* filename) {
   FILE* fp;
   fp = fopen(filename, "w");
-  
+
   for (auto i = 0; i < input.extent(0); ++i) {
     fprintf(fp, "%.16f\n", input(i));
   }
@@ -103,4 +112,4 @@ inline void write(const vector_type& input, const char* filename) {
 }
 }  // namespace Impl
 }  // namespace Skema
-#endif /* Skema_COMMON_H */
+#endif /* SKEMA_COMMON_H */

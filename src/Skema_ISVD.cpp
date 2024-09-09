@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <Kokkos_Macros.hpp>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -25,26 +24,7 @@
 #include "Skema_Sampler.hpp"
 #include "Skema_Utils.hpp"
 #include "Skema_Window.hpp"
-#include "lapack_headers.h"
 #include "primme.h"
-
-#include <KokkosBatched_SVD_Decl.hpp>
-#include <KokkosBlas1_axpby.hpp>
-#include <KokkosBlas1_dot.hpp>
-#include <KokkosBlas1_nrm2.hpp>
-#include <KokkosBlas1_reciprocal.hpp>
-#include <KokkosBlas1_scal.hpp>
-#include <KokkosBlas1_update.hpp>
-#include <KokkosBlas2_gemv.hpp>
-#include <KokkosBlas3_gemm.hpp>
-#include <KokkosKernels_default_types.hpp>
-#include <KokkosSparse_CrsMatrix.hpp>
-#include <KokkosSparse_spmv.hpp>
-#include <Kokkos_Bitset.hpp>
-#include <Kokkos_Core.hpp>
-#include <Kokkos_Pair.hpp>
-#include <Kokkos_StdAlgorithms.hpp>
-#include <Kokkos_Timer.hpp>
 
 namespace Skema {
 /* ************************************************************************* */
@@ -60,7 +40,7 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
   const size_type nrow{algParams.matrix_m};
   const size_type ncol{algParams.matrix_n};
   const size_type rank{algParams.rank};
-  const bool sampling{algParams.sampling};
+  const bool sampling{algParams.isvd_sampling};
   size_type wsize{algParams.window};
   std::string svals_filename;
 
@@ -80,7 +60,7 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
                                               algParams.print_level);
 
   // Initial approximation
-  ordinal_type ucnt{0};  // update count
+  ordinal_type ucnt{0};  // window count
   range_type idx{std::make_pair<size_type>(0, wsize)};
   range_type rlargest{std::make_pair<size_type>(0, rank)};
 
