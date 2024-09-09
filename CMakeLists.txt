@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(Skema VERSION "0.0.1")
+project(skema)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
@@ -10,19 +10,14 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 # Target definitions
 add_executable(${PROJECT_NAME}
     ${CMAKE_SOURCE_DIR}/driver/main.cpp
-    ${CMAKE_SOURCE_DIR}/src/AlgParams.cpp
-    ${CMAKE_SOURCE_DIR}/src/Dense_MatrixMatvec.cpp
-    ${CMAKE_SOURCE_DIR}/src/Sparse_MatrixMatvec.cpp
-    ${CMAKE_SOURCE_DIR}/src/Dense_Sparse_MatrixMatvec.cpp
-    ${CMAKE_SOURCE_DIR}/src/DimRedux.cpp
-    ${CMAKE_SOURCE_DIR}/src/Dense_FDISVD.cpp
-    ${CMAKE_SOURCE_DIR}/src/Kernel_EIGS.cpp
-    ${CMAKE_SOURCE_DIR}/src/Kernel_FDISVD.cpp
-    ${CMAKE_SOURCE_DIR}/src/Sparse_FDISVD.cpp
-    ${CMAKE_SOURCE_DIR}/src/Dense_SketchySVD.cpp
-    ${CMAKE_SOURCE_DIR}/src/Kernel_SketchySVD.cpp
-    ${CMAKE_SOURCE_DIR}/src/Sparse_SketchySVD.cpp
-    ${CMAKE_SOURCE_DIR}/src/Sparse_Sampler.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_AlgParams.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_EIGSVD.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_Kernel.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_Sampler.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_ISVD_Primme.cpp    
+    ${CMAKE_SOURCE_DIR}/src/Skema_ISVD_MatrixMatvec.cpp 
+    ${CMAKE_SOURCE_DIR}/src/Skema_ISVD.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_Primme_MatrixMatvec.cpp
     )
 
 # Add KokkosKernels
@@ -65,9 +60,9 @@ add_link_options(-fsanitize=address)
 # FetchContent_MakeAvailable(googletest)
 # include(GoogleTest)
 
-# set(skema_UNIT_TESTS
+# set(SKSVD_UNIT_TESTS
 #     test/unitTestMain.cpp
 #     test/ThreeSketch_unitTest.cpp)
-# add_executable(skema_unit_test ${skema_UNIT_TESTS})
-# target_include_directories(skema_unit_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test ${CMAKE_SOURCE_DIR}/src)
-# target_link_libraries(skema_unit_test GTest::gtest_main Kokkos::kokkoskernels)
+# add_executable(sksvd_unit_test ${SKSVD_UNIT_TESTS})
+# target_include_directories(sksvd_unit_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test ${CMAKE_SOURCE_DIR}/src)
+# target_link_libraries(sksvd_unit_test GTest::gtest_main Kokkos::kokkoskernels)
