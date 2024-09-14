@@ -11,6 +11,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 add_executable(${PROJECT_NAME}
     ${CMAKE_SOURCE_DIR}/driver/main.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_AlgParams.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_DimRedux_Gauss.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_DimRedux_SparseSign.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_EIGSVD.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_Kernel.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_Sampler.cpp

@@ -56,11 +56,11 @@ struct Decomposition_Type {
   static constexpr type default_type = SVDS;
 };
 struct Kernel_Map {
-  enum type { IDENTITY, GAUSSRBF };
+  enum type { NONE, GAUSSRBF };
   static constexpr unsigned num_types = 2;
-  static constexpr type types[] = {IDENTITY, GAUSSRBF};
-  static constexpr const char* names[] = {"identity", "gaussrbf"};
-  static constexpr type default_type = IDENTITY;
+  static constexpr type types[] = {NONE, GAUSSRBF};
+  static constexpr const char* names[] = {"none", "gaussrbf"};
+  static constexpr type default_type = NONE;
 };
 struct Sampler_Type {
   enum type { RESERVOIR };

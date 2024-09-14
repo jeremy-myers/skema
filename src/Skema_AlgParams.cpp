@@ -73,33 +73,32 @@ void AlgParams::print(std::ostream& out) const {
         out << "    PRIMME tolerance = " << primme_eps << std::endl;
         out << "    PRIMME locking = " << std::boolalpha << primme_locking
             << std::endl;
+        
         if (isvd_num_samples > 0) {
           out << "    PRIMME conv test func eps = " << primme_convtest_eps
               << std::endl;
           out << "    PRIMME conv test skip = " << primme_convtest_skipitn
               << std::endl;
         }
-        if (primme_maxIter > 0) {
+
+        if (primme_maxIter > 0)
           out << "    PRIMME maxOuterIters = " << primme_maxIter << std::endl;
-          ;
-        }
-        if (primme_maxMatvecs > 0) {
+
+        if (primme_maxMatvecs > 0)
           out << "    PRIMME maxMatvecs = " << primme_maxMatvecs << std::endl;
-          ;
-        }
-        if (primme_maxBasisSize > 0) {
+
+        if (primme_maxBasisSize > 0)
           out << "    PRIMME maxBasisSize = " << primme_maxBasisSize
               << std::endl;
-        }
-        if (primme_maxBlockSize > 0) {
+
+        if (primme_maxBlockSize > 0)
           out << "    PRIMME maxBlockSize = " << primme_maxBlockSize
               << std::endl;
-        }
-        if (primme_minRestartSize > 0) {
+
+        if (primme_minRestartSize > 0)
           out << "    PRIMME minRestartSize = " << primme_minRestartSize
               << std::endl;
-          ;
-        }
+
         std::cout << "    Use uvecs as initial guess = " << std::boolalpha
                   << isvd_init_with_uvecs << std::endl;
       }
@@ -108,6 +107,7 @@ void AlgParams::print(std::ostream& out) const {
         out << "  sampler = " << isvd_sampler << std::endl;
         out << "  num samples = " << isvd_num_samples << std::endl;
       }
+      
       break;
 
     case Skema::Solver_Method::SKETCH:
@@ -153,8 +153,7 @@ void AlgParams::print(std::ostream& out) const {
       break;
   }
 
-  if (Skema::Kernel_Map::types[kernel_func] !=
-      Skema::Kernel_Map::type::IDENTITY) {
+  if (Skema::Kernel_Map::types[kernel_func] != Skema::Kernel_Map::type::NONE) {
     out << "  kernel = " << kernel_func << std::endl;
     out << "  gamma = " << kernel_gamma << std::endl;
   }
