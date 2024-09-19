@@ -7,6 +7,8 @@ set(INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/include/")
 set(INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/tpls/primme/include")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
+SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${skema_BINARY_DIR}/bin)
+
 # Target definitions
 add_executable(${PROJECT_NAME}
     ${CMAKE_SOURCE_DIR}/driver/main.cpp
