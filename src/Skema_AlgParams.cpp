@@ -20,7 +20,7 @@ AlgParams::AlgParams()
       print_level(0),
       debug_level(0),
       window(1),
-      traces(true),
+      hist(true),
       isvd_dense_solver(false),
       isvd_sampler(Skema::Sampler_Type::default_type),
       isvd_num_samples(0),

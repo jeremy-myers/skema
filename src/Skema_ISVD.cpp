@@ -48,6 +48,10 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
   vector_type svals("svals", rank);
   matrix_type vtvex("vtvecs", rank, ncol);
 
+  const size_type width{
+      static_cast<size_type>(std::ceil(double(nrow) / double(wsize)))};
+  matrix_type sval_traces("sval_traces", rank, width);
+
   // Create window stepper
   auto window = Skema::getWindow<MatrixType>(algParams);
 
@@ -78,9 +82,10 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
   // Update vvecs with svals
   distribute(svals, vtvex);
 
-  if (algParams.traces) {
-    svals_filename = algParams.outputfilename + std::to_string(ucnt);
-    Impl::write(svals, svals_filename.c_str());
+  if (algParams.hist) {
+    for (auto r = 0; r < rank; ++r) {
+      sval_traces(r, ucnt) = svals(r);
+    }
   }
 
   ++ucnt;
@@ -105,9 +110,10 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
     // Update vvecs with svals
     distribute(svals, vtvex);
 
-    if (algParams.traces) {
-      svals_filename = algParams.outputfilename + std::to_string(ucnt);
-      Impl::write(svals, svals_filename.c_str());
+    if (algParams.hist) {
+      for (auto r = 0; r < rank; ++r) {
+        sval_traces(r, ucnt) = svals(r);
+      }
     }
 
     ++ucnt;
@@ -121,6 +127,17 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
   matrix_type u("u", nrow, rank);
   U(u, A, svals, v, rank, algParams);
   auto rnrms = residuals(A, u, svals, v, rank, algParams, window);
+
+  if (algParams.hist) {
+    std::string fname;
+    fname = algParams.outputfilename + "_svals.txt";
+    auto sval_trace =
+        Kokkos::subview(sval_traces, Kokkos::ALL(), std::make_pair(0, ucnt));
+    Impl::write(sval_traces, fname.c_str());
+
+    fname = algParams.outputfilename + "_rnrms.txt";
+    Impl::write(rnrms, fname.c_str());
+  }
 }
 
 template <>
