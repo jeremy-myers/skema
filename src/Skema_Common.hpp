@@ -101,6 +101,19 @@ inline void write(const vector_type& input, const char* filename) {
   }
   fclose(fp);
 }
+
+inline void write(const matrix_type& input, const char* filename) {
+  FILE* fp;
+  fp = fopen(filename, "w");
+
+  for (auto i = 0; i < input.extent(0); ++i) {
+    for (auto j = 0; j < input.extent(1); ++j) {
+      fprintf(fp, "%.16f ", input(i, j));
+    }
+    fprintf(fp, "\n");
+  }
+  fclose(fp);
+}
 }  // namespace Impl
 }  // namespace Skema
 #endif /* SKEMA_COMMON_H */
