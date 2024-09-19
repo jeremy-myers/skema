@@ -30,7 +30,11 @@ int main_driver(const MatrixType& matrix, const AlgParams& algParams) {
 
   switch (Skema::Solver_Method::types[algParams.solver]) {
     case Skema::Solver_Method::PRIMME:
-      Skema::primme_svds(matrix, algParams);
+      if (!algParams.issymmetric) {
+        Skema::primme_eigs(matrix, algParams);
+      } else {
+        Skema::primme_svds(matrix, algParams);
+      }
       break;
     case Skema::Solver_Method::ISVD:
       Skema::isvd(matrix, algParams);
