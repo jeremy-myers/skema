@@ -47,8 +47,8 @@ inline vector_type residuals_by_window(const MatrixType& A,
     auto Ur = Kokkos::subview(U, idx, rlargest);
     matrix_type Av("Av", wsize, rank);
     matrix_type Au("Atu", ncol, rank);
-    Impl::mm('N', 'N', 1.0, A, Vr, 0.0, Av);
-    Impl::mm('T', 'N', 1.0, A, U, 0.0, Au);
+    Impl::mm('N', 'N', 1.0, A_sub, Vr, 0.0, Av);
+    Impl::mm('T', 'N', 1.0, A_sub, Ur, 0.0, Au);
 
     // Compute columnwise differences
     for (auto r = rlargest.first; r < rlargest.second; ++r) {
