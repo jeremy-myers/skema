@@ -1,3 +1,6 @@
 [submodule "tpls/primme"]
 	path = tpls/primme
 	url = https://github.com/primme/primme.git
+[submodule "tpls/googletest"]
+	path = tpls/googletest
+	url = https://github.com/google/googletest.git

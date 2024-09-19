@@ -11,42 +11,33 @@
 /* Common helper functions */
 namespace Skema {
 namespace Impl {
-inline void mm(const matrix_type& lhs,
-               const matrix_type& rhs,
-               const matrix_type& out,
-               const bool transp) {
-  // TODO why betas != 0?
-  const char tflag{transp ? 'T' : 'N'};
-  KokkosBlas::gemm(&tflag, "N", 1.0, lhs, rhs, 1.0, out);
+inline void mm(const char transA,
+               const char transB,
+               const double alpha,
+               const matrix_type& A,
+               const matrix_type& B,
+               const double beta,
+               matrix_type& C) {
+  KokkosBlas::gemm(&transA, &transB, alpha, A, B, beta, C);
 }
 
-inline void mm(const crs_matrix_type& lhs,
-               const matrix_type& rhs,
-               const matrix_type& out,
-               const bool transp) {
-  // TODO why betas != 0?
-  const char tflag{transp ? 'T' : 'N'};
-  KokkosSparse::spmv(&tflag, 1.0, lhs, rhs, 1.0, out);
+inline void mm(const char transA,
+               const char transB,
+               const double alpha,
+               const crs_matrix_type& A,
+               const matrix_type& B,
+               const double beta,
+               matrix_type& C) {
+  KokkosSparse::spmv(&transA, alpha, A, B, beta, C);
 }
 
-inline void mm(const matrix_type& A,
-               const matrix_type& U,
-               const matrix_type& V,
-               matrix_type& Av,
-               matrix_type& Atu) {
-  // TODO why betas != 0?
-  KokkosBlas::gemm("N", "N", 1.0, A, V, 1.0, Av);
-  KokkosBlas::gemm("T", "N", 1.0, A, U, 1.0, Atu);
-}
-
-inline void mm(const crs_matrix_type& A,
-               const matrix_type& U,
-               const matrix_type& V,
-               matrix_type& Av,
-               matrix_type& Atu) {
-  // TODO why betas != 0?
-  KokkosSparse::spmv("N", 1.0, A, V, 1.0, Av);
-  KokkosSparse::spmv("T", 1.0, A, U, 0.0, Atu);
+inline void mm(const char mode,
+               const double alpha,
+               const crs_matrix_type& A,
+               const matrix_type& B,
+               const double beta,
+               matrix_type& C) {
+  KokkosSparse::spmv(&mode, alpha, A, B, beta, C);
 }
 
 inline matrix_type transpose(const matrix_type& input) {

@@ -19,6 +19,7 @@ add_executable(${PROJECT_NAME}
     ${CMAKE_SOURCE_DIR}/src/Skema_ISVD_Primme.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_ISVD_MatrixMatvec.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_ISVD.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_SketchySVD.cpp
 )
 
 # Add KokkosKernels
@@ -48,22 +49,20 @@ add_compile_options(-fsanitize=address)
 add_link_options(-fsanitize=address)
 
 # Googletest
+# add_subdirectory(tpls/googletest)
 # find_package(GTest CONFIG REQUIRED)
-# GoogleTest
-# include(FetchContent)
-# FetchContent_Declare(
-#   googletest
-#   GIT_REPOSITORY https://github.com/google/googletest.git
-#   GIT_TAG v1.14.0
-# )
-# # For Windows: Prevent overriding the parent project's compiler/linker settings
-# set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-# FetchContent_MakeAvailable(googletest)
-# include(GoogleTest)
 
-# set(SKSVD_UNIT_TESTS
-#     test/unitTestMain.cpp
-#     test/ThreeSketch_unitTest.cpp)
-# add_executable(sksvd_unit_test ${SKSVD_UNIT_TESTS})
-# target_include_directories(sksvd_unit_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test ${CMAKE_SOURCE_DIR}/src)
-# target_link_libraries(sksvd_unit_test GTest::gtest_main Kokkos::kokkoskernels)
+# enable_testing()
+
+# add_executable(
+#   test_dim_redux
+#   ${CMAKE_SOURCE_DIR}/test/Skema_Test_DimRedux.cpp
+# )
+# target_link_libraries(
+#   test_dim_redux
+#   KokkosKernels
+#   GTest::gtest_main
+# )
+
+# include(GoogleTest)
+# gtest_discover_tests(test_dim_redux)
