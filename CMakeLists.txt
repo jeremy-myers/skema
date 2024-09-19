@@ -16,6 +16,7 @@ add_executable(${PROJECT_NAME}
     ${CMAKE_SOURCE_DIR}/src/Skema_DimRedux_Gauss.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_DimRedux_SparseSign.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_EIGSVD.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_EIGSVD_MatrixMatvec.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_Kernel.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_Sampler.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_ISVD_Primme.cpp
