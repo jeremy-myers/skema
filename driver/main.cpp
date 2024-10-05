@@ -3,14 +3,11 @@
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
 #include <chrono>
-#include <cstdio>
 #include <cstdlib>
 #include <ctime>
-#include <fstream>
 #include <iostream>
 #include <string>
 #include "Skema_AlgParams.hpp"
-#include "Skema_Common.hpp"
 #include "Skema_EIGSVD.hpp"
 #include "Skema_ISVD.hpp"
 #include "Skema_Utils.hpp"
@@ -111,9 +108,12 @@ int main(int argc, char* argv[]) {
       algParams.isvd_num_samples = algParams.window;
     }
 
-    // Fix up options.
+    /* Fix up options. */
+    // iSVD
     if (algParams.isvd_num_samples > 0)
       algParams.isvd_sampling = true;
+    if (algParams.isvd_convtest_skip == 0)
+      algParams.isvd_convtest_skip = algParams.rank;
 
     // TODO move to SKETCH constructor
     algParams.sketch_range =

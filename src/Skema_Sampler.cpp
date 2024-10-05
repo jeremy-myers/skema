@@ -26,7 +26,7 @@ void ReservoirSampler<matrix_type>::sample(const matrix_type& A) {
     return;
 
   Kokkos::Timer timer;
-  const size_type m{A.extent(0)};
+  const size_type m{static_cast<size_type>(A.extent(0))};
 
   if (!initialized) {
     // If here then matrix has no existing samples.
@@ -91,7 +91,7 @@ void ReservoirSampler<crs_matrix_type>::sample(const crs_matrix_type& A) {
     return;
 
   Kokkos::Timer timer;
-  const size_t m{static_cast<size_t>(A.numRows())};
+  const size_type m{static_cast<size_type>(A.numRows())};
   if (!initialized) {
     // If here then matrix has no existing samples.
     // 1. Fill matrix with the first nsamp rows of A.
@@ -102,7 +102,7 @@ void ReservoirSampler<crs_matrix_type>::sample(const crs_matrix_type& A) {
     initialized = true;
     count = 0;
     offset = 0;
-    size_t maxidx{std::min<size_t>(nsamples, m)};
+    size_type maxidx{std::min<size_type>(nsamples, m)};
 
     range_type idx = std::make_pair(0, maxidx);
 

@@ -1,13 +1,15 @@
 #include "Skema_ISVD_Primme.hpp"
 #include <KokkosSparse_IOUtils.hpp>
 #include <Kokkos_Bitset.hpp>
+#include <cstdint>
 #include <cstdio>
 #include <utility>
 #include "Skema_AlgParams.hpp"
 #include "Skema_EIGSVD.hpp"
-#include "Skema_ISVD.hpp"
+#include "Skema_ISVD_MatrixMatvec.hpp"
 #include "Skema_Sampler.hpp"
 #include "Skema_Utils.hpp"
+
 namespace Skema {
 template <typename MatrixType>
 void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
@@ -47,7 +49,7 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
   if (algParams.primme_maxBlockSize > 0)
     primme_svds::params.maxBlockSize = algParams.primme_maxBlockSize;
 
-  if (algParams.isvd_init_with_uvecs) {
+  if (algParams.isvd_initial_guess) {
     Kokkos::parallel_for(
         nrow * rank,
         KOKKOS_LAMBDA(const int i) { svecs.data()[i] = U.data()[i]; });
@@ -59,17 +61,18 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
   primme_svds_display_params(primme_svds::params);
 
   /* Call primme_svds  */
+  std::cout << "Calling PRIMME" << std::endl;
   int ret;
   ret = dprimme_svds(svals.data(), svecs.data(), rnrms.data(),
                      &(primme_svds::params));
   Kokkos::fence();
 
-  fprintf(outputfile, "SVALS: ");
+  // fprintf(outputfile, "SVALS: ");
   for (int64_t i = 0; i < rank; ++i) {
-    fprintf(outputfile, "%.16f ", svals(i));
+    // fprintf(outputfile, "%.16f ", svals(i));
     S(i) = svals(i);
   }
-  fprintf(outputfile, "\n");
+  // fprintf(outputfile, "\n");
 
   for (int64_t i = 0; i < nrow * rank; ++i) {
     U.data()[i] = svecs.data()[i];
@@ -111,9 +114,11 @@ void ISVD_SVDS<crs_matrix_type>::set_u0(const crs_matrix_type& A,
   // Provide initial guess u0 = [eye(r); U] if desired
   matrix_type vsinv("V*inv(S)", ncol, rank);
   matrix_type diag_sinv("diag_sinv", rank, rank);
+  // Vt is S*Vt from ISVD, so we need S^{-2}
   for (auto jj = 0; jj < rank; ++jj)
-    diag_sinv(jj, jj) = (1.0 / S(jj));
+    diag_sinv(jj, jj) = (1.0 / (S(jj) * S(jj)));
 
+  // vsinv = VS^{-1} = (S*Vt')*(S^{-2})
   KokkosBlas::gemm("T", "N", 1.0, Vt, diag_sinv, 0.0, vsinv);
 
   matrix_type u0("u0", nrow - rank, rank);
@@ -125,6 +130,39 @@ void ISVD_SVDS<crs_matrix_type>::set_u0(const crs_matrix_type& A,
   auto u = Kokkos::subview(U, std::make_pair(rank, nrow), Kokkos::ALL());
   Kokkos::deep_copy(u, u0);
 }
+
+template <typename MatrixType>
+struct ISVD_SVDS_convTest {
+  ISVD_SVDS_convTest(const MatrixType& matrix_,
+                     const index_type indices_,
+                     const size_type nrow_,
+                     const scalar_type eps_,
+                     const size_type kskip_)
+      : matrix(matrix_),
+        indices(indices_),
+        nrow(nrow_),
+        eps(eps_),
+        kskip(kskip_) {};
+  const MatrixType matrix;
+  const index_type indices;
+  const size_type nrow;
+  const size_type kskip;
+  const scalar_type eps;
+
+  matrix_type svals;
+  matrix_type rvals;
+  Kokkos::Bitset<device_type> flags;
+  static size_type curMaxIx;
+  static size_type jsv;
+  static size_type numRestarts;
+};
+
+template <typename MatrixType>
+size_type ISVD_SVDS_convTest<MatrixType>::jsv;
+template <typename MatrixType>
+size_type ISVD_SVDS_convTest<MatrixType>::numRestarts;
+template <typename MatrixType>
+size_type ISVD_SVDS_convTest<MatrixType>::curMaxIx;
 
 /* Wrapper for compute that sets convtest & initial guess if desired */
 template <>
@@ -158,13 +196,14 @@ void ISVD_SVDS<crs_matrix_type>::compute(
 
   // If here, then we've seen a previous window.
   primme_svds::reinitialize();
+  primme_svds::params.locking = 0;
+
+  ISVD_SVDS_convTest<crs_matrix_type> convtest(
+      sampler.matrix(), sampler.indices(), nrow, algParams.isvd_convtest_eps,
+      algParams.isvd_convtest_skip);
 
   // Set convTestFun
   if (algParams.isvd_sampling) {
-    ISVD_SVDS_convTest<crs_matrix_type> convtest(
-        sampler.matrix(), sampler.indices(), nrow,
-        algParams.primme_convtest_eps, algParams.primme_convtest_skipitn);
-
     // Want to set number of rows to primme_params.maxBasisSize but we haven't
     // set the method yet - that occurs in compute(). So we just use the largest
     // preset maxBasisSize, which is 3 * rank.
@@ -173,12 +212,16 @@ void ISVD_SVDS<crs_matrix_type>::compute(
     convtest.flags = Kokkos::Bitset<device_type>(3 * rank);
     convtest.flags.clear();
 
+    ISVD_SVDS_convTest<crs_matrix_type>::jsv = algParams.isvd_convtest_skip - 1;
+    ISVD_SVDS_convTest<crs_matrix_type>::numRestarts = 0;
+    ISVD_SVDS_convTest<crs_matrix_type>::curMaxIx = 0;
+
     primme_svds::params.convtest = &convtest;
     primme_svds::params.convTestFun = isvd_sparse_convTestFun;
   }
 
   // Set initial guess
-  if (algParams.isvd_init_with_uvecs) {
+  if (algParams.isvd_initial_guess) {
     set_u0(matrix, nrow, ncol, rank, U, S, Vt);
   }
 
@@ -197,37 +240,45 @@ void isvd_sparse_convTestFun(double* sval,
                              int* ierr) {
   using MatrixType = crs_matrix_type;
   try {
-    ISVD_SVDS_convTest<MatrixType> sampler =
+    ISVD_SVDS_convTest<MatrixType> convtest =
         *(ISVD_SVDS_convTest<MatrixType>*)primme_svds->convtest;
 
     auto isv = *isconv;
 
     if (isv > 0) {  // it's called from restart. Ignore
-      fprintf(primme_svds->outputFile, " isv %d Restart---return flags[ix] \n",
-              isv - 1);
-      *isconv = sampler.flags.test(isv - 1);
+      fprintf(primme_svds->outputFile,
+              " isv %d Restart---return flags[%d] = %d \n", isv - 1, isv - 1,
+              convtest.flags.test(isv - 1));
+      *isconv = convtest.flags.test(isv - 1);
       *ierr = 0;
       return;
     }
 
     isv = -isv - 1;  // Transform back to eigenvalue index
-    sampler.curMaxIx = std::max<size_type>(
-        sampler.curMaxIx,
+                     // auto curMaxIx{convtest.curMaxIx};
+                     // convtest.curMaxIx = curMaxIx > isv ? curMaxIx : isv;
+    convtest.curMaxIx = std::max<size_type>(
+        convtest.curMaxIx,
         isv);  // keep track of the max index seen in case of locking
+    // convtest.curMaxIx = std::max<size_type>(
+    //     convtest.curMaxIx,
+    //     static_cast<size_type>(
+    //         isv));  // keep track of the max index seen in case of locking
     fprintf(primme_svds->outputFile, "isv %d jsv %d maxIndexSeen %d\n", isv,
-            static_cast<int>(sampler.jsv), static_cast<int>(sampler.curMaxIx));
+            static_cast<int>(convtest.jsv),
+            static_cast<int>(convtest.curMaxIx));
 
     *isconv = 0;
 
     /* if isv was flagged previously based on my test, pass the flag to primme
      */
-    if (sampler.flags.test(isv)) {
+    if (convtest.flags.test(isv)) {
       *ierr = 0;
       *isconv = true;
       return;
     }
 
-    if (isv == sampler.jsv) { /* check this index */
+    if (isv == convtest.jsv) { /* check this index */
       Kokkos::Timer timer_init;
       Kokkos::Timer timer_mtv1;
       Kokkos::Timer timer_mtv2;
@@ -246,10 +297,11 @@ void isvd_sparse_convTestFun(double* sval,
       /* Compute rightsvec if we don't already have it. */
       const ISVD_Matrix<MatrixType> matrix =
           *(ISVD_Matrix<MatrixType>*)primme_svds->matrix;
-      const size_type nrow{matrix.upper.extent(0) + matrix.lower.numRows()};
+      const size_type nrow{static_cast<size_type>(matrix.upper.extent(0) +
+                                                  matrix.lower.numRows())};
       assert(matrix.upper.extent(1) == matrix.lower.numCols());
-      const size_type ncol{matrix.upper.extent(1)};
-      const size_type kidx{matrix.upper.extent(0)};
+      const size_type ncol{static_cast<size_type>(matrix.upper.extent(1))};
+      const size_type kidx{static_cast<size_type>(matrix.upper.extent(0))};
 
       size_type lvec_dense_begin;
       size_type lvec_dense_end;
@@ -348,8 +400,8 @@ void isvd_sparse_convTestFun(double* sval,
       /* Use rightvec to compute sample residual */
       // Get needed scalars
       timer_init.reset();
-      const size_type nsamp{static_cast<size_type>(sampler.matrix.numRows())};
-      const scalar_type alpha{std::sqrt(sampler.nrow / nsamp)};
+      const size_type nsamp{static_cast<size_type>(convtest.matrix.numRows())};
+      const scalar_type alpha{std::sqrt(convtest.nrow / nsamp)};
       vector_type Av("av", nsamp);
       size_type ind;
       vector_type r_new("rnrm_new", nsamp);
@@ -358,14 +410,14 @@ void isvd_sparse_convTestFun(double* sval,
 
       // Compute Av = sample_matrix * v
       timer_mtv2.reset();
-      KokkosSparse::spmv("N", 1.0, sampler.matrix, rvec, 0.0, Av);
+      KokkosSparse::spmv("N", 1.0, convtest.matrix, rvec, 0.0, Av);
       // ++primme_svds->primme.stats.numMatvecs;
       t_mtv2 += timer_mtv2.seconds();
 
       // Compute r = ||sample_matrix * v - snew * v(sample_indices)||_2
       timer_norm.reset();
       for (auto ii = 0; ii < nsamp; ++ii) {
-        ind = sampler.indices(ii);
+        ind = convtest.indices(ii);
         r_new(ii) = Av(ii) - snew * rvec(ind);
       }
       r = alpha * KokkosBlas::nrm2(r_new);
@@ -380,10 +432,10 @@ void isvd_sparse_convTestFun(double* sval,
         scalar_type err;
         scalar_type tmp;
 
-        tmp = std::abs(sampler.svals(isv, 0) - sampler.svals(isv, 1));
+        tmp = std::abs(convtest.svals(isv, 0) - convtest.svals(isv, 1));
         (tmp != 0.0)
             ? rho = std::sqrt(
-                  (std::abs(((scalar_type)*sval) - sampler.svals(isv, 0))) /
+                  (std::abs(((scalar_type)*sval) - convtest.svals(isv, 0))) /
                   tmp)
             : rho = 0.0;
         if (std::isinf(rho)) {
@@ -391,13 +443,13 @@ void isvd_sparse_convTestFun(double* sval,
           exit(2);
         }
 
-        del = ((1 - rho) / (1 + sampler.eps)) * sampler.eps;
+        del = ((1 - rho) / (1 + convtest.eps)) * convtest.eps;
         if (std::isnan(del) || std::isinf(del)) {
           std::cout << "delta encountered NaN or Inf" << std::endl;
           exit(2);
         }
 
-        err = std::abs(r - sampler.rvals(isv, 0)) / std::abs(r);
+        err = std::abs(r - convtest.rvals(isv, 0)) / std::abs(r);
         if (std::isnan(err) || std::isinf(err)) {
           std::cout << "err encountered NaN or Inf" << std::endl;
           exit(2);
@@ -407,19 +459,18 @@ void isvd_sparse_convTestFun(double* sval,
 
         if (*isconv) {
           fprintf(primme_svds->outputFile, "CTF: converged isv %d jsv %d\n",
-                  isv,
-                  static_cast<int>(ISVD_SVDS_convTest<crs_matrix_type>::jsv));
+                  isv, static_cast<int>(convtest.jsv));
           for (auto i = 0; i < isv + 1; ++i) {
-            sampler.flags.set(i);
+            convtest.flags.set(i);
           }
           /* skip to next jsv */
-          sampler.jsv = std::min<size_type>(sampler.jsv + sampler.kskip,
-                                            primme_svds->numSvals - 1);
+          convtest.jsv = std::min<size_type>(convtest.jsv + convtest.kskip,
+                                             primme_svds->numSvals - 1);
         }
 
         t_crit = timer_crit.seconds();
         fprintf(primme_svds->outputFile,
-                "JMM %lld blk %d MV %lld Sec %E tMV %E tORTH %E SV %.16f "
+                "CTF %lld blk %d MV %lld Sec %E tMV %E tORTH %E SV %.16f "
                 "|r| %.16f ",
                 primme_svds->primme.stats.numOuterIterations, isv,
                 primme_svds->primme.stats.numMatvecs,
@@ -433,7 +484,7 @@ void isvd_sparse_convTestFun(double* sval,
                 r, (1 - rho), del, err);
       } else {
         fprintf(primme_svds->outputFile,
-                "JMM %lld blk %d MV %lld Sec %E tMV %E tORTH %E SV %.16f "
+                "CTF %lld blk %d MV %lld Sec %E tMV %E tORTH %E SV %.16f "
                 "|r| %.16f ",
                 primme_svds->primme.stats.numOuterIterations, isv,
                 primme_svds->primme.stats.numMatvecs,
@@ -448,10 +499,11 @@ void isvd_sparse_convTestFun(double* sval,
       fflush(primme_svds->outputFile);
 
       // Push back history
-      sampler.rvals(isv, 1) = sampler.rvals(isv, 0);
-      sampler.rvals(isv, 0) = r;
-      sampler.svals(isv, 1) = sampler.svals(isv, 0);
-      sampler.svals(isv, 0) = ((scalar_type)*sval);
+      convtest.rvals(isv, 1) = convtest.rvals(isv, 0);
+      convtest.rvals(isv, 0) = r;
+      convtest.svals(isv, 1) = convtest.svals(isv, 0);
+      convtest.svals(isv, 0) = ((scalar_type)*sval);
+
       *ierr = 0;
     } else {
       *isconv = 0;

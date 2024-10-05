@@ -41,8 +41,8 @@ inline void mm(const char mode,
 }
 
 inline matrix_type transpose(const matrix_type& input) {
-  const size_type input_nrow{input.extent(0)};
-  const size_type input_ncol{input.extent(1)};
+  const size_type input_nrow{static_cast<size_type>(input.extent(0))};
+  const size_type input_ncol{static_cast<size_type>(input.extent(1))};
   matrix_type output("transpose", input_ncol, input_nrow);
   for (size_type irow = 0; irow < input_nrow; ++irow) {
     for (size_type jcol = 0; jcol < input_ncol; ++jcol) {

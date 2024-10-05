@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.20)
 project(skema)
 
+
+# Add primme build with specific commit to eloy/index-conv-test-fun
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/include/")
@@ -25,8 +28,14 @@ add_executable(${PROJECT_NAME}
     ${CMAKE_SOURCE_DIR}/src/Skema_SketchySVD.cpp
 )
 
+# Add Kokkos
+# add_subdirectory(tpls/kokkos)
+# include_directories(${Kokkos_INCLUDE_DIRS_RET})
+# target_link_libraries(${PROJECT_NAME} kokkos)
 # Add KokkosKernels
 find_package(KokkosKernels REQUIRED)
+# add_subdirectory(tpls/kokkos-kernels)
+# include_directories(${KokkosKernels_INCLUD_DIRS_RET})
 target_link_libraries(${PROJECT_NAME} Kokkos::kokkoskernels)
 
 # Add Lapack
@@ -42,30 +51,14 @@ endif()
 target_include_directories(${PROJECT_NAME} PRIVATE "/usr/include" "/usr/local/include")
 
 # Add PRIMME
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/tpls/primme/include/)
-target_link_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/tpls/primme/lib/)
+# add_library(primme SHARED IMPORTED)
+# set_target_properties(primme PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/tpls/primme/lib/libprimme.dylib )
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/src/)
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include/)
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/tpls/primme/include/)
+target_link_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/tpls/primme/lib/)
 target_link_libraries(${PROJECT_NAME} ${CMAKE_SOURCE_DIR}/tpls/primme/lib/libprimme.a -llapack -lblas)
+# target_link_libraries(${PROJECT_NAME} primme -llapack -lblas)
 
 add_compile_options(-fsanitize=address)
 add_link_options(-fsanitize=address)
-
-# Googletest
-# add_subdirectory(tpls/googletest)
-# find_package(GTest CONFIG REQUIRED)
-
-# enable_testing()
-
-# add_executable(
-#   test_dim_redux
-#   ${CMAKE_SOURCE_DIR}/test/Skema_Test_DimRedux.cpp
-# )
-# target_link_libraries(
-#   test_dim_redux
-#   KokkosKernels
-#   GTest::gtest_main
-# )
-
-# include(GoogleTest)
-# gtest_discover_tests(test_dim_redux)

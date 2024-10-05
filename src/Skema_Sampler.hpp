@@ -4,12 +4,7 @@
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
 #include <Kokkos_Timer.hpp>
-#include <cmath>
 #include <cstddef>
-#include <iomanip>
-#include <memory>
-#include "Skema_AlgParams.hpp"
-#include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
 
 namespace Skema {
@@ -33,6 +28,10 @@ class Sampler {
     count = 0;
     offset = 0;
   };
+  Sampler(const Sampler&) = default;
+  Sampler(Sampler&&) = default;
+  Sampler& operator=(const Sampler&);
+  Sampler& operator=(Sampler&&);
   virtual ~Sampler() {}
   virtual void sample(const MatrixType& A) = 0;
 
@@ -59,12 +58,17 @@ class ReservoirSampler : public Sampler<MatrixType> {
                    const ordinal_type seed_,
                    const ordinal_type print_level_)
       : Sampler<MatrixType>(nsamples_, nrow_, ncol_, seed_, print_level_) {}
-  virtual ~ReservoirSampler(){};
+  ReservoirSampler(const ReservoirSampler&) = default;
+  ReservoirSampler(ReservoirSampler&&) = default;
+  ReservoirSampler& operator=(const ReservoirSampler&);
+  ReservoirSampler& operator=(ReservoirSampler&&);
+  virtual ~ReservoirSampler() {}
 
   void sample(const MatrixType& A) override;
 
   const inline MatrixType& matrix() const { return data; };
   const inline index_type& indices() const { return idxs; };
+  const inline ordinal_type indices(const int i) const { return idxs(i); };
   struct {
     scalar_type elapsed_time{0.0};
   } stats;

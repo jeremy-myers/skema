@@ -3,10 +3,7 @@
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
 #include <cstddef>
-#include <iomanip>
 #include <utility>
-#include "Skema_AlgParams.hpp"
-#include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
 #include "primme.h"
 

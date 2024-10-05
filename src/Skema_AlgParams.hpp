@@ -27,12 +27,12 @@ struct AlgParams {
 
   /* ISVD options */
   bool isvd_dense_solver;
-  bool isvd_init_with_uvecs;
+  bool isvd_initial_guess;
 
   // ISVD: PRIMME options
   double primme_eps;
-  double primme_convtest_eps;
-  int primme_convtest_skipitn;
+  double isvd_convtest_eps;
+  int isvd_convtest_skip;
   int primme_initSize;
   int primme_maxBasisSize;
   int primme_minRestartSize;

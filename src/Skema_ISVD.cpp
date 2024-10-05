@@ -103,6 +103,7 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
     // Sample window
     sampler.sample(A_window);
 
+    Impl::write(vtvex, "20241005_skema_test.txt");
     // Compute decomposition with optional sampler
     solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex,
                    sampler);
@@ -131,8 +132,9 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
   if (algParams.hist) {
     std::string fname;
     fname = algParams.outputfilename + "_svals.txt";
-    auto sval_trace =
-        Kokkos::subview(sval_traces, Kokkos::ALL(), std::make_pair(0, ucnt));
+    auto sval_trace = Kokkos::subview(
+        sval_traces, Kokkos::ALL(),
+        std::make_pair<size_type>(0, static_cast<size_type>(ucnt)));
     Impl::write(sval_traces, fname.c_str());
 
     fname = algParams.outputfilename + "_rnrms.txt";

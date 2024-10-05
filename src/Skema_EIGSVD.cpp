@@ -1,5 +1,4 @@
 #include "Skema_EIGSVD.hpp"
-#include <memory>
 #include "Skema_AlgParams.hpp"
 #include "Skema_EIGSVD_MatrixMatvec.hpp"
 #include "Skema_Utils.hpp"

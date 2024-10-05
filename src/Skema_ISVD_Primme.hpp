@@ -4,10 +4,8 @@
 #include <cstddef>
 #include "Skema_AlgParams.hpp"
 #include "Skema_EIGSVD.hpp"
-#include "Skema_ISVD_MatrixMatvec.hpp"
 #include "Skema_Sampler.hpp"
 #include "Skema_Utils.hpp"
-#include "primme.h"
 
 namespace Skema {
 template <typename MatrixType>
@@ -61,46 +59,6 @@ class ISVD_SVDS : public PRIMME_SVDS<MatrixType> {
 
 template class ISVD_SVDS<matrix_type>;
 template class ISVD_SVDS<crs_matrix_type>;
-
-template <typename MatrixType>
-struct ISVD_SVDS_convTest {
-  ISVD_SVDS_convTest(const MatrixType& matrix_,
-                     const index_type indices_,
-                     const size_type nrow_,
-                     const scalar_type eps_,
-                     const size_type kskip_)
-      : matrix(matrix_),
-        indices(indices_),
-        nrow(nrow_),
-        eps(eps_),
-        kskip(kskip_) {
-    jsv = kskip - 1;
-    numRestarts = 0;
-    curMaxIx = 0;
-  };
-  const MatrixType matrix;
-  const index_type indices;
-  const size_type nrow;
-  const size_type kskip;
-  const scalar_type eps;
-
-  matrix_type svals;
-  matrix_type rvals;
-  Kokkos::Bitset<device_type> flags;
-  static size_type curMaxIx;
-  static size_type jsv;
-  static size_type numRestarts;
-};
-
-template <typename MatrixType>
-size_type ISVD_SVDS_convTest<MatrixType>::jsv;
-template <typename MatrixType>
-size_type ISVD_SVDS_convTest<MatrixType>::numRestarts;
-template <typename MatrixType>
-size_type ISVD_SVDS_convTest<MatrixType>::curMaxIx;
-
-template class ISVD_SVDS_convTest<matrix_type>;
-template class ISVD_SVDS_convTest<crs_matrix_type>;
 
 extern "C" {
 void isvd_sparse_convTestFun(double* sval,

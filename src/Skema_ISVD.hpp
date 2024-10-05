@@ -7,9 +7,8 @@
 #include <Kokkos_Random.hpp>
 #include <cstddef>
 #include "Skema_AlgParams.hpp"
-#include "Skema_Sampler.hpp"
+#include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
-#include "primme.h"
 
 namespace Skema {
 template <typename MatrixType>
@@ -32,8 +31,8 @@ class ISVD {
          const matrix_type V,
          const ordinal_type rank,
          const AlgParams& algParams) {
-    const size_type nrow{algParams.matrix_m};
-    const size_type ncol{algParams.matrix_n};
+    const size_type nrow{static_cast<size_type>(algParams.matrix_m)};
+    const size_type ncol{static_cast<size_type>(algParams.matrix_n)};
     range_type rlargest = std::make_pair<size_type, size_type>(0, rank);
 
     matrix_type Vr(V, Kokkos::ALL(), rlargest);
@@ -54,7 +53,7 @@ class ISVD {
 
   KOKKOS_INLINE_FUNCTION
   void distribute(const vector_type& svals, const matrix_type& vvecs) {
-    size_type k{svals.size()};
+    size_type k{static_cast<size_type>(svals.size())};
     Kokkos::parallel_for(
         k, KOKKOS_LAMBDA(const int ii) {
           scalar_type sval{svals(ii)};
@@ -66,7 +65,7 @@ class ISVD {
 
   KOKKOS_INLINE_FUNCTION
   void normalize(const vector_type& svals, const matrix_type& vvecs) {
-    size_type k{svals.size()};
+    size_type k{static_cast<size_type>(svals.size())};
     Kokkos::parallel_for(
         k, KOKKOS_LAMBDA(const int ii) {
           scalar_type sval{svals(ii)};

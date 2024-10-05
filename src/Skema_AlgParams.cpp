@@ -25,10 +25,10 @@ AlgParams::AlgParams()
       isvd_sampler(Skema::Sampler_Type::default_type),
       isvd_num_samples(0),
       isvd_sampling(false),
-      isvd_init_with_uvecs(false),
+      isvd_convtest_eps(1e-4),
+      isvd_convtest_skip(0),
+      isvd_initial_guess(false),
       primme_eps(1e-4),
-      primme_convtest_eps(1e-4),
-      primme_convtest_skipitn(1),
       primme_initSize(0),
       primme_maxBasisSize(0),
       primme_minRestartSize(0),
@@ -58,56 +58,48 @@ void AlgParams::print(std::ostream& out) const {
     out << "  dense matrix";
     out << ", size = " << matrix_m << " x " << matrix_n;
   }
+  out << "\n";
   out << "  rank = " << rank << std::endl;
   out << "  window size = " << window << std::endl;
   out << "  solver = " << Skema::Solver_Method::names[solver] << std::endl;
 
   switch (Skema::Solver_Method::types[solver]) {
     case Skema::Solver_Method::ISVD:
-      if (Skema::Decomposition_Type::types[decomposition_type] ==
-          (Skema::Decomposition_Type::EIGS ||
-           Skema::Decomposition_Type::SVDS)) {
-        out << "    PRIMME method = " << primme_method << std::endl;
-        out << "    PRIMME methodStage2 = " << primme_methodStage2 << std::endl;
-        out << "    PRIMME printLevel = " << primme_printLevel << std::endl;
-        out << "    PRIMME tolerance = " << primme_eps << std::endl;
-        out << "    PRIMME locking = " << std::boolalpha << primme_locking
-            << std::endl;
-        
         if (isvd_num_samples > 0) {
-          out << "    PRIMME conv test func eps = " << primme_convtest_eps
+          out << "  iSVD sampler = " << isvd_sampler << std::endl;
+          out << "  iSVD num samples = " << isvd_num_samples << std::endl;
+          out << "  iSVD conv test func eps = " << isvd_convtest_eps
               << std::endl;
-          out << "    PRIMME conv test skip = " << primme_convtest_skipitn
-              << std::endl;
+          out << "  iSVD conv test skip = " << isvd_convtest_skip << std::endl;
         }
 
-        if (primme_maxIter > 0)
-          out << "    PRIMME maxOuterIters = " << primme_maxIter << std::endl;
+        // out << "    PRIMME method = " << primme_method << std::endl;
+        // out << "    PRIMME methodStage2 = " << primme_methodStage2 << std::endl;
+        // out << "    PRIMME printLevel = " << primme_printLevel << std::endl;
+        // out << "    PRIMME tolerance = " << primme_eps << std::endl;
+        // out << "    PRIMME locking = " << std::boolalpha << primme_locking
+        //     << std::endl;
 
-        if (primme_maxMatvecs > 0)
-          out << "    PRIMME maxMatvecs = " << primme_maxMatvecs << std::endl;
+        // if (primme_maxIter > 0)
+        //   out << "    PRIMME maxOuterIters = " << primme_maxIter << std::endl;
 
-        if (primme_maxBasisSize > 0)
-          out << "    PRIMME maxBasisSize = " << primme_maxBasisSize
-              << std::endl;
+        // if (primme_maxMatvecs > 0)
+        //   out << "    PRIMME maxMatvecs = " << primme_maxMatvecs << std::endl;
 
-        if (primme_maxBlockSize > 0)
-          out << "    PRIMME maxBlockSize = " << primme_maxBlockSize
-              << std::endl;
+        // if (primme_maxBasisSize > 0)
+        //   out << "    PRIMME maxBasisSize = " << primme_maxBasisSize
+        //       << std::endl;
 
-        if (primme_minRestartSize > 0)
-          out << "    PRIMME minRestartSize = " << primme_minRestartSize
-              << std::endl;
+        // if (primme_maxBlockSize > 0)
+        //   out << "    PRIMME maxBlockSize = " << primme_maxBlockSize
+        //       << std::endl;
 
-        std::cout << "    Use uvecs as initial guess = " << std::boolalpha
-                  << isvd_init_with_uvecs << std::endl;
-      }
+        // if (primme_minRestartSize > 0)
+        //   out << "    PRIMME minRestartSize = " << primme_minRestartSize
+        //       << std::endl;
 
-      if (isvd_num_samples > 0) {
-        out << "  sampler = " << isvd_sampler << std::endl;
-        out << "  num samples = " << isvd_num_samples << std::endl;
-      }
-      
+        std::cout << "  iSVD initial guess = " << std::boolalpha
+                  << isvd_initial_guess << std::endl;
       break;
 
     case Skema::Solver_Method::SKETCH:
@@ -126,9 +118,9 @@ void AlgParams::print(std::ostream& out) const {
       out << "    PRIMME locking = " << std::boolalpha << primme_locking
           << std::endl;
       if (isvd_num_samples > 0) {
-        out << "    PRIMME conv test func eps = " << primme_convtest_eps
+        out << "    PRIMME conv test func eps = " << isvd_convtest_eps
             << std::endl;
-        out << "    PRIMME conv test skip = " << primme_convtest_skipitn
+        out << "    PRIMME conv test skip = " << isvd_convtest_skip
             << std::endl;
       }
       if (primme_maxIter > 0) {
@@ -190,16 +182,22 @@ void AlgParams::parse(std::vector<std::string>& args) {
   sketch_nu =
       parse_real(args, "--nu", 1.0, 0.0, std::numeric_limits<double>::max());
 
-  // PRIMME solver options
+  // iSVD solver options
   isvd_dense_solver = parse_bool(args, "--svd", "--svds", false);
+  isvd_sampler = parse_enum(
+      args, "--isvd-sampler", isvd_sampler, Skema::Sampler_Type::num_types,
+      Skema::Sampler_Type::types, Skema::Sampler_Type::names);
+  isvd_num_samples = parse_int(args, "--isvd-num-samples", 0, 0, INT_MAX);
+  isvd_convtest_eps = parse_real(args, "--isvd-convtest-eps", isvd_convtest_eps,
+                                 std::numeric_limits<double>::epsilon(), 1.0);
+  isvd_convtest_skip = parse_int(args, "--isvd-convtest-skip", 0, 0, INT_MAX);
+  isvd_initial_guess = parse_bool(args, "--isvd-initial-guess",
+                                  "--isvd-initial-guess-off", false);
+
+  // PRIMME solver options
   primme_printLevel = parse_int(args, "--primme_printLevel", 0, 0, 5);
   primme_eps = parse_real(args, "--primme_eps", primme_eps,
                           std::numeric_limits<double>::epsilon(), 1.0);
-  primme_convtest_eps =
-      parse_real(args, "--primme_convtest_eps", primme_convtest_eps,
-                 std::numeric_limits<double>::epsilon(), 1.0);
-  primme_convtest_skipitn =
-      parse_int(args, "--primme_convtest_skip", 1, 1, INT_MAX);
   primme_initSize = parse_int(args, "--primme_initSize", 0, 0, INT_MAX);
   primme_maxBasisSize = parse_int(args, "--primme_maxBasisSize", 0, 0, INT_MAX);
   primme_minRestartSize =
@@ -214,9 +212,6 @@ void AlgParams::parse(std::vector<std::string>& args) {
   primme_methodStage2 =
       parse_string(args, "--prime_methodStage2", "PRIMME_DEFAULT_METHOD");
 
-  isvd_init_with_uvecs = parse_bool(args, "--isvd-init-with-uvecs",
-                                    "--isvd-init-with-uvecs-off", false);
-
   // Kernel options
   kernel_func =
       parse_enum(args, "--kernel", kernel_func, Skema::Kernel_Map::num_types,
@@ -224,11 +219,6 @@ void AlgParams::parse(std::vector<std::string>& args) {
   kernel_gamma = parse_real(args, "--gamma", kernel_gamma, 0.0,
                             std::numeric_limits<double>::max());
 
-  // Sampling options
-  isvd_sampler = parse_enum(
-      args, "--isvd-sampler", isvd_sampler, Skema::Sampler_Type::num_types,
-      Skema::Sampler_Type::types, Skema::Sampler_Type::names);
-  isvd_num_samples = parse_int(args, "--isvd-num-samples", 0, 0, INT_MAX);
   if (isvd_num_samples > 0)
     isvd_sampling = true;
 }
