@@ -11,10 +11,10 @@
 
 namespace Skema {
 template <typename MatrixType>
-class KernelNew {
+class Kernel {
  public:
-  KernelNew(){};
-  virtual ~KernelNew() {}
+  Kernel(){};
+  virtual ~Kernel() {}
   virtual MatrixType compute(const MatrixType&,
                              const size_type,
                              const size_type,
@@ -26,11 +26,11 @@ class KernelNew {
 };
 
 template <typename MatrixType>
-class GaussRBFNew : public KernelNew<MatrixType> {
+class GaussRBF : public Kernel<MatrixType> {
  public:
-  GaussRBFNew() : gamma(0.0){};
-  GaussRBFNew(const scalar_type gamma_) : gamma(gamma_){};
-  virtual ~GaussRBFNew(){};
+  GaussRBF() : gamma(0.0){};
+  GaussRBF(const scalar_type gamma_) : gamma(gamma_){};
+  virtual ~GaussRBF(){};
 
   struct {
     scalar_type time{0.0};
@@ -53,7 +53,7 @@ class GaussRBFNew : public KernelNew<MatrixType> {
   scalar_type gamma;
 };
 
-template class GaussRBFNew<matrix_type>;
-template class GaussRBFNew<crs_matrix_type>;
+template class GaussRBF<matrix_type>;
+template class GaussRBF<crs_matrix_type>;
 }  // namespace Skema
 #endif /* SKEMA_KERNEL_H */

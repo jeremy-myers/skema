@@ -57,7 +57,7 @@ class GaussRBFWindow : public WindowBase<MatrixType> {
  public:
   GaussRBFWindow(const AlgParams& algParams_)
       : WindowBase<MatrixType>(algParams_) {
-    map = GaussRBFNew<MatrixType>(algParams_.kernel_gamma);
+    map = GaussRBF<MatrixType>(algParams_.kernel_gamma);
   }
   ~GaussRBFWindow(){};
 
@@ -65,7 +65,7 @@ class GaussRBFWindow : public WindowBase<MatrixType> {
   crs_matrix_type get(const crs_matrix_type&, const range_type);
 
  protected:
-  GaussRBFNew<MatrixType> map;
+  GaussRBF<MatrixType> map;
 };
 
 template class GaussRBFWindow<matrix_type>;
