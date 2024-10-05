@@ -103,7 +103,6 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
     // Sample window
     sampler.sample(A_window);
 
-    Impl::write(vtvex, "20241005_skema_test.txt");
     // Compute decomposition with optional sampler
     solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex,
                    sampler);
