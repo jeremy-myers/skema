@@ -1,7 +1,6 @@
 #pragma once
 #ifndef SKEMA_EIGSVD_HPP
 #define SKEMA_EIGSVD_HPP
-#include <lapacke.h>
 #include "Skema_AlgParams.hpp"
 #include "Skema_Sampler.hpp"
 #include "Skema_Utils.hpp"

@@ -8,6 +8,7 @@
 #include <iostream>
 #include <string>
 #include "Skema_AlgParams.hpp"
+#include "Skema_DimRedux_tmp.hpp"
 #include "Skema_EIGSVD.hpp"
 #include "Skema_ISVD.hpp"
 #include "Skema_Utils.hpp"
@@ -90,6 +91,9 @@ int main(int argc, char* argv[]) {
 
     AlgParams algParams;
 
+    std::unique_ptr<Skema::DimRedux<matrix_type>> dr;
+    dr = Skema::getDimRedux<matrix_type>((int)10, (int)10, (int)0, algParams);
+
     // Driver options
     std::string inputfilename = "";
     std::string outputfilename = "";
@@ -97,6 +101,10 @@ int main(int argc, char* argv[]) {
 
     inputfilename = parse_string(args, "--input", inputfilename);
 
+    if (inputfilename == "") {
+      std::cout << "Must provide matrix input" << std::endl;
+      exit(1);
+    }
     algParams.parse(args);
 
     // Early exit for some generic choices

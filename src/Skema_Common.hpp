@@ -1,7 +1,8 @@
 #pragma once
 #ifndef SKEMA_COMMON_HPP
 #define SKEMA_COMMON_HPP
-#include <KokkosSparse_Utils.hpp>
+// #include <KokkosSparse_Utils.hpp>
+#include <KokkosSparse.hpp>
 #include <cstddef>
 #include <cstdio>
 #include <ostream>
@@ -57,12 +58,13 @@ inline crs_matrix_type transpose(const crs_matrix_type& input) {
 }
 
 inline matrix_type get_window(const matrix_type& input,
-                              const std::pair<size_type, size_type> idx) {
+                              const Kokkos::pair<size_type, size_type> idx) {
   return Kokkos::subview(input, idx, Kokkos::ALL());
 }
 
-inline crs_matrix_type get_window(const crs_matrix_type& input,
-                                  const std::pair<size_type, size_type> idx) {
+inline crs_matrix_type get_window(
+    const crs_matrix_type& input,
+    const Kokkos::pair<size_type, size_type> idx) {
   crs_matrix_type::row_map_type::non_const_type window_row_map(
       "A_sub_row_map", idx.second - idx.first + 1);
   auto window_entries = Kokkos::subview(

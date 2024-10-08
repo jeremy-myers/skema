@@ -189,10 +189,10 @@ void ReservoirSampler<crs_matrix_type>::sample(const crs_matrix_type& A) {
     Kokkos::sort(add_to_new_rowids);
 
     // Pop the kept indices from the list
-    auto only_new_rowids = Kokkos::subview(
-        add_to_new_rowids,
-        Kokkos::make_pair<size_type>(keep_from_prev_rowids.count(),
-                                     add_to_new_rowids.extent(0)));
+    auto only_new_rowids =
+        Kokkos::subview(add_to_new_rowids,
+                        Kokkos::make_pair<size_t>(keep_from_prev_rowids.count(),
+                                                  add_to_new_rowids.extent(0)));
 
     // if (debug_level > 0) {
     //   std::cout << "\nNew rows = " << only_new_rowids.extent(0) << std::endl;

@@ -1,7 +1,6 @@
 #pragma once
 #ifndef SKEMA_UTILS_H
 #define SKEMA_UTILS_H
-#include <KokkosKernels_default_types.hpp>
 #include <KokkosSparse.hpp>
 #include <Kokkos_Core.hpp>
 #include <cfloat>
@@ -13,10 +12,10 @@
 #include <string>
 
 /* Typedefs */
-using scalar_type = default_scalar;
-using ordinal_type = default_lno_t;
-using size_type = default_size_type;
-using layout_type = default_layout;
+using scalar_type = double;
+using ordinal_type = int;
+using size_type = std::size_t;
+using layout_type = Kokkos::LayoutLeft;
 using device_type = typename Kokkos::Device<
     Kokkos::DefaultExecutionSpace,
     typename Kokkos::DefaultExecutionSpace::memory_space>;
@@ -37,7 +36,7 @@ using unmanaged_vector_type =
                           Kokkos::HostSpace,
                           Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 using index_type = typename Kokkos::View<ordinal_type*, layout_type>;
-using range_type = typename std::pair<size_type, size_type>;
+using range_type = typename Kokkos::pair<size_type, size_type>;
 
 /* Enums */
 namespace Skema {

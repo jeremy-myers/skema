@@ -2,7 +2,6 @@
 #include "Skema_AlgParams.hpp"
 #include "Skema_EIGSVD_MatrixMatvec.hpp"
 #include "Skema_Utils.hpp"
-#include "primme_eigs.h"
 
 namespace Skema {
 
