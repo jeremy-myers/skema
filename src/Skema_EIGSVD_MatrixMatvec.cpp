@@ -1,6 +1,4 @@
 #include "Skema_EIGSVD_MatrixMatvec.hpp"
-#include "Skema_Common.hpp"
-#include "Skema_EIGSVD.hpp"
 #include "Skema_Utils.hpp"
 
 extern "C" {

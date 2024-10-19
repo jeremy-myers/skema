@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SKEMA_ALG_PARAMS_H
-#define SKEMA_ALG_PARAMS_H
 #include <climits>
 #include <cstddef>
 #include <iostream>
@@ -120,5 +118,3 @@ std::vector<std::string> build_arg_list(int argc, char** argv);
 // are any, false otherwise
 bool check_and_print_unused_args(const std::vector<std::string>& args,
                                  std::ostream& out);
-
-#endif /* SKEMA_ALG_PARAMS_H */

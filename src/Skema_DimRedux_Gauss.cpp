@@ -1,30 +1,20 @@
-#include <KokkosSparse.hpp>
+// #include <KokkosSparse.hpp>
 #include <Kokkos_Random.hpp>
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
-#include <random>
-#include "Skema_AlgParams.hpp"
 #include "Skema_Common.hpp"
-#include "Skema_DimRedux_tmp.hpp"
+#include "Skema_DimRedux.hpp"
 #include "Skema_Utils.hpp"
 
 namespace Skema {
 
-template <>
-auto generate_map(const size_type nrow, const size_type ncol) -> matrix_type {
-  using DR = DimRedux<DataMatrixType>;
-  const double maxval{std::sqrt(2 * std::log(nrow * ncol))};
-  matrix_type data("Gauss DimRedux map", nrow, ncol);
-  Kokkos::fill_random(data, DR::pool(), -maxval, maxval);
-  return data;
-}
-
-template <>
-auto generate_map(const size_type nrow, const size_type ncol)
-    -> crs_matrix_type {
-  std::cout << "Not implemented yet" << std::endl;
-  exit(1);
+template <typename MatrixType>
+void GaussDimRedux<MatrixType>::fill_random(const size_type m,
+                                            const size_type n) {
+  const double maxval{std::sqrt(2 * std::log(m * n))};
+  data = matrix_type("GaussDimRedux::data", m, n);
+  DimRedux<MatrixType>::fill_random(data, -maxval, maxval);
 }
 
 template <>
@@ -54,7 +44,7 @@ void GaussDimRedux<matrix_type>::lmap(const char transA,
   assert((arow == crow) && "Size row inputs of A & C must align");
   assert((bcol == ccol) && "Size column inputs of B & C must align");
 
-  auto data = generate_map(arow, acol);
+  fill_random(arow, acol);
 
   Impl::mm(transA, transB, alpha, data, B, beta, C);
 }
@@ -86,7 +76,7 @@ void GaussDimRedux<matrix_type>::rmap(const char transA,
   assert((arow == crow) && "Size row inputs of A & C must align");
   assert((bcol == ccol) && "Size column inputs of B & C must align");
 
-  auto data = generate_map(arow, acol);
+  fill_random(brow, bcol);
 
   Impl::mm(transA, transB, alpha, A, data, beta, C);
 }
@@ -130,6 +120,7 @@ void GaussDimRedux<crs_matrix_type>::rmap(const char transA,
   assert((bcol == ccol) && "Size column inputs of B & C must align");
 
   std::cout << "Not implemented yet." << std::endl;
+  fill_random(brow, bcol);
   exit(0);
 }
 

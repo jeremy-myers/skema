@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SKEMA_ISVD_HPP
-#define SKEMA_ISVD_HPP
 #include <KokkosSparse.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Macros.hpp>
@@ -87,5 +85,3 @@ template class ISVD<crs_matrix_type>;
 template <typename MatrixType>
 void isvd(const MatrixType&, const AlgParams&);
 }  // namespace Skema
-
-#endif /* SKEMA_ISVD_HPP */

@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SKEMA_ISVD_MATRIX_MATVEC_HPP
-#define SKEMA_ISVD_MATRIX_MATVEC_HPP
 #include "Skema_Utils.hpp"
 #include "primme.h"
 
@@ -53,5 +51,3 @@ void isvd_default_sparse_matvec(void* x,
                                 primme_svds_params* primme_svds,
                                 int* err);
 }
-
-#endif /* SKEMA_PRIMME_MATRIX_MATVEC_HPP */

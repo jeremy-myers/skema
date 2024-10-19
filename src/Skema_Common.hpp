@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SKEMA_COMMON_HPP
-#define SKEMA_COMMON_HPP
 // #include <KokkosSparse_Utils.hpp>
 #include <KokkosSparse.hpp>
 #include <cstddef>
@@ -118,4 +116,3 @@ inline void write(const matrix_type& input, const char* filename) {
 }
 }  // namespace Impl
 }  // namespace Skema
-#endif /* SKEMA_COMMON_H */

@@ -1,30 +1,16 @@
 #pragma once
-#ifndef SKEMA_DIM_REDUX_H
-#define SKEMA_DIM_REDUX_H
-// #include <KokkosBlas1_scal.hpp>
-// #include <KokkosBlas2_gemv.hpp>
-// #include <KokkosBlas3_gemm.hpp>
-// #include <KokkosKernels_default_types.hpp>
-// #include <KokkosSparse.hpp>
-// #include <KokkosSparse_CcsMatrix.hpp>
-// #include <KokkosSparse_CrsMatrix.hpp>
-// #include <KokkosSparse_spmv.hpp>
-// #include <Kokkos_Core.hpp>
-// #include <Kokkos_Macros.hpp>
-// #include <Kokkos_Random.hpp>
+#include <Kokkos_Random.hpp>
 #include <Kokkos_StdAlgorithms.hpp>
-#include <cmath>
 #include <cstddef>
 #include <random>
 #include "Skema_AlgParams.hpp"
-#include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
 
 using RNG = std::mt19937;
 
 namespace Skema {
 
-template <typename DataMatrixType, typename MapMatrixType>
+template <typename DataMatrixType>
 class DimRedux {
  public:
   typedef Kokkos::Random_XorShift64_Pool<> pool_type;
@@ -37,7 +23,7 @@ class DimRedux {
   DimRedux(DimRedux&&) = default;
   DimRedux& operator=(const DimRedux&);
   DimRedux& operator=(DimRedux&&);
-  virtual ~DimRedux() {}
+  virtual ~DimRedux() = default;
 
   virtual void lmap(const char,
                     const char,
@@ -53,7 +39,8 @@ class DimRedux {
                     const double,
                     matrix_type&) = 0;
 
-  virtual MapMatrixType generate_map(const size_type, const size_type) = 0;
+  virtual void fill_random(matrix_type&, const scalar_type, const scalar_type);
+  // virtual void fill_random(const size_type, const size_type) = 0;
 
   inline size_type nrows() { return nrow; };
   inline size_type ncols() { return ncol; };
@@ -71,18 +58,25 @@ class DimRedux {
   pool_type rand_pool;
 };
 
-template <typename DataMatrixType, typename MapMatrixType>
-class GaussDimRedux : public DimRedux<DataMatrixType, MapMatrixType> {
+template <typename DataMatrixType>
+void DimRedux<DataMatrixType>::fill_random(matrix_type& data,
+                                           const scalar_type min,
+                                           const scalar_type max) {
+  Kokkos::fill_random(data, rand_pool, min, max);
+};
+
+template <typename DataMatrixType>
+class GaussDimRedux : public DimRedux<DataMatrixType> {
  public:
   GaussDimRedux(const size_type nrow_,
                 const size_type ncol_,
                 const ordinal_type seed_)
-      : DimRedux<DataMatrixType, MapMatrixType>(nrow_, ncol_, seed_) {};
+      : DimRedux<DataMatrixType>(nrow_, ncol_, seed_) {};
   GaussDimRedux(const GaussDimRedux&) = default;
   GaussDimRedux(GaussDimRedux&&) = default;
   GaussDimRedux& operator=(const GaussDimRedux&);
   GaussDimRedux& operator=(GaussDimRedux&&);
-  ~GaussDimRedux() {}
+  ~GaussDimRedux() = default;
 
   void lmap(const char,
             const char,
@@ -98,12 +92,13 @@ class GaussDimRedux : public DimRedux<DataMatrixType, MapMatrixType> {
             const double,
             matrix_type&) override;
 
-  MapMatrixType generate_map(const size_type nrow,
-                             const size_type ncol) override;
+ private:
+  void fill_random(const size_type, const size_type);
+  matrix_type data;
 };
 
-template <class DataMatrixType, typename MapMatrixType>
-class SparseSignDimRedux : public DimRedux<DataMatrixType, MapMatrixType> {
+template <class DataMatrixType>
+class SparseSignDimRedux : public DimRedux<DataMatrixType> {
   /*
 Sparse DimRedux map is n x k. The MATLAB implementation has zeta nnz per
    row.
@@ -125,28 +120,33 @@ Sparse DimRedux map is n x k. The MATLAB implementation has zeta nnz per
   SparseSignDimRedux(const size_type nrow_,
                      const size_type ncol_,
                      const ordinal_type seed_)
-      : DimRedux<DataMatrixType, MapMatrixType>(nrow_, ncol_, seed_) {};
+      : DimRedux<DataMatrixType>(nrow_, ncol_, seed_),
+        zeta(std::max<size_type>(2, std::min<size_type>(ncol_, 8))) {};
   SparseSignDimRedux(const SparseSignDimRedux&) = default;
   SparseSignDimRedux(SparseSignDimRedux&&) = default;
   SparseSignDimRedux& operator=(const SparseSignDimRedux&);
   SparseSignDimRedux& operator=(SparseSignDimRedux&&);
-  ~SparseSignDimRedux() {}
+  ~SparseSignDimRedux() = default;
 
   void lmap(const char,
             const char,
             const double,
             const DataMatrixType&,
             const double,
-            matrix_type&);
+            matrix_type&) override;
 
   void rmap(const char,
             const char,
             const double,
             const DataMatrixType&,
             const double,
-            matrix_type&);
+            matrix_type&) override;
 
-  MapMatrixType generate_map(const size_type, const size_type) override;
+ private:
+  crs_matrix_type data;
+  const size_type zeta;
+  void fill_random(const size_type, const size_type);
+  inline index_type permuted_indices(const size_type, const size_type, RNG&);
 };
 
 // template <class MatrixType>
@@ -296,20 +296,19 @@ template class GaussDimRedux<crs_matrix_type>;
 template class SparseSignDimRedux<matrix_type>;
 template class SparseSignDimRedux<crs_matrix_type>;
 
-template <typename MatrixType>
+template <typename DataMatrixType>
 inline auto getDimRedux(const size_type nrow,
                         const size_type ncol,
                         const ordinal_type seed,
                         const AlgParams& algParams)
-    -> std::unique_ptr<DimRedux<MatrixType>> {
+    -> std::unique_ptr<DimRedux<DataMatrixType>> {
   if (algParams.dim_redux == DimRedux_Map::GAUSS) {
-    return std::make_unique<GaussDimRedux<MatrixType>>(
-        GaussDimRedux<MatrixType>(nrow, ncol, seed));
+    return std::make_unique<GaussDimRedux<DataMatrixType>>(
+        GaussDimRedux<DataMatrixType>(nrow, ncol, seed));
   } else {
     // testing only
-    return std::make_unique<GaussDimRedux<MatrixType>>(
-        GaussDimRedux<MatrixType>(nrow, ncol, seed));
+    return std::make_unique<GaussDimRedux<DataMatrixType>>(
+        GaussDimRedux<DataMatrixType>(nrow, ncol, seed));
   }
 }
 }  // namespace Skema
-#endif /* SKEMA_DIM_REDUX_H */

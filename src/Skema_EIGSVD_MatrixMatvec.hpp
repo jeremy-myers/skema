@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SKEMA_EIGSVD_MATRIX_MATVEC_HPP
-#define SKEMA_EIGSVD_MATRIX_MATVEC_HPP
 #include "primme.h"
 
 extern "C" {
@@ -39,5 +37,3 @@ void svds_default_sparse_matvec(void* x,
                                 primme_svds_params* primme_svds,
                                 int* err);
 }
-
-#endif

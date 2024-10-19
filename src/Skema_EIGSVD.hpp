@@ -1,8 +1,5 @@
 #pragma once
-#ifndef SKEMA_EIGSVD_HPP
-#define SKEMA_EIGSVD_HPP
 #include "Skema_AlgParams.hpp"
-#include "Skema_Sampler.hpp"
 #include "Skema_Utils.hpp"
 #include "primme.h"
 
@@ -256,5 +253,3 @@ template <typename MatrixType>
 void primme_svds(const MatrixType&, const AlgParams&);
 
 }  // namespace Skema
-
-#endif /* SKEMA_EIGSVD_HPP */

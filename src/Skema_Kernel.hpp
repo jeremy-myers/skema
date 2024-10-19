@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SKEMA_KERNEL_H
-#define SKEMA_KERNEL_H
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -56,4 +54,3 @@ class GaussRBF : public Kernel<MatrixType> {
 template class GaussRBF<matrix_type>;
 template class GaussRBF<crs_matrix_type>;
 }  // namespace Skema
-#endif /* SKEMA_KERNEL_H */

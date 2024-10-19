@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SKEMA_SKETCHY_SVD_HPP
-#define SKEMA_SKETCHY_SVD_HPP
 #include "Skema_AlgParams.hpp"
 #include "Skema_DimRedux.hpp"
 #include "Skema_Utils.hpp"
@@ -191,4 +189,3 @@ void sketchysvd(const MatrixType&, const AlgParams&);
 //                         const size_type,
 //                         const AlgParams&);
 }  // namespace Skema
-#endif /* SKEMA_SKETCHY_SVD_HPP */

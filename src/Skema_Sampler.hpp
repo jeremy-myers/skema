@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SKEMA_SAMPLER_HPP
-#define SKEMA_SAMPLER_HPP
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
 #include <Kokkos_Timer.hpp>
@@ -81,4 +79,3 @@ class ReservoirSampler : public Sampler<MatrixType> {
 template class ReservoirSampler<matrix_type>;
 template class ReservoirSampler<crs_matrix_type>;
 }  // namespace Skema
-#endif /* SKEMA_SAMPLER_HPP */

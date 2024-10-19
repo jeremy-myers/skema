@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SKEMA_RESIDUALS_HPP
-#define SKEMA_RESIDUALS_HPP
 #include <vector>
 #include "Skema_AlgParams.hpp"
 #include "Skema_Kernel.hpp"
@@ -155,4 +153,3 @@ inline vector_type residuals(const MatrixType& A,
   return rnorms;
 }
 }  // namespace Skema
-#endif /* SKEMA_RESIDUALS_HPP */

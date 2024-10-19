@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SKEMA_UTILS_H
-#define SKEMA_UTILS_H
 #include <KokkosSparse.hpp>
 #include <Kokkos_Core.hpp>
 #include <cfloat>
@@ -89,5 +87,3 @@ constexpr const char* Skema::Sampler_Type::names[];
 constexpr const Skema::Kernel_Map::type Skema::Kernel_Map::types[];
 constexpr const char* Skema::Kernel_Map::names[];
 }  // namespace Skema
-
-#endif /* SKEMA_UTILS_H */

@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SKEMA_ISVD_PRIMME_HPP
-#define SKEMA_ISVD_PRIMME_HPP
 #include <cstddef>
 #include "Skema_AlgParams.hpp"
 #include "Skema_EIGSVD.hpp"
@@ -91,5 +89,3 @@ void isvd_sparse_monitorFun(void* basisSvals,
                             int* ierr);
 }
 }  // namespace Skema
-
-#endif /* SKEMA_ISVD_PRIMME_HPP */
