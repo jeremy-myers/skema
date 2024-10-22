@@ -13,7 +13,7 @@ template <typename MatrixType>
 class ISVD {
  public:
   ISVD(const AlgParams&);
-  ~ISVD(){};
+  ~ISVD() {};
 
   /* Public methods */
   void solve(const MatrixType&);
@@ -36,7 +36,11 @@ class ISVD {
     matrix_type Vr(V, Kokkos::ALL(), rlargest);
     matrix_type Av("Av", nrow, rank);
 
-    Impl::mm('N', 'N', 1.0, A, Vr, 0.0, Av);
+    const char N{'N'};
+    const char T{'T'};
+    const scalar_type one{1.0};
+    const scalar_type zero{0.0};
+    Impl::mm(&N, &N, &one, A, Vr, &zero, Av);
 
     for (auto r = rlargest.first; r < rlargest.second; ++r) {
       auto avr = Kokkos::subview(Av, Kokkos::ALL(), r);
@@ -46,7 +50,7 @@ class ISVD {
     }
 
     matrix_type Atu("Atu", ncol, rank);
-    Impl::mm('T', 'N', 1.0, A, U, 0.0, Atu);
+    Impl::mm(&T, &N, &one, A, U, &zero, Atu);
   }
 
   KOKKOS_INLINE_FUNCTION

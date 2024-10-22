@@ -42,11 +42,16 @@ inline vector_type residuals_by_window(const MatrixType& A,
     auto A_sub = window->get(A, idx);
 
     /* Compute residuals for this tile */
+    const char N{'N'};
+    const char T{'T'};
+    const scalar_type one{1.0};
+    const scalar_type zero{0.0};
+
     auto Ur = Kokkos::subview(U, idx, rlargest);
     matrix_type Av("Av", wsize, rank);
     matrix_type Au("Atu", ncol, rank);
-    Impl::mm('N', 'N', 1.0, A_sub, Vr, 0.0, Av);
-    Impl::mm('T', 'N', 1.0, A_sub, Ur, 0.0, Au);
+    Impl::mm(&N, &N, &one, A_sub, Vr, &zero, Av);
+    Impl::mm(&T, &N, &one, A_sub, Ur, &zero, Au);
 
     // Compute columnwise differences
     for (auto r = rlargest.first; r < rlargest.second; ++r) {
@@ -116,8 +121,12 @@ inline vector_type residuals(const MatrixType& A,
   matrix_type Av("Av", nrow, rank);
   matrix_type Au("Atu", ncol, rank);
 
-  Impl::mm('N', 'N', 1.0, A, Vr, 0.0, Av);
-  Impl::mm('T', 'N', 1.0, A, U, 0.0, Au);
+  const char N{'N'};
+  const char T{'T'};
+  const scalar_type one{1.0};
+  const scalar_type zero{0.0};
+  Impl::mm(&N, &N, &one, A, Vr, &zero, Av);
+  Impl::mm(&T, &N, &one, A, U, &zero, Au);
 
   /* Compute residuals */
   for (auto r = 0; r < rank; ++r) {

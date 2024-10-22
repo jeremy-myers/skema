@@ -179,7 +179,7 @@ void ISVD_SVDS<matrix_type>::compute(
   // If here, then we've seen a previous window.
   primme_svds::reinitialize();
 
-  std::cout << "Not implemented yet." << std::endl;
+  std::cout << "ISVD_SVDS<matrix_type>::compute not implemented yet." << std::endl;
 }
 
 template <>

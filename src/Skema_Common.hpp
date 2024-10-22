@@ -1,42 +1,40 @@
 #pragma once
-// #include <KokkosSparse_Utils.hpp>
 #include <KokkosSparse.hpp>
 #include <cstddef>
 #include <cstdio>
 #include <ostream>
-#include <utility>
 #include "Skema_Utils.hpp"
 
 /* Common helper functions */
 namespace Skema {
 namespace Impl {
-inline void mm(const char transA,
-               const char transB,
-               const double alpha,
+inline void mm(const char* transA,
+               const char* transB,
+               const scalar_type* alpha,
                const matrix_type& A,
                const matrix_type& B,
-               const double beta,
+               const scalar_type* beta,
                matrix_type& C) {
-  KokkosBlas::gemm(&transA, &transB, alpha, A, B, beta, C);
+  KokkosBlas::gemm(transA, transB, *alpha, A, B, *beta, C);
 }
 
-inline void mm(const char transA,
-               const char transB,
-               const double alpha,
+inline void mm(const char* transA,
+               const char* transB,
+               const scalar_type* alpha,
                const crs_matrix_type& A,
                const matrix_type& B,
-               const double beta,
+               const scalar_type* beta,
                matrix_type& C) {
-  KokkosSparse::spmv(&transA, alpha, A, B, beta, C);
+  KokkosSparse::spmv(transA, *alpha, A, B, *beta, C);
 }
 
-inline void mm(const char mode,
-               const double alpha,
+inline void mm(const char* mode,
+               const scalar_type* alpha,
                const crs_matrix_type& A,
                const matrix_type& B,
-               const double beta,
+               const scalar_type* beta,
                matrix_type& C) {
-  KokkosSparse::spmv(&mode, alpha, A, B, beta, C);
+  KokkosSparse::spmv(mode, *alpha, A, B, *beta, C);
 }
 
 inline matrix_type transpose(const matrix_type& input) {
