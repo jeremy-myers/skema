@@ -65,41 +65,40 @@ void AlgParams::print(std::ostream& out) const {
 
   switch (Skema::Solver_Method::types[solver]) {
     case Skema::Solver_Method::ISVD:
-        if (isvd_num_samples > 0) {
-          out << "  iSVD sampler = " << isvd_sampler << std::endl;
-          out << "  iSVD num samples = " << isvd_num_samples << std::endl;
-          out << "  iSVD conv test func eps = " << isvd_convtest_eps
-              << std::endl;
-          out << "  iSVD conv test skip = " << isvd_convtest_skip << std::endl;
-        }
+      if (isvd_num_samples > 0) {
+        out << "  iSVD sampler = " << isvd_sampler << std::endl;
+        out << "  iSVD num samples = " << isvd_num_samples << std::endl;
+        out << "  iSVD conv test func eps = " << isvd_convtest_eps << std::endl;
+        out << "  iSVD conv test skip = " << isvd_convtest_skip << std::endl;
+      }
 
-        // out << "    PRIMME method = " << primme_method << std::endl;
-        // out << "    PRIMME methodStage2 = " << primme_methodStage2 << std::endl;
-        // out << "    PRIMME printLevel = " << primme_printLevel << std::endl;
-        // out << "    PRIMME tolerance = " << primme_eps << std::endl;
-        // out << "    PRIMME locking = " << std::boolalpha << primme_locking
-        //     << std::endl;
+      // out << "    PRIMME method = " << primme_method << std::endl;
+      // out << "    PRIMME methodStage2 = " << primme_methodStage2 <<
+      // std::endl; out << "    PRIMME printLevel = " << primme_printLevel <<
+      // std::endl; out << "    PRIMME tolerance = " << primme_eps << std::endl;
+      // out << "    PRIMME locking = " << std::boolalpha << primme_locking
+      //     << std::endl;
 
-        // if (primme_maxIter > 0)
-        //   out << "    PRIMME maxOuterIters = " << primme_maxIter << std::endl;
+      // if (primme_maxIter > 0)
+      //   out << "    PRIMME maxOuterIters = " << primme_maxIter << std::endl;
 
-        // if (primme_maxMatvecs > 0)
-        //   out << "    PRIMME maxMatvecs = " << primme_maxMatvecs << std::endl;
+      // if (primme_maxMatvecs > 0)
+      //   out << "    PRIMME maxMatvecs = " << primme_maxMatvecs << std::endl;
 
-        // if (primme_maxBasisSize > 0)
-        //   out << "    PRIMME maxBasisSize = " << primme_maxBasisSize
-        //       << std::endl;
+      // if (primme_maxBasisSize > 0)
+      //   out << "    PRIMME maxBasisSize = " << primme_maxBasisSize
+      //       << std::endl;
 
-        // if (primme_maxBlockSize > 0)
-        //   out << "    PRIMME maxBlockSize = " << primme_maxBlockSize
-        //       << std::endl;
+      // if (primme_maxBlockSize > 0)
+      //   out << "    PRIMME maxBlockSize = " << primme_maxBlockSize
+      //       << std::endl;
 
-        // if (primme_minRestartSize > 0)
-        //   out << "    PRIMME minRestartSize = " << primme_minRestartSize
-        //       << std::endl;
+      // if (primme_minRestartSize > 0)
+      //   out << "    PRIMME minRestartSize = " << primme_minRestartSize
+      //       << std::endl;
 
-        std::cout << "  iSVD initial guess = " << std::boolalpha
-                  << isvd_initial_guess << std::endl;
+      std::cout << "  iSVD initial guess = " << std::boolalpha
+                << isvd_initial_guess << std::endl;
       break;
 
     case Skema::Solver_Method::SKETCH:
@@ -173,7 +172,7 @@ void AlgParams::parse(std::vector<std::string>& args) {
   // SketchySVD options
   dim_redux =
       parse_enum(args, "--model", dim_redux, Skema::DimRedux_Map::num_types,
-                 Skema::DimRedux_Map::types, Skema::Solver_Method::names);
+                 Skema::DimRedux_Map::types, Skema::DimRedux_Map::names);
   sketch_range = parse_int(args, "--range", sketch_range, 0, INT_MAX);
   sketch_core = parse_int(args, "--core", sketch_core, 0, INT_MAX);
   seeds = parse_int_array(args, "--seeds", seeds, 0, INT_MAX);
