@@ -86,4 +86,7 @@ constexpr const char* Skema::Sampler_Type::names[];
 
 constexpr const Skema::Kernel_Map::type Skema::Kernel_Map::types[];
 constexpr const char* Skema::Kernel_Map::names[];
+
+constexpr const Skema::DimRedux_Map::type Skema::DimRedux_Map::types[];
+constexpr const char* Skema::DimRedux_Map::names[];
 }  // namespace Skema

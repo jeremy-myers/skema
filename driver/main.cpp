@@ -1,4 +1,3 @@
-#include <KokkosKernels_IOUtils.hpp>
 #include <KokkosSparse_IOUtils.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
@@ -8,9 +7,9 @@
 #include <iostream>
 #include <string>
 #include "Skema_AlgParams.hpp"
-#include "Skema_DimRedux_tmp.hpp"
 #include "Skema_EIGSVD.hpp"
 #include "Skema_ISVD.hpp"
+#include "Skema_SketchySVD.hpp"
 #include "Skema_Utils.hpp"
 
 template <typename MatrixType>
@@ -28,7 +27,7 @@ int main_driver(const MatrixType& matrix, const AlgParams& algParams) {
 
   switch (Skema::Solver_Method::types[algParams.solver]) {
     case Skema::Solver_Method::PRIMME:
-      if (!algParams.issymmetric) {
+      if (algParams.issymmetric) {
         Skema::primme_eigs(matrix, algParams);
       } else {
         Skema::primme_svds(matrix, algParams);
@@ -38,7 +37,7 @@ int main_driver(const MatrixType& matrix, const AlgParams& algParams) {
       Skema::isvd(matrix, algParams);
       break;
     case Skema::Solver_Method::SKETCH:
-      std::cout << "Not implemented yet." << std::endl;
+      Skema::sketchysvd(matrix, algParams);
       break;
   }
   return 0;
@@ -91,9 +90,6 @@ int main(int argc, char* argv[]) {
 
     AlgParams algParams;
 
-    std::unique_ptr<Skema::DimRedux<matrix_type>> dr;
-    dr = Skema::getDimRedux<matrix_type>((int)10, (int)10, (int)0, algParams);
-
     // Driver options
     std::string inputfilename = "";
     std::string outputfilename = "";
@@ -123,17 +119,9 @@ int main(int argc, char* argv[]) {
     if (algParams.isvd_convtest_skip == 0)
       algParams.isvd_convtest_skip = algParams.rank;
 
-    // TODO move to SKETCH constructor
-    algParams.sketch_range =
-        (algParams.sketch_range < algParams.rank ? 4 * algParams.rank + 1
-                                                 : algParams.sketch_range);
-    algParams.sketch_core =
-        (algParams.sketch_core < algParams.rank ? 2 * algParams.sketch_range + 1
-                                                : algParams.sketch_core);
-
     if (algParams.print_level > 0) {
       std::cout << "\n===============================================";
-      std::cout << "\n==================== SkSVD ====================";
+      std::cout << "\n==================== Skema ====================";
       std::cout << "\n===============================================";
       std::cout << "\nOptions: ";
       std::cout << "\n  input = " << inputfilename;

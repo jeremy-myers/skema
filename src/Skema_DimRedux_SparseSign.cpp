@@ -47,23 +47,8 @@ inline index_type permuted_indices(const size_type indicesCount,
 
 template <typename MatrixType>
 void SparseSignDimRedux<MatrixType>::fill_random(const size_type nrow,
-                                                 const size_type ncol) {
-  // Sparse DimRedux map is n x k. The MATLAB implementation has zeta nnz per
-  // row. To construct a sparse sign matrix Xi in F^{n x k} , we fix a sparsity
-  // parameter zeta in the range 2 ≤ xi ≤ k. The columns of the matrix are drawn
-  // independently at random. To construct each column, we take zeta iid draws
-  // from the uniform{z \in F : |z| = 1} distribution, and we place these random
-  // variables in p coordinates, chosen uniformly at random. Empirically, we
-  // have found that zeta = min{d, 8} is a very reliable parameter selection in
-  // the context of low-rank matrix approximation.
-  //     References:
-  //        STREAMING LOW-RANK MATRIX APPROXIMATION WITH AN APPLICATION TO
-  //        SCIENTIFIC SIMULATION (Tropp et al., 2019):
-
-  // std::cout << "Not implemented yet." << std::endl;
-  // crs_matrix_type data;
-  // exit(1);
-
+                                                 const size_type ncol,
+                                                 const char transp) {
   // Create a CRS row map with zeta entries per row.
   // using DR = DimRedux<MatrixType>;
   namespace KE = Kokkos::Experimental;
@@ -126,42 +111,50 @@ void SparseSignDimRedux<MatrixType>::fill_random(const size_type nrow,
 }
 
 template <>
-void SparseSignDimRedux<matrix_type>::lmap(const char transA,
-                                           const char transB,
-                                           const double alpha,
+void SparseSignDimRedux<matrix_type>::lmap(const char* transA,
+                                           const char* transB,
+                                           const scalar_type* alpha,
                                            const matrix_type& A,
-                                           const double beta,
+                                           const scalar_type* beta,
                                            matrix_type& C) {
   Impl::mm(transA, alpha, data, A, beta, C);
 }
 
 template <>
-void SparseSignDimRedux<matrix_type>::rmap(const char transA,
-                                           const char transB,
-                                           const double alpha,
+void SparseSignDimRedux<matrix_type>::rmap(const char* transA,
+                                           const char* transB,
+                                           const scalar_type* alpha,
                                            const matrix_type& A,
-                                           const double beta,
+                                           const scalar_type* beta,
                                            matrix_type& C) {
+  std::cout << "SparseSignDimRedux<matrix_type>::rmap not implemented yet."
+            << std::endl;
   exit(1);
 }
 
 template <>
-void SparseSignDimRedux<crs_matrix_type>::lmap(const char transA,
-                                               const char transB,
-                                               const double alpha,
+void SparseSignDimRedux<crs_matrix_type>::lmap(const char* transA,
+                                               const char* transB,
+                                               const scalar_type* alpha,
                                                const crs_matrix_type& A,
-                                               const double beta,
+                                               const scalar_type* beta,
                                                matrix_type& C) {
+  std::cout << "SparseSignDimRedux<crs_matrix_type>::lmap not implemented yet."
+            << std::endl;
+
   exit(1);
 }
 
 template <>
-void SparseSignDimRedux<crs_matrix_type>::rmap(const char transA,
-                                               const char transB,
-                                               const double alpha,
+void SparseSignDimRedux<crs_matrix_type>::rmap(const char* transA,
+                                               const char* transB,
+                                               const scalar_type* alpha,
                                                const crs_matrix_type& A,
-                                               const double beta,
+                                               const scalar_type* beta,
                                                matrix_type& C) {
+  std::cout << "SparseSignDimRedux<crs_matrix_type>::rmap not implemented yet."
+            << std::endl;
+
   exit(1);
 }
 }  // namespace Skema
