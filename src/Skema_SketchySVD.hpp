@@ -30,13 +30,7 @@ class SketchySVD {
   ~SketchySVD() = default;
 
   void linear_update(const MatrixType&);
-
-  //   void approx(matrix_type&,
-  //               matrix_type&,
-  //               matrix_type&,
-  //               matrix_type&,
-  //               vector_type&,
-  //               matrix_type&);
+  void fixed_rank_approx(matrix_type&, vector_type&, matrix_type&);
 
  private:
   // Sketch
@@ -58,13 +52,17 @@ class SketchySVD {
   std::unique_ptr<DimRedux<MatrixType>> Phi;
   std::unique_ptr<DimRedux<matrix_type>> Psi;  // hacky solution
 
-  matrix_type mtimes(std::unique_ptr<DimRedux<MatrixType>>&, const MatrixType&);
-  matrix_type mtimes(const MatrixType&, std::unique_ptr<DimRedux<MatrixType>>&);
+  auto mtimes(std::unique_ptr<DimRedux<MatrixType>>&, const MatrixType&)
+      -> matrix_type;
+  auto mtimes(const MatrixType&, std::unique_ptr<DimRedux<MatrixType>>&)
+      -> matrix_type;
 
-  matrix_type mtimes(
-      std::unique_ptr<DimRedux<MatrixType>>&,
-      const MatrixType&,
-      std::unique_ptr<DimRedux<matrix_type>>&);  // hacky solution
+  auto mtimes(std::unique_ptr<DimRedux<MatrixType>>&,
+              const MatrixType&,
+              std::unique_ptr<DimRedux<matrix_type>>&)
+      -> matrix_type;  // hacky solution
+
+  auto low_rank_approx() -> matrix_type;
 };
 
 template class SketchySVD<matrix_type>;
