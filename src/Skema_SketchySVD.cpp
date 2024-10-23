@@ -46,7 +46,7 @@ auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
   [U2,T2] = qr(obj.Psi*P,0);
   W = T1\(U1'*obj.Z*U2)/T2';
   */
-  // auto U1 = _Phi.lmap(Q, false, false);
+  // auto U1 = mtimes(Phi, Y);
   Kokkos::fence();
   // if (print_level_ > 0) {
   //   std::cout << "    LMAP = " << _Phi.stats.time << " sec" << std::endl;
