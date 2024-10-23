@@ -24,8 +24,9 @@ class SketchySVD {
         getDimRedux<MatrixType>(range, nrow, algParams.seeds[0], algParams);
     Omega = getDimRedux<MatrixType>(range, ncol, algParams.seeds[1], algParams);
     Phi = getDimRedux<MatrixType>(core, nrow, algParams.seeds[2], algParams);
-    Psi = getDimRedux<matrix_type>(core, ncol, algParams.seeds[3],
-                                   algParams);  // hacky solution
+    Psi = getDimRedux<MatrixType, matrix_type>(
+        core, ncol, algParams.seeds[3],
+        algParams);  // explicit specialization
   };
   ~SketchySVD() = default;
 
@@ -50,17 +51,34 @@ class SketchySVD {
   std::unique_ptr<DimRedux<MatrixType>> Upsilon;
   std::unique_ptr<DimRedux<MatrixType>> Omega;
   std::unique_ptr<DimRedux<MatrixType>> Phi;
-  std::unique_ptr<DimRedux<matrix_type>> Psi;  // hacky solution
+  std::unique_ptr<DimRedux<MatrixType, matrix_type>>
+      Psi;  // explicit specialization
 
   auto mtimes(std::unique_ptr<DimRedux<MatrixType>>&, const MatrixType&)
       -> matrix_type;
+
   auto mtimes(const MatrixType&, std::unique_ptr<DimRedux<MatrixType>>&)
       -> matrix_type;
 
   auto mtimes(std::unique_ptr<DimRedux<MatrixType>>&,
               const MatrixType&,
-              std::unique_ptr<DimRedux<matrix_type>>&)
-      -> matrix_type;  // hacky solution
+              std::unique_ptr<DimRedux<MatrixType, matrix_type>>&)
+      -> matrix_type;  // explicit specialization
+
+  //   template <typename OtherMatrixT>
+  //   auto mtimes(std::unique_ptr<DimRedux<MatrixType, OtherMatrixT>>&,
+  //               const MatrixType&) -> matrix_type;
+
+  //   template <typename OtherMatrixT>
+  //   auto mtimes(const MatrixType&,
+  //               std::unique_ptr<DimRedux<MatrixType, OtherMatrixT>>&)
+  //       -> matrix_type;
+
+  //   template <typename OtherMatrixT>
+  //   auto mtimes(std::unique_ptr<DimRedux<MatrixType, OtherMatrixT>>&,
+  //               const MatrixType&,
+  //               std::unique_ptr<DimRedux<MatrixType, matrix_type>>&)
+  //       -> matrix_type;  // explicit specialization
 
   auto low_rank_approx() -> matrix_type;
 };

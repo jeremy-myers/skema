@@ -25,6 +25,7 @@ auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
   auto Pt = Impl::transpose(X);
   LAPACK::qr(Pt, ncol, range);
   Kokkos::fence();
+  X = Pt;
   time = timer.seconds();
   // if (print_level_ > 1) {
   //   std::cout << "    QR = " << std::right << std::setprecision(3) << time
@@ -47,20 +48,35 @@ auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
   W = T1\(U1'*obj.Z*U2)/T2';
   */
   // auto U1 = mtimes(Phi, Y);
+  // Hack for now, create a new Phi
+  auto Phi_tmp =
+      getDimRedux<matrix_type>(core, nrow, algParams.seeds[2], algParams);
+  auto Psi_tmp =
+      getDimRedux<matrix_type>(core, ncol, algParams.seeds[3], algParams);
+  // auto U1 = mtimes(Phi_tmp, Y);
+  matrix_type U1("U1", core, range);
+  matrix_type U2("U2", core, range);
+  const char N{'N'};
+  const char T{'T'};
+  const scalar_type one{1.0};
+  const scalar_type zero{0.0};
+
+  Phi_tmp->lmap(&N, &N, &one, Y, &zero, U1);
   Kokkos::fence();
   // if (print_level_ > 0) {
   //   std::cout << "    LMAP = " << _Phi.stats.time << " sec" << std::endl;
   // }
 
-  // auto U2 = _Psi.lmap(Pt, false, false);
+  Psi_tmp->lmap(&N, &N, &one, Pt, &zero, U2);
+  // Psi->lmap(&N, &N, &one, Pt, &zero, U2); // this oddly enough works...
   Kokkos::fence();
   // if (print_level_ > 0) {
   //   std::cout << "    LMAP = " << _Psi.stats.time << " sec" << std::endl;
   // }
 
   timer.reset();
-  // matrix_type T1("T1", range_, range_);
-  // LAPACK::qr(U1, T1, core_, range_);
+  matrix_type T1("T1", range, range);
+  LAPACK::qr(U1, T1, core, range);
   Kokkos::fence();
   time = timer.seconds();
   // if (print_level_ > 0) {
@@ -69,8 +85,8 @@ auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
   // }
 
   timer.reset();
-  // matrix_type T2("T2", range_, range_);
-  // LAPACK::qr(U2, T2, core_, range_);
+  matrix_type T2("T2", range, range);
+  LAPACK::qr(U2, T2, core, range);
   Kokkos::fence();
   time = timer.seconds();
   // if (print_level_ > 0) {
@@ -81,7 +97,8 @@ auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
   /* Z2 = U1'*obj.Z*U2; */
   // Z1 = U1'*Ztmp
   timer.reset();
-  // matrix_type Z1("Z1", range_, core_);
+  matrix_type Z1("Z1", range, core);
+  Impl::mm(&T, &N, &one, U1, Z, &zero, Z1);
   // KokkosBlas::gemm("T", "T", 1.0, U1, Zt, 0.0, Z1);
   Kokkos::fence();
   time = timer.seconds();
@@ -92,7 +109,8 @@ auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
 
   // Z2 = Z1*U2
   timer.reset();
-  // matrix_type Z2("Z2", range_, range_);
+  matrix_type Z2("Z2", range, range);
+  Impl::mm(&N, &N, &one, Z1, U2, &zero, Z2);
   // KokkosBlas::gemm("N", "N", 1.0, Z1, U2, 0.0, Z2);
   Kokkos::fence();
   time = timer.seconds();
@@ -103,7 +121,7 @@ auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
 
   // Z2 = T1\Z2; \ is MATLAB mldivide(T1,Z2);
   timer.reset();
-  // LAPACK::ls(T1, Z2, range_, range_, range_);
+  LAPACK::ls(&N, T1, Z2, range, range, range);
   Kokkos::fence();
   time = timer.seconds();
   // if (print_level_ > 0) {
@@ -114,9 +132,9 @@ auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
   // B/A = (A'\B')'.
   // W^T = Z2/(T2'); / is MATLAB mldivide(T2,Z2')'
   timer.reset();
-  // matrix_type Z2t = _transpose(Z2);
-  // LAPACK::ls(T2, Z2t, range_, range_, range_);
-  // C = _transpose(Z2t);
+  matrix_type Z2t = Impl::transpose(Z2);
+  LAPACK::ls(&N, T2, Z2t, range, range, range);
+  C = Impl::transpose(Z2t);
   Kokkos::fence();
   time = timer.seconds();
   // if (print_level_ > 0) {
@@ -149,6 +167,11 @@ void SketchySVD<MatrixType>::fixed_rank_approx(matrix_type& U,
   scalar_type time{0.0};
   scalar_type total_time{0.0};
 
+  const char N{'N'};
+  const char T{'T'};
+  const scalar_type one{1.0};
+  const scalar_type zero{0.0};
+
   // [Q,W,P] = low_rank_approx(U,S,V)
   timer.reset();
   auto C = low_rank_approx();
@@ -162,10 +185,10 @@ void SketchySVD<MatrixType>::fixed_rank_approx(matrix_type& U,
 
   // [uu,ss,vv] = svd(C)
   timer.reset();
-  matrix_type Uc;
-  vector_type sc;
-  matrix_type Vct;
-  // svd_(C, Uc, sc, Vct);
+  matrix_type Uc("Uc", range, range);
+  vector_type sc("sc", range);
+  matrix_type Vc("Vct", range, range);
+  LAPACK::svd(C, range, range, Uc, sc, Vc);
   Kokkos::fence();
   time = timer.seconds();
   // if (print_level_ > 0) {
@@ -176,8 +199,9 @@ void SketchySVD<MatrixType>::fixed_rank_approx(matrix_type& U,
 
   // U = Q*U;
   timer.reset();
-  // matrix_type QUc("QUc", nrow_, range_);
+  matrix_type QUc("QUc", nrow, range);
   // KokkosBlas::gemm("N", "N", 1.0, Q, Uc, 0.0, QUc);
+  Impl::mm(&N, &N, &one, Y, Uc, &zero, QUc);
   Kokkos::fence();
   time = timer.seconds();
   // if (print_level_ > 0) {
@@ -188,7 +212,8 @@ void SketchySVD<MatrixType>::fixed_rank_approx(matrix_type& U,
 
   // V = P*Vt';
   timer.reset();
-  // matrix_type PVc("PVc", ncol_, range_);
+  matrix_type PVc("PVc", ncol, range);
+  Impl::mm(&N, &T, &one, X, Vc, &zero, PVc);
   // KokkosBlas::gemm("N", "T", 1.0, Pt, Vct, 0.0, PVc);
   Kokkos::fence();
   time = timer.seconds();
@@ -200,10 +225,10 @@ void SketchySVD<MatrixType>::fixed_rank_approx(matrix_type& U,
 
   // Set final low-rank approximation
   timer.reset();
-  // auto rlargest = std::make_pair<size_type>(0, rank_);
-  // U = Kokkos::subview(QUc, Kokkos::ALL(), rlargest);
-  // S = Kokkos::subview(sc, rlargest);
-  // V = Kokkos::subview(PVc, Kokkos::ALL(), rlargest);
+  auto rlargest = std::make_pair<size_type>(0, rank);
+  U = Kokkos::subview(QUc, Kokkos::ALL(), rlargest);
+  S = Kokkos::subview(sc, rlargest);
+  V = Kokkos::subview(PVc, Kokkos::ALL(), rlargest);
   Kokkos::fence();
   time = timer.seconds();
   // if (print_level_ > 0) {
@@ -246,13 +271,19 @@ void sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams) {
   vector_type S;
   matrix_type V;
   sketch.fixed_rank_approx(U, S, V);
+
+  for (auto i = 0; i < algParams.rank; ++i) {
+    std::cout << " " << S(i);
+  }
+  std::cout << std::endl;
 };
 
 template <typename MatrixType>
 auto SketchySVD<MatrixType>::mtimes(
     std::unique_ptr<DimRedux<MatrixType>>& leftmap,
     const MatrixType& input,
-    std::unique_ptr<DimRedux<matrix_type>>& rightmap) -> matrix_type {
+    std::unique_ptr<DimRedux<MatrixType, matrix_type>>& rightmap)
+    -> matrix_type {
   auto tmp = mtimes(leftmap, input);
   const size_type m{leftmap->nrows()};
   const size_type n{rightmap->nrows()};

@@ -18,10 +18,10 @@ inline void svd(const matrix_type& A,
   const lapack_int m{static_cast<lapack_int>(nrow)};
   const lapack_int n{static_cast<lapack_int>(ncol)};
   const lapack_int min_mn{std::min<lapack_int>(m, n)};
-  const lapack_int lda{static_cast<lapack_int>(A.stride(1))};
+  const lapack_int lda{static_cast<lapack_int>(A.extent(0))};
   const lapack_int ldu{static_cast<lapack_int>(nrow)};
   const lapack_int ldv{min_mn};
-  const lapack_int lwork{min_mn - 1};
+  const lapack_int lwork{std::max(1, 5 * min_mn)};
   std::vector<double> superb(lwork);
   lapack_int info;
 

@@ -7,17 +7,15 @@
 
 namespace Skema {
 
-template <typename MatrixType>
-void GaussDimRedux<MatrixType>::fill_random(const size_type m,
-                                            const size_type n,
-                                            const char transp) {
-  using DR = DimRedux<MatrixType>;
-  if (transp == 'T') {
-    data = matrix_type("GaussDimRedux::data", DR::ncols(), DR::nrows());
-  } else {
-    data = matrix_type("GaussDimRedux::data", DR::nrows(), DR::ncols());
-  }
-  DR::fill_random(data, -maxval, maxval);
+template <typename InputMatrixT, typename OtherMatrixT>
+void GaussDimRedux<InputMatrixT, OtherMatrixT>::lmap(const char* transA,
+                                                     const char* transB,
+                                                     const scalar_type* alpha,
+                                                     const OtherMatrixT& B,
+                                                     const scalar_type* beta,
+                                                     matrix_type& C) {
+  using DR = DimRedux<InputMatrixT, OtherMatrixT>;
+  std::cout << "GaussDimRedux lmap:: Figure this out" << std::endl;
 }
 
 template <>
@@ -28,8 +26,20 @@ void GaussDimRedux<matrix_type>::lmap(const char* transA,
                                       const scalar_type* beta,
                                       matrix_type& C) {
   using DR = DimRedux<matrix_type>;
-  fill_random(DR::nrows(), DR::ncols());
+  data = matrix_type("GaussDimRedux::data", DR::nrows(), DR::ncols());
+  Kokkos::fill_random(data, DR::pool(), -maxval, maxval);
   Impl::mm(transA, transB, alpha, data, B, beta, C);
+}
+
+template <typename InputMatrixT, typename OtherMatrixT>
+void GaussDimRedux<InputMatrixT, OtherMatrixT>::rmap(const char* transA,
+                                                     const char* transB,
+                                                     const scalar_type* alpha,
+                                                     const OtherMatrixT& B,
+                                                     const scalar_type* beta,
+                                                     matrix_type& C) {
+  using DR = DimRedux<InputMatrixT, OtherMatrixT>;
+  std::cout << "GaussDimRedux rmap:: Figure this out" << std::endl;
 }
 
 template <>
@@ -40,7 +50,8 @@ void GaussDimRedux<matrix_type>::rmap(const char* transA,
                                       const scalar_type* beta,
                                       matrix_type& C) {
   using DR = DimRedux<matrix_type>;
-  fill_random(DR::nrows(), DR::ncols());
+  data = matrix_type("GaussDimRedux::data", DR::nrows(), DR::ncols());
+  Kokkos::fill_random(data, DR::pool(), -maxval, maxval);
   Impl::mm(transA, transB, alpha, A, data, beta, C);
 }
 
@@ -64,20 +75,8 @@ void GaussDimRedux<crs_matrix_type>::rmap(const char* transA,
                                           const scalar_type* beta,
                                           matrix_type& C) {
   using DR = DimRedux<crs_matrix_type>;
-  fill_random(DR::nrows(), DR::ncols(), *transB);
-  Impl::mm(transA, alpha, A, data, beta, C);
-}
-
-template <typename InputMatrix>
-template <typename OtherMatrix>
-void GaussDimRedux<InputMatrix>::rmap(const char* transA,
-                                      const char* transB,
-                                      const scalar_type* alpha,
-                                      const OtherMatrix& A,
-                                      const scalar_type* beta,
-                                      matrix_type& C) {
-  using DR = DimRedux<InputMatrix>;
-  fill_random(DR::nrows(), DR::ncols(), *transB);
+  data = matrix_type("GaussDimRedux::data", DR::ncols(), DR::nrows());
+  fill_random(data, DR::pool(), -maxval, maxval);
   Impl::mm(transA, alpha, A, data, beta, C);
 }
 
