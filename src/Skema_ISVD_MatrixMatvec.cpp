@@ -25,7 +25,7 @@ void isvd_default_dense_matvec(void* x,
     const size_type lldx{static_cast<size_type>(*ldx)};
     const size_type lldy{static_cast<size_type>(*ldy)};
     const size_type lbsz{static_cast<size_type>(*blockSize)};
-    const size_type kidx{matrix.matrix_nrow};
+    const size_type kidx{matrix.upper_nrow};
     const char transp{(*transpose == 0) ? 'N' : 'T'};
 
     // set up x
@@ -61,13 +61,18 @@ void isvd_default_dense_matvec(void* x,
     auto y_view_upper = Kokkos::subview(y_view0, y_upper_range, Kokkos::ALL());
     auto y_view_lower = Kokkos::subview(y_view0, y_lower_range, Kokkos::ALL());
 
+    const char N{'N'};
+    const scalar_type one{1.0};
+    const scalar_type uzero{0.0};
+    const scalar_type lzero{(*transpose == 0) ? 1.0 : 0.0};
+
     // Apply upper part
-    KokkosBlas::gemm(&transp, "N", 1.0, matrix.upper, x_view_upper, 0.0,
+    KokkosBlas::gemm(&transp, &N, one, matrix.upper, x_view_upper, uzero,
                      y_view_upper);
 
     // Apply lower part
-    KokkosBlas::gemm(&transp, "N", 1.0, matrix.lower, x_view_lower,
-                     *transpose ? 1.0 : 0.0, y_view_lower);
+    KokkosBlas::gemm(&transp, &N, one, matrix.lower, x_view_lower, lzero,
+                     y_view_lower);
 
     *err = 0;
   } catch (const std::exception& e) {
