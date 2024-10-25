@@ -8,26 +8,7 @@ namespace Skema {
 template <typename MatrixType>
 class SketchySVD {
  public:
-  SketchySVD(const AlgParams& algParams_)
-      : nrow(algParams_.matrix_m),
-        ncol(algParams_.matrix_n),
-        rank(algParams_.rank),
-        range(algParams_.sketch_range < algParams_.rank
-                  ? 4 * algParams_.rank + 1
-                  : algParams_.sketch_range),
-        core(algParams_.sketch_core < algParams_.rank ? 2 * range + 1
-                                                      : algParams_.sketch_core),
-        eta(algParams_.sketch_eta),
-        nu(algParams_.sketch_nu),
-        algParams(algParams_) {
-    Upsilon =
-        getDimRedux<MatrixType>(range, nrow, algParams.seeds[0], algParams);
-    Omega = getDimRedux<MatrixType>(range, ncol, algParams.seeds[1], algParams);
-    Phi = getDimRedux<MatrixType>(core, nrow, algParams.seeds[2], algParams);
-    Psi = getDimRedux<MatrixType, matrix_type>(
-        core, ncol, algParams.seeds[3],
-        algParams);  // explicit specialization
-  };
+  SketchySVD(const AlgParams&);
   ~SketchySVD() = default;
 
   void linear_update(const MatrixType&);

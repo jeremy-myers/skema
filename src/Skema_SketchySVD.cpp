@@ -4,8 +4,30 @@
 #include "Skema_Common.hpp"
 #include "Skema_DimRedux.hpp"
 #include "Skema_Utils.hpp"
+#include "Skema_Window.hpp"
 
 namespace Skema {
+
+template <typename MatrixType>
+SketchySVD<MatrixType>::SketchySVD(const AlgParams& algParams_)
+    : nrow(algParams_.matrix_m),
+      ncol(algParams_.matrix_n),
+      rank(algParams_.rank),
+      range(algParams_.sketch_range < algParams_.rank
+                ? 4 * algParams_.rank + 1
+                : algParams_.sketch_range),
+      core(algParams_.sketch_core < algParams_.rank ? 2 * range + 1
+                                                    : algParams_.sketch_core),
+      eta(algParams_.sketch_eta),
+      nu(algParams_.sketch_nu),
+      algParams(algParams_) {
+  Upsilon = getDimRedux<MatrixType>(range, nrow, algParams.seeds[0], algParams);
+  Omega = getDimRedux<MatrixType>(range, ncol, algParams.seeds[1], algParams);
+  Phi = getDimRedux<MatrixType>(core, nrow, algParams.seeds[2], algParams);
+  Psi = getDimRedux<MatrixType, matrix_type>(
+      core, ncol, algParams.seeds[3],
+      algParams);  // explicit specialization
+};
 
 template <typename MatrixType>
 auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
@@ -309,7 +331,7 @@ auto SketchySVD<matrix_type>::mtimes(
     std::unique_ptr<DimRedux<matrix_type>>& DRmap) -> matrix_type {
   if (!DRmap->issparse()) {
     const size_type m{nrow};
-    const size_type n{DRmap->ncols()};
+    const size_type n{DRmap->nrows()};
     matrix_type output("SketchySVD::mtimes::matrix*DRmap^T", m, n);
     const char transA{'N'};
     const char transB{'T'};
@@ -353,12 +375,21 @@ auto SketchySVD<crs_matrix_type>::mtimes(
 };
 
 template <typename MatrixType>
-auto SketchySVD<MatrixType>::linear_update(const MatrixType& H) -> void {
+auto SketchySVD<MatrixType>::linear_update(const MatrixType& A) -> void {
+  // Create window stepper to allow for kernels even though rowwise streaming is
+  // not implemented here.
+  auto window = Skema::getWindow<MatrixType>(algParams);
+  range_type idx{std::make_pair<size_type>(0, nrow)};
+  auto H = window->get(A, idx);
+
   X = mtimes(Upsilon, H);
   Y = mtimes(H, Omega);
   Z = mtimes(Phi, H, Psi);
 
   if (algParams.debug) {
+    std::cout << "H = \n";
+    Impl::print(H);
+
     std::cout << "X = \n";
     Impl::print(X);
 
