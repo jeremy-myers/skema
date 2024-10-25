@@ -10,6 +10,10 @@ using RNG = std::mt19937;
 
 namespace Skema {
 
+struct DimReduxStats {
+  scalar_type time{0.0};
+};
+
 template <typename InputMatrixT, typename OtherMatrixT = InputMatrixT>
 class DimRedux {
  public:
@@ -17,8 +21,14 @@ class DimRedux {
 
   DimRedux(const size_type nrow_,
            const size_type ncol_,
-           const ordinal_type seed_)
-      : nrow(nrow_), ncol(ncol_), seed(seed_), rand_pool(pool_type(seed_)) {};
+           const ordinal_type seed_,
+           const bool debug_)
+      : nrow(nrow_),
+        ncol(ncol_),
+        seed(seed_),
+        rand_pool(pool_type(seed_)),
+        debug(debug_),
+        initialized(false) {};
   DimRedux(const DimRedux&) = default;
   DimRedux(DimRedux&&) = default;
   DimRedux& operator=(const DimRedux&);
@@ -39,7 +49,7 @@ class DimRedux {
                     const scalar_type*,
                     matrix_type&) = 0;
 
-  // virtual void fill_random(const size_type, const size_type, const char);
+  virtual void generate(const size_type, const size_type, const char) = 0;
   virtual bool issparse() = 0;
 
   inline size_type nrows() { return nrow; };
@@ -47,9 +57,13 @@ class DimRedux {
   inline pool_type pool() { return rand_pool; };
 
   struct {
-    scalar_type time{0.0};
-    scalar_type elapsed_time{0.0};
+    DimReduxStats generate;
+    DimReduxStats map;
   } stats;
+
+ protected:
+  const bool debug;
+  bool initialized;
 
  private:
   const size_type nrow;
@@ -63,8 +77,9 @@ class GaussDimRedux : public DimRedux<InputMatrixT, OtherMatrixT> {
  public:
   GaussDimRedux(const size_type nrow_,
                 const size_type ncol_,
-                const ordinal_type seed_)
-      : DimRedux<InputMatrixT, OtherMatrixT>(nrow_, ncol_, seed_),
+                const ordinal_type seed_,
+                const bool debug_ = false)
+      : DimRedux<InputMatrixT, OtherMatrixT>(nrow_, ncol_, seed_, debug_),
         maxval(std::sqrt(2 * std::log(nrow_ * ncol_))) {};
   GaussDimRedux(const GaussDimRedux&) = default;
   GaussDimRedux(GaussDimRedux&&) = default;
@@ -91,28 +106,34 @@ class GaussDimRedux : public DimRedux<InputMatrixT, OtherMatrixT> {
  private:
   matrix_type data;
   const scalar_type maxval;
-  // void fill_random(const size_type, const size_type, const char = 'N')
-  // override;
+  void generate(const size_type, const size_type, const char = 'N') override;
 };
+
+template class GaussDimRedux<matrix_type>;
+template class GaussDimRedux<crs_matrix_type>;
+template class GaussDimRedux<matrix_type, crs_matrix_type>;
+template class GaussDimRedux<crs_matrix_type, matrix_type>;
 
 template <typename InputMatrixT, typename OtherMatrixT = InputMatrixT>
 class SparseSignDimRedux : public DimRedux<InputMatrixT, OtherMatrixT> {
   // Sparse DimRedux map is n x k. The MATLAB implementation has zeta nnz per
-  // row. To construct a sparse sign matrix Xi in F^{n x k} , we fix a sparsity
-  // parameter zeta in the range 2 ≤ xi ≤ k. The columns of the matrix are drawn
-  // independently at random. To construct each column, we take zeta iid draws
-  // from the uniform{z \in F : |z| = 1} distribution, and we place these random
-  // variables in p coordinates, chosen uniformly at random. Empirically, we
-  // have found that zeta = min{d, 8} is a very reliable parameter selection in
-  // the context of low-rank matrix approximation.
+  // row. To construct a sparse sign matrix Xi in F^{n x k} , we fix a
+  // sparsity parameter zeta in the range 2 ≤ xi ≤ k. The columns of the
+  // matrix are drawn independently at random. To construct each column, we
+  // take zeta iid draws from the uniform{z \in F : |z| = 1} distribution, and
+  // we place these random  variables in p coordinates, chosen uniformly at
+  // random. Empirically, we have found that zeta = min{d, 8} is a very
+  // reliable parameter selection in the context of low-rank matrix
+  // approximation.
   //     References:
   //        STREAMING LOW-RANK MATRIX APPROXIMATION WITH AN APPLICATION TO
   //        SCIENTIFIC SIMULATION (Tropp et al., 2019):
  public:
   SparseSignDimRedux(const size_type nrow_,
                      const size_type ncol_,
-                     const ordinal_type seed_)
-      : DimRedux<InputMatrixT, OtherMatrixT>(nrow_, ncol_, seed_),
+                     const ordinal_type seed_,
+                     const bool debug_ = false)
+      : DimRedux<InputMatrixT, OtherMatrixT>(nrow_, ncol_, seed_, debug_),
         zeta(std::max<size_type>(2, std::min<size_type>(ncol_, 8))) {};
   SparseSignDimRedux(const SparseSignDimRedux&) = default;
   SparseSignDimRedux(SparseSignDimRedux&&) = default;
@@ -139,19 +160,11 @@ class SparseSignDimRedux : public DimRedux<InputMatrixT, OtherMatrixT> {
  private:
   crs_matrix_type data;
   const size_type zeta;
-  void generate(const size_type, const size_type, const char = 'N');
-  // void fill_random(const size_type, const size_type, const char = 'N')
-  // override; inline index_type permuted_indices(const size_type, const
-  // size_type, RNG&);
+  void generate(const size_type, const size_type, const char = 'N') override;
 };
 
-template class GaussDimRedux<matrix_type>;
-template class GaussDimRedux<crs_matrix_type>;
 template class SparseSignDimRedux<matrix_type>;
 template class SparseSignDimRedux<crs_matrix_type>;
-
-template class GaussDimRedux<matrix_type, crs_matrix_type>;
-template class GaussDimRedux<crs_matrix_type, matrix_type>;
 template class SparseSignDimRedux<matrix_type, crs_matrix_type>;
 template class SparseSignDimRedux<crs_matrix_type, matrix_type>;
 
@@ -163,11 +176,17 @@ inline auto getDimRedux(const size_type nrow,
     -> std::unique_ptr<DimRedux<InputMatrixT, OtherMatrixT>> {
   if (algParams.dim_redux == DimRedux_Map::GAUSS) {
     return std::make_unique<GaussDimRedux<InputMatrixT, OtherMatrixT>>(
-        GaussDimRedux<InputMatrixT, OtherMatrixT>(nrow, ncol, seed));
-  } else {
+        GaussDimRedux<InputMatrixT, OtherMatrixT>(nrow, ncol, seed,
+                                                  algParams.debug));
+  } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
     // testing only
-    return std::make_unique<GaussDimRedux<InputMatrixT, OtherMatrixT>>(
-        GaussDimRedux<InputMatrixT, OtherMatrixT>(nrow, ncol, seed));
+    return std::make_unique<SparseSignDimRedux<InputMatrixT, OtherMatrixT>>(
+        SparseSignDimRedux<InputMatrixT, OtherMatrixT>(nrow, ncol, seed,
+                                                       algParams.debug));
+  } else {
+    std::cout << "DimRedux: make another selection." << std::endl;
+    exit(1);
   }
 }
+
 }  // namespace Skema

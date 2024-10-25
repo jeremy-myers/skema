@@ -65,21 +65,6 @@ class SketchySVD {
               std::unique_ptr<DimRedux<MatrixType, matrix_type>>&)
       -> matrix_type;  // explicit specialization
 
-  //   template <typename OtherMatrixT>
-  //   auto mtimes(std::unique_ptr<DimRedux<MatrixType, OtherMatrixT>>&,
-  //               const MatrixType&) -> matrix_type;
-
-  //   template <typename OtherMatrixT>
-  //   auto mtimes(const MatrixType&,
-  //               std::unique_ptr<DimRedux<MatrixType, OtherMatrixT>>&)
-  //       -> matrix_type;
-
-  //   template <typename OtherMatrixT>
-  //   auto mtimes(std::unique_ptr<DimRedux<MatrixType, OtherMatrixT>>&,
-  //               const MatrixType&,
-  //               std::unique_ptr<DimRedux<MatrixType, matrix_type>>&)
-  //       -> matrix_type;  // explicit specialization
-
   auto low_rank_approx() -> matrix_type;
 };
 

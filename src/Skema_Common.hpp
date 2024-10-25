@@ -81,13 +81,23 @@ inline crs_matrix_type get_window(
   return window;
 }
 
-inline void print2Dview(const matrix_type& A) {
+inline void print(const vector_type& a) {
+  for (auto i = 0; i < a.extent(0); ++i)
+    std::cout << std::setprecision(16) << " " << a(i) << "\n";
+  std::cout << std::flush;
+}
+
+inline void print(const matrix_type& A) {
   for (auto row = 0; row < A.extent(0); ++row) {
     for (auto col = 0; col < A.extent(1); ++col) {
       std::cout << std::setprecision(16) << " " << A(row, col);
     }
     std::cout << std::endl;
   }
+}
+
+inline void print(const crs_matrix_type& A) {
+  std::cout << std::endl;
 }
 
 inline void write(const vector_type& input, const char* filename) {
