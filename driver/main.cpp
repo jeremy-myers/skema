@@ -1,3 +1,4 @@
+#include <KokkosKernels_IOUtils.hpp>
 #include <KokkosSparse_IOUtils.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
@@ -25,6 +26,9 @@ int main_driver(const MatrixType& matrix, const AlgParams& algParams) {
   }
   std::cout << std::endl;
 
+  if (algParams.debug)
+    Skema::Impl::print(matrix);
+
   switch (Skema::Solver_Method::types[algParams.solver]) {
     case Skema::Solver_Method::PRIMME:
       if (algParams.issymmetric) {
@@ -44,17 +48,20 @@ int main_driver(const MatrixType& matrix, const AlgParams& algParams) {
 }
 
 int dense_driver(const std::string& inputfilename, AlgParams& algParams) {
+  if (algParams.matrix_m == 0 || algParams.matrix_n == 0) {
+    std::cout << "Must specify both matrix dimensions." << std::endl;
+    exit(1);
+  }
+
   Kokkos::Timer timer;
-  matrix_type matrix;
-  KokkosKernels::Impl::kk_read_2Dview_from_file(
-      matrix, algParams.inputfilename.c_str());
+  matrix_type matrix("Input matrix", algParams.matrix_m, algParams.matrix_n);
+  KokkosKernels::Impl::kk_read_2Dview_from_file<matrix_type>(
+      matrix, inputfilename.c_str());
   double time = timer.seconds();
   if (algParams.print_level > 0) {
     std::cout << "Reading matrix from file " << inputfilename << std::endl;
     std::cout << "  Read file in: " << time << "s" << std::endl;
   }
-  algParams.matrix_m = matrix.extent(0);
-  algParams.matrix_n = matrix.extent(1);
   algParams.matrix_nnz = algParams.matrix_m * algParams.matrix_n;
   algParams.issparse = false;
 
