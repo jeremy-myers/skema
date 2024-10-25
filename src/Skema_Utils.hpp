@@ -67,10 +67,10 @@ struct Sampler_Type {
   static constexpr type default_type = RESERVOIR;
 };
 struct DimRedux_Map {
-  enum type { GAUSS, SPARSE_MAP };
+  enum type { GAUSS, SPARSE_SIGN };
   static constexpr unsigned num_types = 2;
-  static constexpr type types[] = {GAUSS, SPARSE_MAP};
-  static constexpr const char* names[] = {"gauss", "sparse-map"};
+  static constexpr type types[] = {GAUSS, SPARSE_SIGN};
+  static constexpr const char* names[] = {"gauss", "sparse-sign"};
   static constexpr type default_type = GAUSS;
 };
 
