@@ -8,9 +8,7 @@
 #include <Kokkos_Sort.hpp>
 #include <Kokkos_StdAlgorithms.hpp>
 #include <Kokkos_Timer.hpp>
-#include <cmath>
 #include <cstddef>
-#include <iomanip>
 #include <utility>
 #include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"

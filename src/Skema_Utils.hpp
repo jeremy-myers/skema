@@ -2,12 +2,8 @@
 #include <KokkosSparse.hpp>
 #include <Kokkos_Core.hpp>
 #include <cfloat>
-#include <cmath>
 #include <cstddef>
 #include <cstdlib>
-#include <iostream>
-#include <limits>
-#include <string>
 
 /* Typedefs */
 using scalar_type = double;
