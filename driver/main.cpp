@@ -62,6 +62,13 @@ int dense_driver(const std::string& inputfilename, AlgParams& algParams) {
     std::cout << "Reading matrix from file " << inputfilename << std::endl;
     std::cout << "  Read file in: " << time << "s" << std::endl;
   }
+
+  // Kernel
+  if (algParams.kernel_func != Skema::Kernel_Map::NONE) {
+    algParams.matrix_n = algParams.matrix_m;
+    algParams.issymmetric = true;
+  }
+
   algParams.matrix_nnz = algParams.matrix_m * algParams.matrix_n;
   algParams.issparse = false;
 
@@ -109,6 +116,13 @@ int main(int argc, char* argv[]) {
       exit(1);
     }
     algParams.parse(args);
+
+    // ISVDS with kernel is broken right now.
+    if ((algParams.solver == Skema::Solver_Method::ISVD) &&
+        (algParams.kernel_func != Skema::Kernel_Map::NONE)) {
+      std::cout << "ISVD with Gauss RBF kernel not currently available."
+                << std::endl;
+    }
 
     // Early exit for some generic choices
     if (algParams.window < algParams.isvd_num_samples) {
