@@ -33,3 +33,6 @@
 
 build/
 .cache/
+
+# MacOS
+.DS_Store
