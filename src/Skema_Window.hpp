@@ -47,9 +47,6 @@ class Window : public WindowBase<MatrixType> {
   }
 };
 
-// template class Window<matrix_type>;
-// template class Window<crs_matrix_type>;
-
 template <typename MatrixType>
 class GaussRBFWindow : public WindowBase<MatrixType> {
  public:
