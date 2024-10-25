@@ -1,9 +1,7 @@
 #pragma once
-#include <vector>
 #include "Skema_AlgParams.hpp"
-#include "Skema_Kernel.hpp"
+#include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
-#include "Skema_Window.hpp"
 
 namespace Skema {
 template <typename MatrixType, typename WindowType>

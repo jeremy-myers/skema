@@ -2,29 +2,19 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
-#include <cstdint>
-#include <cstdio>
 #include <cstdlib>
-#include <exception>
-#include <iomanip>
-#include <ios>
-#include <memory>
-#include <ostream>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "Skema_AlgParams.hpp"
 #include "Skema_Common.hpp"
-#include "Skema_EIGSVD.hpp"
 #include "Skema_ISVD.hpp"
-#include "Skema_ISVD_MatrixMatvec.hpp"
 #include "Skema_ISVD_Primme.hpp"
 #include "Skema_Residuals.hpp"
 #include "Skema_Sampler.hpp"
 #include "Skema_Utils.hpp"
 #include "Skema_Window.hpp"
-#include "primme.h"
 
 namespace Skema {
 /* ************************************************************************* */

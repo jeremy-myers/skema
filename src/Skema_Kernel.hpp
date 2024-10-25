@@ -1,10 +1,6 @@
 #pragma once
 #include <cassert>
-#include <cmath>
 #include <cstddef>
-#include <iomanip>
-#include "Skema_AlgParams.hpp"
-#include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
 
 namespace Skema {
