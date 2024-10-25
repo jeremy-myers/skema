@@ -18,7 +18,7 @@ AlgParams::AlgParams()
       matrix_n(0),
       rank(1),
       print_level(0),
-      debug_level(0),
+      debug(false),
       window(1),
       hist(true),
       isvd_dense_solver(false),
@@ -71,32 +71,6 @@ void AlgParams::print(std::ostream& out) const {
         out << "  iSVD conv test func eps = " << isvd_convtest_eps << std::endl;
         out << "  iSVD conv test skip = " << isvd_convtest_skip << std::endl;
       }
-
-      // out << "    PRIMME method = " << primme_method << std::endl;
-      // out << "    PRIMME methodStage2 = " << primme_methodStage2 <<
-      // std::endl; out << "    PRIMME printLevel = " << primme_printLevel <<
-      // std::endl; out << "    PRIMME tolerance = " << primme_eps << std::endl;
-      // out << "    PRIMME locking = " << std::boolalpha << primme_locking
-      //     << std::endl;
-
-      // if (primme_maxIter > 0)
-      //   out << "    PRIMME maxOuterIters = " << primme_maxIter << std::endl;
-
-      // if (primme_maxMatvecs > 0)
-      //   out << "    PRIMME maxMatvecs = " << primme_maxMatvecs << std::endl;
-
-      // if (primme_maxBasisSize > 0)
-      //   out << "    PRIMME maxBasisSize = " << primme_maxBasisSize
-      //       << std::endl;
-
-      // if (primme_maxBlockSize > 0)
-      //   out << "    PRIMME maxBlockSize = " << primme_maxBlockSize
-      //       << std::endl;
-
-      // if (primme_minRestartSize > 0)
-      //   out << "    PRIMME minRestartSize = " << primme_minRestartSize
-      //       << std::endl;
-
       std::cout << "  iSVD initial guess = " << std::boolalpha
                 << isvd_initial_guess << std::endl;
       break;
@@ -106,7 +80,7 @@ void AlgParams::print(std::ostream& out) const {
       out << "  core = " << sketch_core << std::endl;
       out << "  eta = " << sketch_eta << std::endl;
       out << "  nu = " << sketch_nu << std::endl;
-      out << "  model = " << dim_redux << std::endl;
+      out << "  model = " << Skema::DimRedux_Map::names[dim_redux] << std::endl;
       break;
 
     case Skema::Solver_Method::PRIMME:
@@ -157,22 +131,24 @@ void AlgParams::parse(std::vector<std::string>& args) {
   inputfilename = parse_string(args, "--input", "");
   outputfilename = parse_string(args, "--output", "");
   issparse = parse_bool(args, "--sparse", "--dense", false);
-  issymmetric = parse_bool(args, "--symmetric", "--rectangular", false);
+  issymmetric = parse_bool(args, "--symmetric", "--asymmetric", false);
   matrix_m = parse_int(args, "--m", matrix_m, 0, INT_MAX);
   matrix_n = parse_int(args, "--n", matrix_n, 0, INT_MAX);
   rank = parse_int(args, "--rank", rank, 1, INT_MAX);
-  solver = parse_enum(args, "--solver", solver, Skema::Solver_Method::num_types,
+  solver = parse_enum(args, "--solver", Skema::Solver_Method::default_type,
+                      Skema::Solver_Method::num_types,
                       Skema::Solver_Method::types, Skema::Solver_Method::names);
   print_level = parse_int(args, "--print-level", print_level, 0, 5);
-  debug_level = parse_int(args, "--debug-level", debug_level, 0, 5);
+  debug = parse_bool(args, "--debug", "--debug-off", false);
 
   // Streaming options
   window = parse_int(args, "--window", window, 1, INT_MAX);
 
   // SketchySVD options
   dim_redux =
-      parse_enum(args, "--model", dim_redux, Skema::DimRedux_Map::num_types,
-                 Skema::DimRedux_Map::types, Skema::DimRedux_Map::names);
+      parse_enum(args, "--model", Skema::DimRedux_Map::default_type,
+                 Skema::DimRedux_Map::num_types, Skema::DimRedux_Map::types,
+                 Skema::DimRedux_Map::names);
   sketch_range = parse_int(args, "--range", sketch_range, 0, INT_MAX);
   sketch_core = parse_int(args, "--core", sketch_core, 0, INT_MAX);
   seeds = parse_int_array(args, "--seeds", seeds, 0, INT_MAX);
@@ -183,9 +159,10 @@ void AlgParams::parse(std::vector<std::string>& args) {
 
   // iSVD solver options
   isvd_dense_solver = parse_bool(args, "--svd", "--svds", false);
-  isvd_sampler = parse_enum(
-      args, "--isvd-sampler", isvd_sampler, Skema::Sampler_Type::num_types,
-      Skema::Sampler_Type::types, Skema::Sampler_Type::names);
+  isvd_sampler =
+      parse_enum(args, "--isvd-sampler", Skema::Sampler_Type::default_type,
+                 Skema::Sampler_Type::num_types, Skema::Sampler_Type::types,
+                 Skema::Sampler_Type::names);
   isvd_num_samples = parse_int(args, "--isvd-num-samples", 0, 0, INT_MAX);
   isvd_convtest_eps = parse_real(args, "--isvd-convtest-eps", isvd_convtest_eps,
                                  std::numeric_limits<double>::epsilon(), 1.0);
@@ -212,9 +189,9 @@ void AlgParams::parse(std::vector<std::string>& args) {
       parse_string(args, "--prime_methodStage2", "PRIMME_DEFAULT_METHOD");
 
   // Kernel options
-  kernel_func =
-      parse_enum(args, "--kernel", kernel_func, Skema::Kernel_Map::num_types,
-                 Skema::Kernel_Map::types, Skema::Kernel_Map::names);
+  kernel_func = parse_enum(args, "--kernel", Skema::Kernel_Map::default_type,
+                           Skema::Kernel_Map::num_types,
+                           Skema::Kernel_Map::types, Skema::Kernel_Map::names);
   kernel_gamma = parse_real(args, "--gamma", kernel_gamma, 0.0,
                             std::numeric_limits<double>::max());
 

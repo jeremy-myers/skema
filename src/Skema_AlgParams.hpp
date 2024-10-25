@@ -19,7 +19,7 @@ struct AlgParams {
   size_t matrix_nnz;
   size_t rank;
   int print_level;
-  int debug_level;
+  bool debug;
   size_t window;
   bool hist;
 
