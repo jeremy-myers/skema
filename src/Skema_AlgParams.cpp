@@ -119,7 +119,7 @@ void AlgParams::print(std::ostream& out) const {
   }
 
   if (Skema::Kernel_Map::types[kernel_func] != Skema::Kernel_Map::type::NONE) {
-    out << "  kernel = " << kernel_func << std::endl;
+    out << "  kernel = " << Skema::Kernel_Map::types[kernel_func] << std::endl;
     out << "  gamma = " << kernel_gamma << std::endl;
   }
 }

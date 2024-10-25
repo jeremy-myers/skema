@@ -54,14 +54,15 @@ template <typename MatrixType>
 class GaussRBFWindow : public WindowBase<MatrixType> {
  public:
   GaussRBFWindow(const AlgParams& algParams_)
-      : WindowBase<MatrixType>(algParams_) {
-    map = GaussRBF<MatrixType>(algParams_.kernel_gamma);
-  }
+      : WindowBase<MatrixType>(algParams_),
+        map(GaussRBF<MatrixType>(algParams_.kernel_gamma)),
+        helper(Window<MatrixType>(algParams_)) {}
   ~GaussRBFWindow() {};
 
   inline auto get(const matrix_type& input, const range_type idx)
       -> matrix_type {
-    return map.compute(input, input.extent(0), input.extent(1), input,
+    auto slice = helper.get(input, idx);
+    return map.compute(slice, slice.extent(0), slice.extent(1), input,
                        input.extent(0), input.extent(1), input.extent(1), idx);
   }
 
@@ -76,6 +77,7 @@ class GaussRBFWindow : public WindowBase<MatrixType> {
 
  private:
   GaussRBF<MatrixType> map;
+  Window<MatrixType> helper;
 };
 
 template <typename MatrixType>
