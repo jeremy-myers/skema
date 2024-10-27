@@ -8,8 +8,8 @@
 
 namespace Skema {
 
-template <typename MatrixType>
-SketchySVD<MatrixType>::SketchySVD(const AlgParams& algParams_)
+template <typename MatrixType, typename DimReduxT>
+SketchySVD<MatrixType, DimReduxT>::SketchySVD(const AlgParams& algParams_)
     : nrow(algParams_.matrix_m),
       ncol(algParams_.matrix_n),
       rank(algParams_.rank),
@@ -20,22 +20,16 @@ SketchySVD<MatrixType>::SketchySVD(const AlgParams& algParams_)
                                                     : algParams_.sketch_core),
       eta(algParams_.sketch_eta),
       nu(algParams_.sketch_nu),
-      algParams(algParams_) {
-  Upsilon = getDimRedux<MatrixType>(range, nrow, algParams.seeds[0], algParams);
-  Omega = getDimRedux<MatrixType>(range, ncol, algParams.seeds[1], algParams);
-  Phi = getDimRedux<MatrixType>(core, nrow, algParams.seeds[2], algParams);
-  Psi = getDimRedux<MatrixType, matrix_type>(
-      core, ncol, algParams.seeds[3],
-      algParams);  // explicit specialization
-};
+      algParams(algParams_),
+      Upsilon(DimReduxT(range, nrow, algParams.seeds[0], algParams.debug)),
+      Omega(DimReduxT(range, ncol, algParams.seeds[1], algParams.debug)),
+      Phi(DimReduxT(core, nrow, algParams.seeds[2], algParams.debug)),
+      Psi(DimReduxT(core, ncol, algParams.seeds[3], algParams.debug)){};
 
-template <typename MatrixType>
-auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
-  // do QR of member variables X & Y in place and return C
-  matrix_type C;
-
-  const char N{'N'};
-  const char T{'T'};
+template <typename MatrixType, typename DimReduxT>
+auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
+  char N{'N'};
+  char T{'T'};
   const scalar_type one{1.0};
   const scalar_type zero{0.0};
   const int print_level{algParams.print_level};
@@ -51,10 +45,10 @@ auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
   /* Compute initial approximation */
   // [P,~] = qr(X^T,0);
   timer.reset();
-  auto Pt = Impl::transpose(X);
-  LAPACK::qr(Pt, ncol, range);
+  auto P = Impl::transpose(X);
+  LAPACK::qr(P, ncol, range);
   Kokkos::fence();
-  X = Pt;
+  // X = Pt;
   time = timer.seconds();
   if (print_level > 1) {
     std::cout << "    QR = " << std::right << std::setprecision(3) << time
@@ -71,20 +65,11 @@ auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
               << " sec" << std::endl;
   }
 
-  /*
-  [U1,T1] = qr(obj.Phi*Q,0);
-  [U2,T2] = qr(obj.Psi*P,0);
-  W = T1\(U1'*obj.Z*U2)/T2';
-  */
-  // auto U1 = mtimes(Phi, Y);
-  // Hack for now, create a new Phi
-  auto Phi_tmp =
-      getDimRedux<matrix_type>(core, nrow, algParams.seeds[2], algParams);
-  matrix_type U1("U1", core, range);
-  matrix_type U2("U2", core, range);
-
+  // [U1,T1] = qr(Phi*Q,0);
+  // [U2,T2] = qr(Psi*P,0);
+  // W = T1\(U1'*Z*U2)/T2';
   timer.reset();
-  Phi_tmp->lmap(&N, &N, &one, Y, &zero, U1);
+  auto U1 = Phi.lmap(&one, Y, &zero);
   time = timer.seconds();
   Kokkos::fence();
   if (print_level > 1) {
@@ -92,7 +77,7 @@ auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
   }
 
   timer.reset();
-  Psi->lmap(&N, &N, &one, Pt, &zero, U2);
+  auto U2 = Psi.lmap(&one, P, &zero);
   time = timer.seconds();
   Kokkos::fence();
   if (print_level > 1) {
@@ -119,7 +104,7 @@ auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
               << " sec" << std::endl;
   }
 
-  /* Z2 = U1'*obj.Z*U2; */
+  // Z2 = U1'*obj.Z*U2;
   // Z1 = U1'*Ztmp
   timer.reset();
   matrix_type Z1("Z1", range, core);
@@ -157,31 +142,28 @@ auto SketchySVD<MatrixType>::low_rank_approx() -> matrix_type {
   timer.reset();
   matrix_type Z2t = Impl::transpose(Z2);
   LAPACK::ls(&N, T2, Z2t, range, range, range);
-  C = Impl::transpose(Z2t);
   Kokkos::fence();
   time = timer.seconds();
   if (print_level > 1) {
     std::cout << "    LS = " << std::right << std::setprecision(3) << time
               << " sec" << std::endl;
   }
-
-  return C;
+  X = P;
+  Z = Impl::transpose(Z2t);
 };
 
-template <typename MatrixType>
-void SketchySVD<MatrixType>::fixed_rank_approx(matrix_type& U,
-                                               vector_type& S,
-                                               matrix_type& V) {
-  /*
-    [Q,C,P] = low_rank_approx();
-    [U,S,V] = svd(C);
-    S = S(1:r,1:r);
-    U = U(:,1:r);
-    V = V(:,1:r);
-    U = Q*U;
-    V = P*V;
-    return [U,S,V]
-  */
+template <typename MatrixType, typename DimReduxT>
+void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx(matrix_type& U,
+                                                          vector_type& S,
+                                                          matrix_type& V) {
+  // [Q,C,P] = low_rank_approx();
+  // [U,S,V] = svd(C);
+  // S = S(1:r,1:r);
+  // U = U(:,1:r);
+  // V = V(:,1:r);
+  // U = Q*U;
+  // V = P*V;
+  // return [U,S,V]
 
   const char N{'N'};
   const char T{'T'};
@@ -198,9 +180,9 @@ void SketchySVD<MatrixType>::fixed_rank_approx(matrix_type& U,
   scalar_type time{0.0};
   scalar_type total_time{0.0};
 
-  // [Q,W,P] = low_rank_approx(U,S,V)
+  // [Y,Z,X] = low_rank_approx(U,S,V)
   timer.reset();
-  auto C = low_rank_approx();
+  low_rank_approx();
   Kokkos::fence();
   time = timer.seconds();
   if (print_level > 1) {
@@ -209,12 +191,12 @@ void SketchySVD<MatrixType>::fixed_rank_approx(matrix_type& U,
   }
   total_time += time;
 
-  // [uu,ss,vv] = svd(C)
+  // [uu,ss,vv] = svd(Z)
   timer.reset();
   matrix_type Uc("Uc", range, range);
   vector_type sc("sc", range);
   matrix_type Vc("Vc", range, range);
-  LAPACK::svd(C, range, range, Uc, sc, Vc);
+  LAPACK::svd(Z, range, range, Uc, sc, Vc);
   Kokkos::fence();
   time = timer.seconds();
   if (print_level > 1) {
@@ -223,7 +205,7 @@ void SketchySVD<MatrixType>::fixed_rank_approx(matrix_type& U,
   }
   total_time += time;
 
-  // U = Q*U;
+  // U = Y*U;
   timer.reset();
   matrix_type QUc("QUc", nrow, range);
   Impl::mm(&N, &N, &one, Y, Uc, &zero, QUc);
@@ -235,7 +217,7 @@ void SketchySVD<MatrixType>::fixed_rank_approx(matrix_type& U,
   }
   total_time += time;
 
-  // V = P*Vt';
+  // V = X*Vt';
   timer.reset();
   matrix_type PVc("PVc", ncol, range);
   Impl::mm(&N, &T, &one, X, Vc, &zero, PVc);
@@ -267,124 +249,19 @@ void SketchySVD<MatrixType>::fixed_rank_approx(matrix_type& U,
   }
 };
 
-template <typename MatrixType>
-auto SketchySVD<MatrixType>::mtimes(
-    std::unique_ptr<DimRedux<MatrixType>>& leftmap,
-    const MatrixType& input,
-    std::unique_ptr<DimRedux<MatrixType, matrix_type>>& rightmap)
-    -> matrix_type {
-  auto tmp = mtimes(leftmap, input);
-  const size_type m{leftmap->nrows()};
-  const size_type n{rightmap->nrows()};
-  matrix_type output("SketchySVD::mtimes::DRmap*input_matrix*DRMap^T", m, n);
-
-  const char transA{'N'};
-  const char transB{'N'};  // Ignored by spmv
-  auto tmp_t = Impl::transpose(tmp);
-  rightmap->lmap(&transA, &transB, &eta, tmp_t, &nu, output);
-  return Impl::transpose(output);
-};
-
-template <>
-auto SketchySVD<matrix_type>::mtimes(
-    std::unique_ptr<DimRedux<matrix_type>>& DRmap,
-    const matrix_type& input) -> matrix_type {
-  const size_type m{DRmap->nrows()};
-  const size_type n{ncol};
-  matrix_type output("SketchySVD::mtimes::DRmap*dense_matrix", m, n);
-
-  const char transA{'N'};
-  const char transB{'N'};
-  DRmap->lmap(&transA, &transB, &eta, input, &nu, output);
-  return output;
-};
-
-template <>
-auto SketchySVD<crs_matrix_type>::mtimes(
-    std::unique_ptr<DimRedux<crs_matrix_type>>& DRmap,
-    const crs_matrix_type& input) -> matrix_type {
-  size_type m;
-  size_type n;
-
-  if (!DRmap->issparse()) {
-    // crs_matrix must be left operand
-    // return (crs_matrix^T * DRmap^T)^T
-    m = input.numCols();
-    n = DRmap->nrows();
-    matrix_type output("SketchySVD::mtimes::DRmap*crs_matrix", m, n);
-
-    const char transA{'T'};
-    const char transB{'T'};
-    DRmap->rmap(&transA, &transB, &eta, input, &nu, output);
-    return Impl::transpose(output);
-  } else {
-    std::cout << "SketchySVD for sparse input with sparse sign maps is not "
-                 "currently implemented."
-              << std::endl;
-    exit(1);
-  }
-};
-
-template <>
-auto SketchySVD<matrix_type>::mtimes(
-    const matrix_type& input,
-    std::unique_ptr<DimRedux<matrix_type>>& DRmap) -> matrix_type {
-  if (!DRmap->issparse()) {
-    const size_type m{nrow};
-    const size_type n{DRmap->nrows()};
-    matrix_type output("SketchySVD::mtimes::matrix*DRmap^T", m, n);
-    const char transA{'N'};
-    const char transB{'T'};
-    DRmap->rmap(&transA, &transB, &eta, input, &nu, output);
-    return output;
-  } else {
-    // return (Compute DRmap*matrix^T)^T
-    const size_type m{DRmap->nrows()};
-    const size_type n{nrow};
-    matrix_type output("SketchySVD::mtimes::matrix*DRmap^T", m, n);
-    const char transA{'N'};
-    const char transB{'T'};
-    DRmap->lmap(&transA, &transB, &eta, input, &nu, output);
-    return Impl::transpose(output);
-  }
-};
-
-template <>
-auto SketchySVD<crs_matrix_type>::mtimes(
-    const crs_matrix_type& input,
-    std::unique_ptr<DimRedux<crs_matrix_type>>& DRmap) -> matrix_type {
-  size_type m;
-  size_type n;
-  if (!DRmap->issparse()) {
-    // crs_matrix must be left operand
-    // return crs_matrix * DRmap^T
-    m = nrow;
-    n = DRmap->nrows();
-    matrix_type output("SketchySVD::mtimes::matrix*DRmap", m, n);
-
-    const char transA{'N'};
-    const char transB{'T'};
-    DRmap->rmap(&transA, &transB, &eta, input, &nu, output);
-    return output;
-  } else {
-    std::cout << "SketchySVD for sparse input with sparse sign maps is not "
-                 "currently implemented."
-              << std::endl;
-    exit(1);
-  }
-};
-
-template <typename MatrixType>
-auto SketchySVD<MatrixType>::linear_update(const MatrixType& A) -> void {
+template <typename MatrixType, typename DimReduxT>
+auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
+    -> void {
   // Create window stepper to allow for kernels even though rowwise streaming is
   // not implemented here.
   auto window = Skema::getWindow<MatrixType>(algParams);
   range_type idx{std::make_pair<size_type>(0, nrow)};
   auto H = window->get(A, idx);
 
-  X = mtimes(Upsilon, H);
-  Y = mtimes(H, Omega);
-  Z = mtimes(Phi, H, Psi);
+  X = Upsilon.lmap(&eta, H, &nu);
+  Y = Omega.rmap(&eta, H, &nu);
+  auto W = Phi.lmap(&eta, H, &nu);
+  Z = Psi.rmap(&eta, W, &nu);
 
   if (algParams.debug) {
     std::cout << "H = \n";
@@ -403,13 +280,21 @@ auto SketchySVD<MatrixType>::linear_update(const MatrixType& A) -> void {
 
 template <>
 auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
-  SketchySVD<matrix_type> sketch(algParams);
-  sketch.linear_update(matrix);
-
   matrix_type U;
   vector_type S;
   matrix_type V;
-  sketch.fixed_rank_approx(U, S, V);
+  if (algParams.dim_redux == DimRedux_Map::GAUSS) {
+    SketchySVD<matrix_type, GaussDimRedux> sketch(algParams);
+    sketch.linear_update(matrix);
+    sketch.fixed_rank_approx(U, S, V);
+  } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
+    SketchySVD<matrix_type, SparseSignDimRedux> sketch(algParams);
+    sketch.linear_update(matrix);
+    sketch.fixed_rank_approx(U, S, V);
+  } else {
+    std::cout << "DimRedux: make another selection." << std::endl;
+    exit(1);
+  }
 
   if (algParams.print_level > 0)
     Impl::print(S);
@@ -418,13 +303,23 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
 template <>
 auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
     -> void {
-  SketchySVD<crs_matrix_type> sketch(algParams);
-  sketch.linear_update(matrix);
-
   matrix_type U;
   vector_type S;
   matrix_type V;
-  sketch.fixed_rank_approx(U, S, V);
+  if (algParams.dim_redux == DimRedux_Map::GAUSS) {
+    SketchySVD<crs_matrix_type, GaussDimRedux> sketch(algParams);
+    sketch.linear_update(matrix);
+    sketch.fixed_rank_approx(U, S, V);
+  } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
+    std::cout << "DimRedux: Sparse Sign maps with sparse input is not "
+                 "supported. Make another selection."
+              << std::endl;
+    exit(1);
+  } else {
+    std::cout << "DimRedux: Invalid option. Make another selection."
+              << std::endl;
+    exit(1);
+  }
 
   if (algParams.print_level > 0)
     Impl::print(S);

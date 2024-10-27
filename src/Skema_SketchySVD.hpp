@@ -1,11 +1,10 @@
 #pragma once
 #include "Skema_AlgParams.hpp"
-#include "Skema_DimRedux.hpp"
 #include "Skema_Utils.hpp"
 
 namespace Skema {
 
-template <typename MatrixType>
+template <typename MatrixType, typename DimReduxT>
 class SketchySVD {
  public:
   SketchySVD(const AlgParams&);
@@ -29,28 +28,13 @@ class SketchySVD {
   const AlgParams algParams;
 
   // DimRedux
-  std::unique_ptr<DimRedux<MatrixType>> Upsilon;
-  std::unique_ptr<DimRedux<MatrixType>> Omega;
-  std::unique_ptr<DimRedux<MatrixType>> Phi;
-  std::unique_ptr<DimRedux<MatrixType, matrix_type>>
-      Psi;  // explicit specialization
+  DimReduxT Upsilon;
+  DimReduxT Omega;
+  DimReduxT Phi;
+  DimReduxT Psi;
 
-  auto mtimes(std::unique_ptr<DimRedux<MatrixType>>&, const MatrixType&)
-      -> matrix_type;
-
-  auto mtimes(const MatrixType&, std::unique_ptr<DimRedux<MatrixType>>&)
-      -> matrix_type;
-
-  auto mtimes(std::unique_ptr<DimRedux<MatrixType>>&,
-              const MatrixType&,
-              std::unique_ptr<DimRedux<MatrixType, matrix_type>>&)
-      -> matrix_type;  // explicit specialization
-
-  auto low_rank_approx() -> matrix_type;
+  auto low_rank_approx() -> void;
 };
-
-template class SketchySVD<matrix_type>;
-template class SketchySVD<crs_matrix_type>;
 
 template <typename MatrixType>
 void sketchysvd(const MatrixType&, const AlgParams&);

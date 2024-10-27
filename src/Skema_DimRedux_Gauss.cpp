@@ -7,128 +7,82 @@
 
 namespace Skema {
 
-template <typename MatrixT, typename OtherT>
-void GaussDimRedux<MatrixT, OtherT>::generate(const size_type nrow,
-                                              const size_type ncol,
-                                              const char transp) {
-  using DR = DimRedux<MatrixT, OtherT>;
-
-  if (DR::initialized)
-    return;
-    
+void GaussDimRedux::generate(const size_type nrow,
+                             const size_type ncol,
+                             const char transp) {
+  Kokkos::Random_XorShift64_Pool<> rand_pool(seed);
   const size_type m{(transp == 'N' ? nrow : ncol)};
   const size_type n{(transp == 'N' ? ncol : nrow)};
   data = matrix_type("GaussDimRedux::data", m, n);
-  Kokkos::fill_random(data, DR::pool(), -maxval, maxval);
-  DR::initialized = true;
+  Kokkos::fill_random(data, rand_pool, -maxval, maxval);
 
-  if (DR::debug)
+  if (debug) {
+    std::cout << "GaussDimRedux = " << std::endl;
     Impl::print(data);
+  }
 }
 
 template <>
-void GaussDimRedux<matrix_type>::lmap(const char* transA,
-                                      const char* transB,
-                                      const scalar_type* alpha,
-                                      const matrix_type& B,
-                                      const scalar_type* beta,
-                                      matrix_type& C) {
-  using DR = DimRedux<matrix_type>;
-  // uses GEMM; ignore transB in generate()
-  generate(DR::nrows(), DR::ncols());
-  Impl::mm(transA, transB, alpha, data, B, beta, C);
+auto GaussDimRedux::lmap(const scalar_type* alpha,
+                         const matrix_type& B,
+                         const scalar_type* beta) -> matrix_type {
+  generate(nrow, ncol);
+  const auto m{nrow};
+  const auto n{B.extent(1)};
+  matrix_type C("GaussDimRedux::return", m, n);
+
+  const char transA{'N'};
+  const char transB{'N'};
+  Impl::mm(&transA, &transB, alpha, data, B, beta, C);
+  return C;
 }
 
 template <>
-void GaussDimRedux<crs_matrix_type>::lmap(const char* transA,
-                                          const char* transB,
-                                          const scalar_type* alpha,
-                                          const crs_matrix_type& A,
-                                          const scalar_type* beta,
-                                          matrix_type& C) {
-  std::cout << "GaussDimRedux<crs_matrix_type>::lmap specialization not "
-               "implemented yet."
-            << std::endl;
-  exit(0);
+auto GaussDimRedux::rmap(const scalar_type* alpha,
+                         const matrix_type& A,
+                         const scalar_type* beta) -> matrix_type {
+  generate(nrow, ncol);
+  const auto m{A.extent(0)};
+  const auto n{nrow};
+  matrix_type C("GaussDimRedux::return", m, n);
+
+  const char transA{'N'};
+  const char transB{'T'};
+  Impl::mm(&transA, &transB, alpha, A, data, beta, C);
+  return C;
 }
 
 template <>
-void GaussDimRedux<crs_matrix_type, matrix_type>::lmap(const char* transA,
-                                                       const char* transB,
-                                                       const scalar_type* alpha,
-                                                       const matrix_type& A,
-                                                       const scalar_type* beta,
-                                                       matrix_type& C) {
-  using DR = DimRedux<crs_matrix_type, matrix_type>;
-  // uses GEMM; ignore transB in generate()
-  generate(DR::nrows(), DR::ncols());
-  Impl::mm(transA, transB, alpha, data, A, beta, C);
+auto GaussDimRedux::lmap(const scalar_type* alpha,
+                         const crs_matrix_type& B,
+                         const scalar_type* beta) -> matrix_type {
+  // return (B'*data')'
+  const auto m{B.numCols()};
+  const auto n{nrow};
+  matrix_type C("GaussDimRedux::return", m, n);
+
+  const char transA{'T'};  // ignored by spmv
+  const char transB{'T'};
+  generate(nrow, ncol, transB);
+
+  Impl::mm(&transB, &transA, alpha, B, data, beta, C);
+  return Impl::transpose(C);
 }
 
 template <>
-void GaussDimRedux<matrix_type, crs_matrix_type>::lmap(const char* transA,
-                                                       const char* transB,
-                                                       const scalar_type* alpha,
-                                                       const crs_matrix_type& A,
-                                                       const scalar_type* beta,
-                                                       matrix_type& C) {
-  std::cout
-      << "GaussDimRedux<matrix_type, crs_matrix_type>::lmap specialization not "
-         "implemented yet."
-      << std::endl;
-  exit(0);
-}
+auto GaussDimRedux::rmap(const scalar_type* alpha,
+                         const crs_matrix_type& A,
+                         const scalar_type* beta) -> matrix_type {
+  // return A*data', data' must be generated explicitly as transpose
+  const auto m{A.numRows()};
+  const auto n{nrow};
+  matrix_type C("GaussDimRedux::return", m, n);
 
-template <>
-void GaussDimRedux<matrix_type>::rmap(const char* transA,
-                                      const char* transB,
-                                      const scalar_type* alpha,
-                                      const matrix_type& A,
-                                      const scalar_type* beta,
-                                      matrix_type& C) {
-  using DR = DimRedux<matrix_type>;
-  // uses GEMM; ignore transB in generate()
-  generate(DR::nrows(), DR::ncols());
-  Impl::mm(transA, transB, alpha, A, data, beta, C);
-}
+  const char transA{'N'};  // transB ignored by spmv
+  const char transB{'T'};
+  generate(nrow, ncol, transB);
 
-template <>
-void GaussDimRedux<crs_matrix_type, matrix_type>::rmap(const char* transA,
-                                                       const char* transB,
-                                                       const scalar_type* alpha,
-                                                       const matrix_type& A,
-                                                       const scalar_type* beta,
-                                                       matrix_type& C) {
-  using DR = DimRedux<crs_matrix_type, matrix_type>;
-  // uses GEMM; ignore transB in generate()
-  generate(DR::nrows(), DR::ncols());
-  Impl::mm(transA, transB, alpha, A, data, beta, C);
+  Impl::mm(&transA, &transB, alpha, A, data, beta, C);
+  return C;
 }
-
-template <>
-void GaussDimRedux<crs_matrix_type>::rmap(const char* transA,
-                                          const char* transB,
-                                          const scalar_type* alpha,
-                                          const crs_matrix_type& A,
-                                          const scalar_type* beta,
-                                          matrix_type& C) {
-  using DR = DimRedux<crs_matrix_type>;
-  // uses SpMV; require transB in generate()
-  generate(DR::nrows(), DR::ncols(), *transB);
-  Impl::mm(transA, alpha, A, data, beta, C);
-}
-
-template <>
-void GaussDimRedux<matrix_type, crs_matrix_type>::rmap(const char* transA,
-                                                       const char* transB,
-                                                       const scalar_type* alpha,
-                                                       const crs_matrix_type& A,
-                                                       const scalar_type* beta,
-                                                       matrix_type& C) {
-  using DR = DimRedux<matrix_type, crs_matrix_type>;
-  // uses SpMV; require transB in generate()
-  generate(DR::nrows(), DR::ncols(), *transB);
-  Impl::mm(transA, alpha, A, data, beta, C);
-}
-
 }  // namespace Skema

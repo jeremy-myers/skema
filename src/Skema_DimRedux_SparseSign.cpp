@@ -19,7 +19,6 @@ struct IsNegative {
   bool operator()(const ValueType val) const { return (val < 0); }
 };
 
-// template <typename MatrixType>
 auto permuted_indices(const size_type indicesCount,
                       const size_type dataCount,
                       RNG& rng) -> index_type {
@@ -43,14 +42,10 @@ auto permuted_indices(const size_type indicesCount,
   return dev_indices;
 }
 
-template <typename MatrixType, typename OtherMatrix>
-void SparseSignDimRedux<MatrixType, OtherMatrix>::generate(const size_type nrow,
-                                                           const size_type ncol,
-                                                           const char transp) {
-  using DR = DimRedux<MatrixType, OtherMatrix>;
-
-  if (DR::initialized)
-    return;
+void SparseSignDimRedux::generate(const size_type nrow,
+                                  const size_type ncol,
+                                  const char transp) {
+  Kokkos::Random_XorShift64_Pool<> rand_pool(seed);
 
   // Create a CRS row map with zeta entries per row.
   namespace KE = Kokkos::Experimental;
@@ -95,7 +90,7 @@ void SparseSignDimRedux<MatrixType, OtherMatrix>::generate(const size_type nrow,
   // and floor function to the negative values.
 
   vector_type values("values", zeta * nrow);
-  Kokkos::fill_random(values, DR::pool(), -1.0, 1.0);
+  Kokkos::fill_random(values, rand_pool, -1.0, 1.0);
   Kokkos::fence();
 
   KE::replace_if(exec_space, KE::begin(values), KE::end(values),
@@ -118,59 +113,36 @@ void SparseSignDimRedux<MatrixType, OtherMatrix>::generate(const size_type nrow,
 }
 
 template <>
-void SparseSignDimRedux<matrix_type>::lmap(const char* transA,
-                                           const char* transB,
-                                           const scalar_type* alpha,
-                                           const matrix_type& B,
-                                           const scalar_type* beta,
-                                           matrix_type& C) {
-  using DR = DimRedux<matrix_type>;
-  generate(DR::nrows(), DR::ncols(), *transA);
+auto SparseSignDimRedux::lmap(const scalar_type* alpha,
+                              const matrix_type& B,
+                              const scalar_type* beta) -> matrix_type {
+  generate(nrow, ncol);
+  const auto m{nrow};
+  const auto n{B.extent(1)};
+  matrix_type C("SparseSignDimRedux::return", m, n);
 
-  double time;
-  Kokkos::Timer timer;
-  Impl::mm(transA, transB, alpha, data, B, beta, C);
-  time = timer.seconds();
-  DR::stats.map.time += time;
+  const char transA{'N'};
+  const char transB{'N'};
+  Impl::mm(&transA, &transB, alpha, data, B, beta, C);
+  return C;
 }
 
 template <>
-void SparseSignDimRedux<crs_matrix_type>::lmap(const char* transA,
-                                               const char* transB,
-                                               const scalar_type* alpha,
-                                               const crs_matrix_type& A,
-                                               const scalar_type* beta,
-                                               matrix_type& C) {
-  std::cout << "SparseSignDimRedux<crs_matrix_type>::lmap: specialization not "
-               "implemented yet."
-            << std::endl;
+auto SparseSignDimRedux::rmap(const scalar_type* alpha,
+                              const matrix_type& A,
+                              const scalar_type* beta) -> matrix_type {
+  // return A * data' as (data * A')'
+  const auto m{nrow};
+  const auto n{A.extent(0)};
+  matrix_type C("SparseSignDimRedux::return", m, n);
+
+  const char trans_matx{'T'};  // ignored by spmv
+  const char trans_data{'N'};
+  generate(nrow, ncol);
+
+  auto At = Impl::transpose(A);
+  Impl::mm(&trans_data, &trans_matx, alpha, data, At, beta, C);
+  return Impl::transpose(C);
 }
 
-template <typename MatrixT, typename OtherT>
-void SparseSignDimRedux<MatrixT, OtherT>::lmap(const char* transA,
-                                               const char* transB,
-                                               const scalar_type* alpha,
-                                               const OtherT& A,
-                                               const scalar_type* beta,
-                                               matrix_type& C) {
-  using DR = DimRedux<MatrixT, OtherT>;
-  std::cout << "SparseSignDimRedux<MatrixT, OtherT>::lmap: "
-               "specialization not "
-               "implemented yet."
-            << std::endl;
-}
-
-template <typename MatrixT, typename OtherT>
-void SparseSignDimRedux<MatrixT, OtherT>::rmap(const char* transA,
-                                               const char* transB,
-                                               const scalar_type* alpha,
-                                               const OtherT& A,
-                                               const scalar_type* beta,
-                                               matrix_type& C) {
-  using DR = DimRedux<MatrixT, OtherT>;
-  std::cout << "SparseSignDimRedux<MatrixT, OtherT>::rmap: "
-               "specialization not "
-               "implemented yet."
-            << std::endl;
-}
 }  // namespace Skema
