@@ -78,7 +78,7 @@ inline void svd(const matrix_type& A,
 inline void qr(matrix_type& Q, const size_type nrow, const size_type ncol) {
   const lapack_int m{static_cast<lapack_int>(nrow)};
   const lapack_int n{static_cast<lapack_int>(ncol)};
-  const lapack_int lda{static_cast<lapack_int>(Q.stride(1))};
+  const lapack_int lda{static_cast<lapack_int>(Q.extent(0))};
   const lapack_int ltau{std::min<lapack_int>(m, n)};
   const lapack_int lwork{std::max<lapack_int>(1, n)};
   const lapack_int rank{std::min<lapack_int>(m, n)};
