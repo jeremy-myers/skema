@@ -17,11 +17,13 @@ inline void svd(const matrix_type& A,
   const char jobv{'S'};
   const lapack_int m{static_cast<lapack_int>(nrow)};
   const lapack_int n{static_cast<lapack_int>(ncol)};
+  const lapack_int max_mn{std::max<lapack_int>(m, n)};
   const lapack_int min_mn{std::min<lapack_int>(m, n)};
-  const lapack_int lda{static_cast<lapack_int>(A.extent(0))};
+  const lapack_int lda{static_cast<lapack_int>(A.stride(1))};
   const lapack_int ldu{static_cast<lapack_int>(nrow)};
   const lapack_int ldv{min_mn};
-  const lapack_int lwork{std::max(1, 5 * min_mn)};
+  const lapack_int lwork{
+      std::max(std::max(1, 3 * min_mn + max_mn), 5 * min_mn)};
   std::vector<double> superb(lwork);
   lapack_int info;
 
@@ -39,11 +41,13 @@ inline void svd(const matrix_type& A,
   const char jobv{'S'};
   const lapack_int m{static_cast<lapack_int>(nrow)};
   const lapack_int n{static_cast<lapack_int>(ncol)};
+  const lapack_int max_mn{std::max<lapack_int>(m, n)};
   const lapack_int min_mn{std::min<lapack_int>(m, n)};
   const lapack_int lda{static_cast<lapack_int>(A.stride(1))};
   const lapack_int ldu{static_cast<lapack_int>(nrow)};
   const lapack_int ldv{min_mn};
-  const lapack_int lwork{min_mn - 1};
+  const lapack_int lwork{
+      std::max(std::max(1, 3 * min_mn + max_mn), 5 * min_mn)};
   std::vector<double> superb(lwork);
   lapack_int info;
 
@@ -61,11 +65,13 @@ inline void svd(const matrix_type& A,
   const char jobv{'S'};
   const lapack_int m{static_cast<lapack_int>(nrow)};
   const lapack_int n{static_cast<lapack_int>(ncol)};
+  const lapack_int max_mn{std::max<lapack_int>(m, n)};
   const lapack_int min_mn{std::min<lapack_int>(m, n)};
   const lapack_int lda{static_cast<lapack_int>(A.stride(1))};
   const lapack_int ldu{static_cast<lapack_int>(nrow)};
   const lapack_int ldv{min_mn};
-  const lapack_int lwork{min_mn - 1};
+  const lapack_int lwork{
+      std::max(std::max(1, 3 * min_mn + max_mn), 5 * min_mn)};
   std::vector<double> superb(lwork);
   lapack_int info;
 
@@ -73,6 +79,16 @@ inline void svd(const matrix_type& A,
   std::vector<double> V(ncol * min_mn);
   LAPACK_dgesvd(&jobu, &jobu, &m, &n, A.data(), &lda, S.data(), U.data(), &ldu,
                 V.data(), &ldv, superb.data(), &lwork, &info);
+}
+
+// Compute ||A|_2
+inline scalar_type nrm2(const matrix_type& A) {
+  const auto nrow{A.extent(0)};
+  const auto ncol{A.extent(1)};
+  const auto k{std::min(nrow, ncol)};
+  vector_type S("S", k);
+  svd(A, nrow, ncol, S);
+  return S(0);
 }
 
 inline void qr(matrix_type& Q, const size_type nrow, const size_type ncol) {
@@ -129,7 +145,7 @@ inline void ls(const char* trans,
   const lapack_int p{static_cast<lapack_int>(nrhs)};
   const lapack_int lda{static_cast<lapack_int>(A.extent(0))};
   const lapack_int ldb{
-      static_cast<lapack_int>(std::max<int>(A.extent(0), B.extent(0)))};
+      static_cast<lapack_int>(std::max<lapack_int>(A.extent(0), B.extent(0)))};
   const lapack_int lwork{
       std::max<lapack_int>(1, m * n + std::max<lapack_int>(m * n, p))};
   std::vector<double> work(lwork);
@@ -139,25 +155,26 @@ inline void ls(const char* trans,
                &lwork, &info);
 }
 
-inline void chol(matrix_type& A,
-                 matrix_type& C,
-                 const size_type nrow,
-                 const size_type ncol) {
-  assert((C.extent(0) == nrow && C.extent(1) == ncol));
-
+inline void chol(matrix_type& A) {
   const char uplo{'U'};
-  lapack_int m{static_cast<lapack_int>(nrow)};
-  lapack_int n{static_cast<lapack_int>(ncol)};
+  lapack_int m{static_cast<lapack_int>(A.extent(0))};
+  lapack_int n{static_cast<lapack_int>(A.extent(1))};
   lapack_int lda{static_cast<lapack_int>(A.extent(0))};
-
-  std::vector<lapack_int> ipiv(std::min(m, n));
   lapack_int info;
 
   LAPACK_dpotrf(&uplo, &m, A.data(), &lda, &info);
 
+  if (info > 0) {
+    std::cout << "LAPACK_dpotrf: the leading minor of order " << info
+              << " is not positive definite, and the factorization could not "
+                 "be completed."
+              << std::endl;
+    exit(info);
+  }
+
   for (auto j = 0; j < n; ++j) {
-    for (auto i = 0; i < j + 1; ++i) {
-      C(i, j) = A(i, j);
+    for (auto i = j + 1; i < m; ++i) {
+      A(i, j) = 0.0;
     }
   }
 }

@@ -15,11 +15,15 @@ struct DimReduxStats {
 
 template <typename Derived>
 class DimRedux {
+  typedef Kokkos::Random_XorShift64_Pool<> pool_type;
+
  protected:
   inline Derived& self() noexcept { return static_cast<Derived&>(*this); };
   const size_type nrow;
   const size_type ncol;
   const ordinal_type seed;
+  const pool_type rand_pool;
+  bool initialized;
   const bool debug;
 
  public:
@@ -27,7 +31,12 @@ class DimRedux {
            const size_type ncol_,
            const ordinal_type seed_,
            const bool debug_)
-      : nrow(nrow_), ncol(ncol_), seed(seed_), debug(debug_) {};
+      : nrow(nrow_),
+        ncol(ncol_),
+        seed(seed_),
+        rand_pool(pool_type(seed_)),
+        initialized(false),
+        debug(debug_) {};
   DimRedux(const DimRedux&) = default;
   DimRedux(DimRedux&&) = default;
   DimRedux& operator=(const DimRedux&);
@@ -37,24 +46,33 @@ class DimRedux {
   template <typename InputMatrixT>
   inline auto lmap(const scalar_type* alpha,
                    const InputMatrixT& B,
-                   const scalar_type* beta) -> matrix_type {
-    return self().lmap(alpha, B, beta);
+                   const scalar_type* beta,
+                   char transA = 'N',
+                   char transB = 'N') -> matrix_type {
+    return self().lmap(alpha, B, beta, transA, transB);
   };
 
   template <typename InputMatrixT>
   inline auto rmap(const scalar_type* alpha,
                    const InputMatrixT& A,
-                   const scalar_type* beta) -> matrix_type {
-    return self().rmap(alpha, A, beta);
+                   const scalar_type* beta,
+                   char transA = 'N',
+                   char transB = 'T') -> matrix_type {
+    return self().rmap(alpha, A, beta, transA, transB);
   };
 
-  inline void generate(const size_type nrow,
+  inline auto generate(const size_type nrow,
                        const size_type ncol,
-                       const char* transp) {
+                       const char* transp) -> void {
     self().generate(nrow, ncol, transp);
   };
 
-  inline bool issparse() { return self().issparse(); };
+  inline auto issparse() -> bool { return self().issparse(); };
+
+  template <typename InputMatrixT>
+  inline auto axpy(const scalar_type val, InputMatrixT& A) -> void {
+    self().axpy(val, A);
+  };
 
   inline size_type nrows() { return nrow; };
   inline size_type ncols() { return ncol; };
@@ -82,21 +100,28 @@ class GaussDimRedux : public DimRedux<GaussDimRedux> {
   template <typename InputMatrixT>
   auto lmap(const scalar_type* alpha,
             const InputMatrixT& B,
-            const scalar_type* beta) -> matrix_type;
+            const scalar_type* beta,
+            char transA = 'N',
+            char transB = 'N') -> matrix_type;
 
   template <typename InputMatrixT>
   auto rmap(const scalar_type* alpha,
             const InputMatrixT& A,
-            const scalar_type* beta) -> matrix_type;
+            const scalar_type* beta,
+            char transA = 'N',
+            char transB = 'T') -> matrix_type;
 
-  inline bool issparse() { return false; };
+  inline auto issparse() -> bool { return false; };
+
+  template <typename InputMatrixT>
+  auto axpy(const scalar_type, InputMatrixT&) -> void;
 
  private:
   friend class DimRedux<GaussDimRedux>;
 
   matrix_type data;
   const scalar_type maxval;
-  void generate(const size_type, const size_type, const char = 'N');
+  auto generate(const size_type, const size_type, const char = 'N') -> void;
 };
 
 class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
@@ -128,20 +153,27 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
   template <typename InputMatrixT>
   auto lmap(const scalar_type* alpha,
             const InputMatrixT& B,
-            const scalar_type* beta) -> matrix_type;
+            const scalar_type* beta,
+            char transA = 'N',
+            char transB = 'N') -> matrix_type;
 
   template <typename InputMatrixT>
   auto rmap(const scalar_type* alpha,
             const InputMatrixT& A,
-            const scalar_type* beta) -> matrix_type;
+            const scalar_type* beta,
+            char transA = 'N',
+            char transB = 'T') -> matrix_type;
 
-  inline bool issparse() { return true; };
+  inline auto issparse() -> bool { return true; };
+
+  template <typename InputMatrixT>
+  auto axpy(const scalar_type, InputMatrixT&) -> void;
 
  private:
   friend class DimRedux<SparseSignDimRedux>;
   crs_matrix_type data;
   const size_type zeta;
-  void generate(const size_type, const size_type, const char = 'N');
+  auto generate(const size_type, const size_type, const char = 'N') -> void;
 };
 
 }  // namespace Skema
