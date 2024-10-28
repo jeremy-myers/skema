@@ -27,6 +27,144 @@ SketchySVD<MatrixType, DimReduxT>::SketchySVD(const AlgParams& algParams_)
       Psi(DimReduxT(core, ncol, algParams.seeds[3], algParams.debug)){};
 
 template <typename MatrixType, typename DimReduxT>
+void SketchySVD<MatrixType, DimReduxT>::impl_fixed_rank_psd_approx(
+    matrix_type& U,
+    vector_type& S) {
+  // Numerically stable Fixed-Rank Nyström Approximation. Instead of
+  // approximating the psd matrix A directly, we approximate the shifted matrix
+  // Aν = A + νI and then remove the shift.
+  if (algParams.print_level > 0)
+    std::cout << "\nComputing fixed-rank approximation" << std::endl;
+
+  Kokkos::Timer timer;
+  scalar_type time{0.0};
+  scalar_type total_time{0.0};
+
+  const char N{'N'};
+  const char T{'T'};
+  const scalar_type one{1.0};
+  const scalar_type zero{0.0};
+  const int print_level{algParams.print_level};
+  const bool debug{algParams.debug};
+
+  // Construct the shifted sketch Yν = Y + νΩ.
+  // Compute nu = machine_eps * norm(Y)
+  // Here copy Y because nrm2 overwrites
+  matrix_type Y_copy("Y_copy", nrow, range);
+  Kokkos::deep_copy(Y_copy, Y);
+  auto nu = std::numeric_limits<scalar_type>::epsilon() * LAPACK::nrm2(Y_copy);
+  time = timer.seconds();
+  if (print_level > 0) {
+    std::cout << "  NORM = " << time << " sec" << std::endl;
+  }
+  if (debug) {
+    std::cout << std::setprecision(16) << "norm(Y) = " << nu << ", eta = " << nu
+              << std::endl;
+  }
+  total_time += time;
+
+  // Construct shifted sketch
+  timer.reset();
+  Omega.axpy(nu, Y);
+  Kokkos::fence();
+  time = timer.seconds();
+  if (print_level > 0) {
+    std::cout << "  AXPY = " << time << " sec" << std::endl;
+  }
+  total_time += time;
+  if (debug) {
+    std::cout << "Y = Y + eta Omega" << std::endl;
+    Impl::print(Y);
+  }
+
+  // Form the matrix B = Ω∗Yν
+  timer.reset();
+  auto Yt = Impl::transpose(Y);
+  auto B = Omega.lmap(&one, Y, &zero, 'T', 'N');
+  Kokkos::fence();
+  time = timer.seconds();
+  if (debug) {
+    std::cout << "B = Omega^T * Y = " << std::endl;
+    Impl::print(B);
+  }
+  if (print_level > 0) {
+    std::cout << "  LMAP = " << time << " sec" << std::endl;
+  }
+  total_time += time;
+
+  // Compute a Cholesky decomposition B = CC^*
+  timer.reset();
+  auto Bt = Impl::transpose(B);
+  matrix_type C("BpBt", range, range);
+  // Force symmetry
+  KokkosBlas::update(0.5, B, 0.5, Bt, 0.0, C);
+  Kokkos::fence();
+
+  // C = chol( (B + B^T) / 2)
+  LAPACK::chol(C);
+  Kokkos::fence();
+  time = timer.seconds();
+  if (debug)
+    Impl::print(C);
+  if (print_level > 0) {
+    std::cout << "  CHOL = " << time << " sec" << std::endl;
+  }
+  total_time += time;
+
+  // Compute E = YνC^{−1} by back-substitution
+  // Least squares problem Y / C
+  // W = Y/C; MATLAB: (C'\Y')'; / is MATLAB mldivide(C',Y')'
+  timer.reset();
+  LAPACK::ls(&T, C, Yt, range, range, Yt.extent(1));
+  Kokkos::fence();
+  Y = Impl::transpose(Yt);
+  time = timer.seconds();
+  if (print_level > 0) {
+    std::cout << "  LS = " << time << " sec" << std::endl;
+  }
+  total_time += time;
+
+  // Compute the (thin) singular value decomposition E = U ΣV^*
+  timer.reset();
+  const size_type mw{Y.extent(0)};
+  const size_type nw{Y.extent(1)};
+  const size_type min_mnw{std::min(mw, nw)};
+
+  matrix_type Uwy("Uwy", mw, min_mnw);
+  vector_type Swy("Swy", min_mnw);
+  matrix_type Vwy("Vwy", min_mnw, nw);  // transpose
+  LAPACK::svd(Y, mw, nw, Uwy, Swy, Vwy);
+  time = timer.seconds();
+  if (print_level > 0) {
+    std::cout << "  SVD = " << time << " sec" << std::endl;
+  }
+  total_time += time;
+
+  // Truncate to rank r
+  timer.reset();
+  range_type rlargest = std::make_pair<size_type>(0, rank);
+  U = Kokkos::subview(Uwy, Kokkos::ALL(), rlargest);
+
+  // Sr = S(1:r, 1:r);
+  S = Kokkos::subview(Swy, rlargest);
+
+  // Square to get eigenvalues; remove shift
+  for (auto rr = 0; rr < rank; ++rr) {
+    scalar_type remove_shift = S(rr) * S(rr) - nu;
+    S(rr) = std::max(0.0, remove_shift);
+  }
+
+  time = timer.seconds();
+  if (print_level > 0) {
+    std::cout << "  SET = " << time << " sec" << std::endl;
+  }
+  total_time += time;
+
+  std::cout << "APPROX = " << std::right << std::setprecision(3) << total_time
+            << " sec" << std::endl;
+};
+
+template <typename MatrixType, typename DimReduxT>
 auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   char N{'N'};
   char T{'T'};
@@ -69,7 +207,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   // [U2,T2] = qr(Psi*P,0);
   // W = T1\(U1'*Z*U2)/T2';
   timer.reset();
-  auto U1 = Phi.lmap(&one, Y, &zero);
+  auto U1 = Phi.lmap(&one, Y, &zero, 'T', 'N');
   time = timer.seconds();
   Kokkos::fence();
   if (print_level > 1) {
@@ -77,7 +215,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   }
 
   timer.reset();
-  auto U2 = Psi.lmap(&one, P, &zero);
+  auto U2 = Psi.lmap(&one, P, &zero, 'T', 'N');
   time = timer.seconds();
   Kokkos::fence();
   if (print_level > 1) {
@@ -153,9 +291,9 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
 };
 
 template <typename MatrixType, typename DimReduxT>
-void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx(matrix_type& U,
-                                                          vector_type& S,
-                                                          matrix_type& V) {
+void SketchySVD<MatrixType, DimReduxT>::impl_fixed_rank_approx(matrix_type& U,
+                                                               vector_type& S,
+                                                               matrix_type& V) {
   // [Q,C,P] = low_rank_approx();
   // [U,S,V] = svd(C);
   // S = S(1:r,1:r);
@@ -250,7 +388,27 @@ void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx(matrix_type& U,
 };
 
 template <typename MatrixType, typename DimReduxT>
-auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
+auto SketchySVD<MatrixType, DimReduxT>::impl_nystrom_linear_update(
+    const MatrixType& A) -> void {
+  // Create window stepper to allow for kernels even though rowwise streaming is
+  // not implemented here.
+  auto window = Skema::getWindow<MatrixType>(algParams);
+  range_type idx{std::make_pair<size_type>(0, nrow)};
+  auto H = window->get(A, idx);
+
+  Y = Omega.rmap(&eta, H, &nu);
+
+  if (algParams.debug) {
+    std::cout << "H = \n";
+    Impl::print(H);
+
+    std::cout << "Y = \n";
+    Impl::print(Y);
+  }
+};
+
+template <typename MatrixType, typename DimReduxT>
+auto SketchySVD<MatrixType, DimReduxT>::impl_linear_update(const MatrixType& A)
     -> void {
   // Create window stepper to allow for kernels even though rowwise streaming is
   // not implemented here.
@@ -277,6 +435,28 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     Impl::print(Z);
   }
 };
+
+template <typename MatrixType, typename DimReduxT>
+auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
+    -> void {
+  if (algParams.issymmetric) {
+    impl_nystrom_linear_update(A);
+  } else {
+    impl_linear_update(A);
+  }
+}
+
+template <typename MatrixType, typename DimReduxT>
+auto SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx(matrix_type& U,
+                                                          vector_type& S,
+                                                          matrix_type& V)
+    -> void {
+  if (algParams.issymmetric) {
+    impl_fixed_rank_psd_approx(U, S);
+  } else {
+    impl_fixed_rank_approx(U, S, V);
+  }
+}
 
 template <>
 auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {

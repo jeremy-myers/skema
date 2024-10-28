@@ -45,7 +45,8 @@ auto permuted_indices(const size_type indicesCount,
 void SparseSignDimRedux::generate(const size_type nrow,
                                   const size_type ncol,
                                   const char transp) {
-  Kokkos::Random_XorShift64_Pool<> rand_pool(seed);
+  if (initialized)
+    return;
 
   // Create a CRS row map with zeta entries per row.
   namespace KE = Kokkos::Experimental;
@@ -110,19 +111,22 @@ void SparseSignDimRedux::generate(const size_type nrow,
     auto data_t = Impl::transpose(data);
     data = data_t;
   }
+  initialized = true;
 }
 
 template <>
 auto SparseSignDimRedux::lmap(const scalar_type* alpha,
                               const matrix_type& B,
-                              const scalar_type* beta) -> matrix_type {
+                              const scalar_type* beta,
+                              char transA,
+                              char transB) -> matrix_type {
   generate(nrow, ncol);
   const auto m{nrow};
   const auto n{B.extent(1)};
   matrix_type C("SparseSignDimRedux::return", m, n);
 
-  const char transA{'N'};
-  const char transB{'N'};
+  transA = 'N';
+  transB = 'N';
   Impl::mm(&transA, &transB, alpha, data, B, beta, C);
   return C;
 }
@@ -130,19 +134,23 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha,
 template <>
 auto SparseSignDimRedux::rmap(const scalar_type* alpha,
                               const matrix_type& A,
-                              const scalar_type* beta) -> matrix_type {
+                              const scalar_type* beta,
+                              char transA,
+                              char transB) -> matrix_type {
   // return A * data' as (data * A')'
   const auto m{nrow};
   const auto n{A.extent(0)};
   matrix_type C("SparseSignDimRedux::return", m, n);
 
-  const char trans_matx{'T'};  // ignored by spmv
-  const char trans_data{'N'};
+  transB = 'N';
+  transA = 'T';  // ignored by spmv
   generate(nrow, ncol);
 
   auto At = Impl::transpose(A);
-  Impl::mm(&trans_data, &trans_matx, alpha, data, At, beta, C);
+  Impl::mm(&transB, &transA, alpha, data, At, beta, C);
   return Impl::transpose(C);
 }
 
+template <>
+auto SparseSignDimRedux::axpy(const scalar_type val, matrix_type& A) -> void {}
 }  // namespace Skema

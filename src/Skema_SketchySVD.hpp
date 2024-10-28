@@ -10,8 +10,8 @@ class SketchySVD {
   SketchySVD(const AlgParams&);
   ~SketchySVD() = default;
 
-  void linear_update(const MatrixType&);
-  void fixed_rank_approx(matrix_type&, vector_type&, matrix_type&);
+  auto linear_update(const MatrixType&) -> void;
+  auto fixed_rank_approx(matrix_type&, vector_type&, matrix_type&) -> void;
 
  private:
   // Sketch
@@ -34,6 +34,12 @@ class SketchySVD {
   DimReduxT Psi;
 
   auto low_rank_approx() -> void;
+
+  auto impl_linear_update(const MatrixType&) -> void;
+  auto impl_fixed_rank_approx(matrix_type&, vector_type&, matrix_type&) -> void;
+
+  auto impl_nystrom_linear_update(const MatrixType&) -> void;
+  auto impl_fixed_rank_psd_approx(matrix_type&, vector_type&) -> void;
 };
 
 template <typename MatrixType>
