@@ -31,8 +31,8 @@ void eigs_default_dense_matvec(void* x,
 
     *err = 0;
   } catch (const std::exception& e) {
-    std::cout << "SparseMatrixMatvec encountered an exception: " << e.what()
-              << std::endl;
+    std::cout << "eigs_default_dense_matvec encountered an exception: "
+              << e.what() << std::endl;
     *err = 1;  ///! notify to primme that something went wrong
   }
 }
@@ -63,8 +63,55 @@ void eigs_default_sparse_matvec(void* x,
 
     *err = 0;
   } catch (const std::exception& e) {
-    std::cout << "SparseMatrixMatvec encountered an exception: " << e.what()
-              << std::endl;
+    std::cout << "eigs_default_sparse_matvec encountered an exception: "
+              << e.what() << std::endl;
+    *err = 1;  ///! notify to primme that something went wrong
+  }
+}
+
+void eigs_kernel_dense_matvec(void* x,
+                              PRIMME_INT* ldx,
+                              void* y,
+                              PRIMME_INT* ldy,
+                              int* blockSize,
+                              primme_params* primme,
+                              int* err) {
+  ///! Capture exceptions here; don't propagate them to C code
+  try {
+    const EIGS_Kernel_Matrix kernel = *(EIGS_Kernel_Matrix*)primme->matrix;
+    const size_type nfeat = kernel.nfeat;
+    const size_type wsize = kernel.wsize;
+    range_type row_range;
+
+    const size_type nrow{static_cast<size_type>(primme->n)};
+    const size_type ncol{static_cast<size_type>(primme->n)};
+    const size_type lldx{static_cast<size_type>(*ldx)};
+    const size_type lldy{static_cast<size_type>(*ldy)};
+    const size_type lbsz{static_cast<size_type>(*blockSize)};
+
+    unmanaged_matrix_type x_view0((scalar_type*)x, lldx, lbsz);
+    unmanaged_matrix_type y_view0((scalar_type*)y, lldy, lbsz);
+
+    Kokkos::Timer timer;
+    for (auto irow = 0; irow < nrow; irow += wsize) {
+      // Get row range of current tile
+      if (irow + wsize < nrow) {
+        row_range = std::make_pair(irow, irow + wsize);
+      } else {
+        row_range = std::make_pair(irow, nrow);
+      }
+
+      // Compute tile
+      auto A_slice = kernel.map->get(kernel.data, row_range);
+
+      // Perform matvec
+      auto y_view = Kokkos::subview(y_view0, row_range, Kokkos::ALL());
+      KokkosBlas::gemm("N", "N", 1.0, A_slice, x_view0, 0.0, y_view);
+    }
+    *err = 0;
+  } catch (const std::exception& e) {
+    std::cout << "eigs_kernel_dense_matvec encountered an exception: "
+              << e.what() << std::endl;
     *err = 1;  ///! notify to primme that something went wrong
   }
 }
@@ -94,8 +141,10 @@ void svds_default_dense_matvec(void* x,
     size_type xrow{*transpose == 0 ? ncol : nrow};
     size_type yrow{*transpose == 0 ? nrow : ncol};
 
-    Kokkos::pair<size_type, size_type> xidx = Kokkos::make_pair<size_t>(0, xrow);
-    Kokkos::pair<size_type, size_type> yidx = Kokkos::make_pair<size_t>(0, yrow);
+    Kokkos::pair<size_type, size_type> xidx =
+        Kokkos::make_pair<size_t>(0, xrow);
+    Kokkos::pair<size_type, size_type> yidx =
+        Kokkos::make_pair<size_t>(0, yrow);
 
     auto x_view = Kokkos::subview(x_view0, xidx, Kokkos::ALL());
     auto y_view = Kokkos::subview(y_view0, yidx, Kokkos::ALL());
@@ -103,7 +152,9 @@ void svds_default_dense_matvec(void* x,
     KokkosBlas::gemm(&transp, "N", 1.0, A_view, x_view, 0.0, y_view);
 
     *err = 0;
-  } catch (...) {
+  } catch (const std::exception& e) {
+    std::cout << "svds_default_dense_matvec encountered an exception: "
+              << e.what() << std::endl;
     *err = 1;  ///! notify to primme that something went wrong
   }
 }
@@ -141,8 +192,8 @@ void svds_default_sparse_matvec(void* x,
 
     *err = 0;
   } catch (const std::exception& e) {
-    std::cout << "SparseMatrixMatvec encountered an exception: " << e.what()
-              << std::endl;
+    std::cout << "svds_default_sparse_matvec encountered an exception: "
+              << e.what() << std::endl;
     *err = 1;  ///! notify to primme that something went wrong
   }
 }
