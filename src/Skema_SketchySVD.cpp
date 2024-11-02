@@ -52,7 +52,7 @@ void SketchySVD<MatrixType, DimReduxT>::impl_fixed_rank_psd_approx(
   // Here copy Y because nrm2 overwrites
   matrix_type Y_copy("Y_copy", nrow, range);
   Kokkos::deep_copy(Y_copy, Y);
-  auto nu = std::numeric_limits<scalar_type>::epsilon() * LAPACK::nrm2(Y_copy);
+  auto nu = std::numeric_limits<scalar_type>::epsilon() * linalg::nrm2(Y_copy);
   time = timer.seconds();
   if (print_level > 0) {
     std::cout << "  NORM = " << time << " sec" << std::endl;
@@ -101,7 +101,7 @@ void SketchySVD<MatrixType, DimReduxT>::impl_fixed_rank_psd_approx(
   Kokkos::fence();
 
   // C = chol( (B + B^T) / 2)
-  LAPACK::chol(C);
+  linalg::chol(C);
   Kokkos::fence();
   time = timer.seconds();
   if (debug)
@@ -115,7 +115,7 @@ void SketchySVD<MatrixType, DimReduxT>::impl_fixed_rank_psd_approx(
   // Least squares problem Y / C
   // W = Y/C; MATLAB: (C'\Y')'; / is MATLAB mldivide(C',Y')'
   timer.reset();
-  LAPACK::ls(&T, C, Yt, range, range, Yt.extent(1));
+  linalg::ls(&T, C, Yt, range, range, Yt.extent(1));
   Kokkos::fence();
   Y = Impl::transpose(Yt);
   time = timer.seconds();
@@ -133,7 +133,7 @@ void SketchySVD<MatrixType, DimReduxT>::impl_fixed_rank_psd_approx(
   matrix_type Uwy("Uwy", mw, min_mnw);
   vector_type Swy("Swy", min_mnw);
   matrix_type Vwy("Vwy", min_mnw, nw);  // transpose
-  LAPACK::svd(Y, mw, nw, Uwy, Swy, Vwy);
+  linalg::svd(Y, mw, nw, Uwy, Swy, Vwy);
   time = timer.seconds();
   if (print_level > 0) {
     std::cout << "  SVD = " << time << " sec" << std::endl;
@@ -184,7 +184,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   // [P,~] = qr(X^T,0);
   timer.reset();
   auto P = Impl::transpose(X);
-  LAPACK::qr(P, ncol, range);
+  linalg::qr(P, ncol, range);
   Kokkos::fence();
   // X = Pt;
   time = timer.seconds();
@@ -195,7 +195,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
 
   // [Q,~] = qr(Y,0);
   timer.reset();
-  LAPACK::qr(Y, nrow, range);
+  linalg::qr(Y, nrow, range);
   Kokkos::fence();
   time = timer.seconds();
   if (print_level > 1) {
@@ -224,7 +224,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
 
   timer.reset();
   matrix_type T1("T1", range, range);
-  LAPACK::qr(U1, T1, core, range);
+  linalg::qr(U1, T1, core, range);
   Kokkos::fence();
   time = timer.seconds();
   if (print_level > 1) {
@@ -234,7 +234,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
 
   timer.reset();
   matrix_type T2("T2", range, range);
-  LAPACK::qr(U2, T2, core, range);
+  linalg::qr(U2, T2, core, range);
   Kokkos::fence();
   time = timer.seconds();
   if (print_level > 1) {
@@ -267,7 +267,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
 
   // Z2 = T1\Z2; \ is MATLAB mldivide(T1,Z2);
   timer.reset();
-  LAPACK::ls(&N, T1, Z2, range, range, range);
+  linalg::ls(&N, T1, Z2, range, range, range);
   Kokkos::fence();
   time = timer.seconds();
   if (print_level > 1) {
@@ -279,7 +279,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   // W^T = Z2/(T2'); / is MATLAB mldivide(T2,Z2')'
   timer.reset();
   matrix_type Z2t = Impl::transpose(Z2);
-  LAPACK::ls(&N, T2, Z2t, range, range, range);
+  linalg::ls(&N, T2, Z2t, range, range, range);
   Kokkos::fence();
   time = timer.seconds();
   if (print_level > 1) {
@@ -334,7 +334,7 @@ void SketchySVD<MatrixType, DimReduxT>::impl_fixed_rank_approx(matrix_type& U,
   matrix_type Uc("Uc", range, range);
   vector_type sc("sc", range);
   matrix_type Vc("Vc", range, range);
-  LAPACK::svd(Z, range, range, Uc, sc, Vc);
+  linalg::svd(Z, range, range, Uc, sc, Vc);
   Kokkos::fence();
   time = timer.seconds();
   if (print_level > 1) {
