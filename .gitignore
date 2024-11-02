@@ -36,3 +36,5 @@ build/
 
 # MacOS
 .DS_Store
+.clang-format
+.vscode
