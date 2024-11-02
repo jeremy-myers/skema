@@ -32,6 +32,7 @@ class Sampler {
   Sampler& operator=(Sampler&&);
   virtual ~Sampler() {}
   virtual void sample(const MatrixType& A) = 0;
+  virtual inline size_type num_samples() const { return nsamples; };
 
  protected:
   size_type nsamples;
@@ -64,9 +65,13 @@ class ReservoirSampler : public Sampler<MatrixType> {
 
   void sample(const MatrixType& A) override;
 
-  const inline MatrixType& matrix() const { return data; };
-  const inline index_type& indices() const { return idxs; };
+  const MatrixType matrix() const;
+  const inline index_type indices() const { return idxs; };
   const inline ordinal_type indices(const int i) const { return idxs(i); };
+  inline size_type num_samples() const override {
+    return base_sampler::num_samples();
+  };
+
   struct {
     scalar_type elapsed_time{0.0};
   } stats;

@@ -64,7 +64,7 @@ void isvd_default_dense_matvec(void* x,
     const char N{'N'};
     const scalar_type one{1.0};
     const scalar_type uzero{0.0};
-    const scalar_type lzero{(*transpose == 0) ? 1.0 : 0.0};
+    const scalar_type lzero{(*transpose == 0) ? 0.0 : 1.0};
 
     // Apply upper part
     KokkosBlas::gemm(&transp, &N, one, matrix.upper, x_view_upper, uzero,
