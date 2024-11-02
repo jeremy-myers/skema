@@ -14,14 +14,14 @@
 #include "Skema_Residuals.hpp"
 #include "Skema_Sampler.hpp"
 #include "Skema_Utils.hpp"
-#include "Skema_Window.hpp"
 
 namespace Skema {
 /* ************************************************************************* */
 /* Constructor */
 /* ************************************************************************* */
 template <typename MatrixType>
-ISVD<MatrixType>::ISVD(const AlgParams& algParams_) : algParams(algParams_) {}
+ISVD<MatrixType>::ISVD(const AlgParams& algParams_)
+    : algParams(algParams_), window(getWindow<MatrixType>(algParams)) {}
 
 template <typename MatrixType>
 void ISVD<MatrixType>::solve(const MatrixType& A) {
@@ -43,12 +43,10 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
   matrix_type sval_traces("sval_traces", rank, width);
 
   // Create window stepper
-  auto window = Skema::getWindow<MatrixType>(algParams);
+  // auto window = Skema::getWindow<MatrixType>(algParams);
 
   // Create solver & sampler
   Skema::ISVD_SVDS<MatrixType> solver(algParams);
-
-  // Get sampler
   Skema::ReservoirSampler<MatrixType> sampler(algParams.isvd_num_samples, nrow,
                                               ncol, algParams.seeds[0],
                                               algParams.print_level);
@@ -67,6 +65,7 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
   sampler.sample(A_window);
 
   // Compute initial decomposition
+  Impl::print(A_window);
   solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex);
 
   // Update vvecs with svals
@@ -114,8 +113,7 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
 
   // Compute final residuals
   auto v = Impl::transpose(vtvex);
-  matrix_type u("u", nrow, rank);
-  U(u, A, svals, v, rank, algParams);
+  auto u = U(A, svals, v, rank, algParams);
   auto rnrms = residuals(A, u, svals, v, rank, algParams, window);
 
   if (algParams.hist) {
@@ -129,6 +127,50 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
     fname = algParams.outputfilename + "_rnrms.txt";
     Impl::write(rnrms, fname.c_str());
   }
+}
+
+/* Compute U = A*V*Sigma^{-1} */
+template <typename MatrixType>
+auto ISVD<MatrixType>::U(const MatrixType& A,
+                         const vector_type& S,
+                         const matrix_type V,
+                         const ordinal_type rank,
+                         const AlgParams& algParams) -> matrix_type {
+  const size_type nrow{static_cast<size_type>(algParams.matrix_m)};
+  const size_type ncol{static_cast<size_type>(algParams.matrix_n)};
+  size_type wsize{algParams.window};
+
+  matrix_type U("U", nrow, rank);
+  matrix_type u;
+
+  const char N{'N'};
+  const char T{'T'};
+  const scalar_type one{1.0};
+  const scalar_type zero{0.0};
+  range_type idx;
+  for (auto irow = 0; irow < nrow; irow += wsize) {
+    if (irow + wsize < nrow) {
+      idx = std::make_pair(irow, irow + wsize);
+    } else {
+      idx = std::make_pair(irow, nrow);
+      wsize = idx.second - idx.first;
+    }
+
+    auto A_window = window->get(A, idx);
+    u = Kokkos::subview(U, idx, Kokkos::ALL());
+    Impl::mm(&N, &N, &one, A_window, V, &zero, u);
+  }
+
+  Kokkos::parallel_for(
+      rank, KOKKOS_LAMBDA(const int r) {
+        auto ur = Kokkos::subview(U, Kokkos::ALL(), r);
+        auto s = S(r);
+        for (auto i = 0; i < nrow; ++i) {
+          ur(i) /= s;
+        }
+      });
+
+  return U;
 }
 
 template <>

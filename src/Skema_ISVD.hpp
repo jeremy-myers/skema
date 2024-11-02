@@ -7,6 +7,7 @@
 #include "Skema_AlgParams.hpp"
 #include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
+#include "Skema_Window.hpp"
 
 namespace Skema {
 template <typename MatrixType>
@@ -20,38 +21,14 @@ class ISVD {
 
  protected:
   const AlgParams algParams;
+  std::unique_ptr<WindowBase<MatrixType>> window;
 
   /* Compute U = A*V*Sigma^{-1} */
-  KOKKOS_INLINE_FUNCTION
-  void U(matrix_type& U,
-         const MatrixType& A,
-         const vector_type& S,
-         const matrix_type V,
-         const ordinal_type rank,
-         const AlgParams& algParams) {
-    const size_type nrow{static_cast<size_type>(algParams.matrix_m)};
-    const size_type ncol{static_cast<size_type>(algParams.matrix_n)};
-    range_type rlargest = std::make_pair<size_type, size_type>(0, rank);
-
-    matrix_type Vr(V, Kokkos::ALL(), rlargest);
-    matrix_type Av("Av", nrow, rank);
-
-    const char N{'N'};
-    const char T{'T'};
-    const scalar_type one{1.0};
-    const scalar_type zero{0.0};
-    Impl::mm(&N, &N, &one, A, Vr, &zero, Av);
-
-    for (auto r = rlargest.first; r < rlargest.second; ++r) {
-      auto avr = Kokkos::subview(Av, Kokkos::ALL(), r);
-      auto ur = Kokkos::subview(U, Kokkos::ALL, r);
-      auto s = S(r);
-      KokkosBlas::scal(ur, (1.0 / s), avr);
-    }
-
-    matrix_type Atu("Atu", ncol, rank);
-    Impl::mm(&T, &N, &one, A, U, &zero, Atu);
-  }
+  auto U(const MatrixType&,
+         const vector_type&,
+         const matrix_type,
+         const ordinal_type,
+         const AlgParams&) -> matrix_type;
 
   KOKKOS_INLINE_FUNCTION
   void distribute(const vector_type& svals, const matrix_type& vvecs) {

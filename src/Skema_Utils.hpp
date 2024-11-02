@@ -34,6 +34,15 @@ using range_type = typename Kokkos::pair<size_type, size_type>;
 
 /* Enums */
 namespace Skema {
+
+struct Matrix_Type {
+  enum type { DENSE, SPARSE };
+  static constexpr unsigned num_types = 2;
+  static constexpr type types[] = {DENSE, SPARSE};
+  static constexpr const char* names[] = {"dense", "sparse"};
+  static constexpr type default_type = DENSE;
+};
+
 struct Solver_Method {
   enum type { ISVD, SKETCH, PRIMME };
   static constexpr unsigned num_types = 3;
@@ -69,6 +78,9 @@ struct DimRedux_Map {
   static constexpr const char* names[] = {"gauss", "sparse-sign"};
   static constexpr type default_type = GAUSS;
 };
+
+constexpr const Skema::Matrix_Type::type Skema::Matrix_Type::types[];
+constexpr const char* Skema::Matrix_Type::names[];
 
 constexpr const Skema::Solver_Method::type Skema::Solver_Method::types[];
 constexpr const char* Skema::Solver_Method::names[];

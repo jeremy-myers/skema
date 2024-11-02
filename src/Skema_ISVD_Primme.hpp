@@ -59,6 +59,16 @@ template class ISVD_SVDS<matrix_type>;
 template class ISVD_SVDS<crs_matrix_type>;
 
 extern "C" {
+
+void isvd_dense_convTestFun(double* sval,
+                            void* leftsvec,
+                            void* rightvec,
+                            double* rnorm,
+                            int* method,
+                            int* isconv,
+                            primme_svds_params* primme_svds,
+                            int* ierr);
+
 void isvd_sparse_convTestFun(double* sval,
                              void* leftsvec,
                              void* rightvec,
@@ -68,24 +78,24 @@ void isvd_sparse_convTestFun(double* sval,
                              primme_svds_params* primme_svds,
                              int* ierr);
 
-void isvd_sparse_monitorFun(void* basisSvals,
-                            int* basisSize,
-                            int* basisFlags,
-                            int* iblock,
-                            int* blockSize,
-                            void* basisNorms,
-                            int* numConverged,
-                            void* lockedSvals,
-                            int* numLocked,
-                            int* lockedFlags,
-                            void* lockedNorms,
-                            int* inner_its,
-                            void* LSRes,
-                            const char* msg,
-                            double* time,
-                            primme_event* event,
-                            int* stage,
-                            primme_svds_params* primme_svds,
-                            int* ierr);
+void isvd_monitorFun(void* basisSvals,
+                     int* basisSize,
+                     int* basisFlags,
+                     int* iblock,
+                     int* blockSize,
+                     void* basisNorms,
+                     int* numConverged,
+                     void* lockedSvals,
+                     int* numLocked,
+                     int* lockedFlags,
+                     void* lockedNorms,
+                     int* inner_its,
+                     void* LSRes,
+                     const char* msg,
+                     double* time,
+                     primme_event* event,
+                     int* stage,
+                     primme_svds_params* primme_svds,
+                     int* ierr);
 }
 }  // namespace Skema

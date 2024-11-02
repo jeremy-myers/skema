@@ -19,6 +19,11 @@ namespace Skema {
 /*                          Dense sampler                                    */
 /*****************************************************************************/
 template <>
+const matrix_type ReservoirSampler<matrix_type>::matrix() const {
+  return data;
+}
+
+template <>
 void ReservoirSampler<matrix_type>::sample(const matrix_type& A) {
   if (nsamples == 0)
     return;
@@ -82,6 +87,11 @@ void ReservoirSampler<matrix_type>::sample(const matrix_type& A) {
 /*****************************************************************************/
 /*                         Sparse sampler                                    */
 /*****************************************************************************/
+template <>
+const crs_matrix_type ReservoirSampler<crs_matrix_type>::matrix() const {
+  return data;
+}
+
 /* Core algorithm */
 template <>
 void ReservoirSampler<crs_matrix_type>::sample(const crs_matrix_type& A) {
