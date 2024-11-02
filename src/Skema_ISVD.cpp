@@ -42,9 +42,6 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
       static_cast<size_type>(std::ceil(double(nrow) / double(wsize)))};
   matrix_type sval_traces("sval_traces", rank, width);
 
-  // Create window stepper
-  // auto window = Skema::getWindow<MatrixType>(algParams);
-
   // Create solver & sampler
   Skema::ISVD_SVDS<MatrixType> solver(algParams);
   Skema::ReservoirSampler<MatrixType> sampler(algParams.isvd_num_samples, nrow,
