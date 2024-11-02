@@ -8,6 +8,24 @@
 /* Common helper functions */
 namespace Skema {
 namespace Impl {
+inline void mv(const char* trans,
+               const scalar_type* alpha,
+               const matrix_type& A,
+               const vector_type& B,
+               const scalar_type* beta,
+               vector_type& C) {
+  KokkosBlas::gemv(trans, *alpha, A, B, *beta, C);
+}
+
+inline void mv(const char* trans,
+               const scalar_type* alpha,
+               const crs_matrix_type& A,
+               const vector_type& B,
+               const scalar_type* beta,
+               vector_type& C) {
+  KokkosSparse::spmv(trans, *alpha, A, B, *beta, C);
+}
+
 inline void mm(const char* transA,
                const char* transB,
                const scalar_type* alpha,
