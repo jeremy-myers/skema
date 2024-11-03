@@ -62,64 +62,22 @@ else()
     set(HAVE_KOKKOS_KERNELS ON)
 endif()
 
+add_subdirectory(tpls/primme)
+
+# set(PRIMME_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/tpls/primme/include)
+# set(PRIMME_LIB_DIR ${CMAKE_CURRENT_BINARY_DIR}/tpls/primme/lib)
+
+# # add_library(PRIMME STATIC IMPORTED)
+# set_target_properties(PRIMME PROPERTIES IMPORTED_LOCATION ${PRIMME_LIB_DIR}/libprimme.a)
+
 include_directories(
-    ${Kokkos_INCLUDE_DIRS_RET}
-    ${KokkosKernels_INCLUDE_DIRS_RET}
     ${Skema_SOURCE_DIR}/src/
     ${Skema_SOURCE_DIR}/driver/
-    ${Skema_SOURCE_DIR}/tpls/primme/include/
+    ${Kokkos_INCLUDE_DIRS_RET}
+    ${KokkosKernels_INCLUDE_DIRS_RET}
+    ${PRIMME_INCLUDE_DIR}
     ${LAPACK_INCLUDE_DIR}
 )
-
-# Add PRIMME
-# add_library(primme STATIC
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/auxiliary_eigs_normal.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/auxiliary_eigs.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/convergence.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/correction.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/factorize.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/init.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/inner_solve.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/main_iter.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/ortho.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/primme_c.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/primme_f77.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/primme_interface.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/restart.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/solve_projection.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/update_projection.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs/update_W.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/linalg/auxiliary.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/linalg/blaslapack.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/linalg/cublas_wrapper.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/linalg/magma_wrapper.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/linalg/memman.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/linalg/wtime.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/svds/primme_svds_c.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/svds/primme_svds_f77.c
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/svds/primme_svds_interface.c
-# )
-
-# find_package(LAPACK REQUIRED)
-# target_link_libraries(
-#     primme
-#     LAPACK::LAPACK -llapack -lblas
-# )
-# target_include_directories(
-#     primme PRIVATE
-#     ${Skema_SOURCE_DIR}/tpls/primme/include
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/eigs
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/include
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/linalg
-#     ${Skema_SOURCE_DIR}/tpls/primme/src/svds
-# )
-# install(
-#     TARGETS primme
-#     DESTINATION ${CMAKE_INSTALL_LIBDIR}/lib
-#     EXPORT primme
-# )
-
-
 
 # Target definitions
 add_executable(${PROJECT_NAME}
@@ -141,7 +99,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "skema")
 target_link_libraries(${PROJECT_NAME} ${LAPACK_LIBRARIES} -llapack -lblas)
 target_link_libraries(${PROJECT_NAME} Kokkos::kokkos)
 target_link_libraries(${PROJECT_NAME} Kokkos::kokkoskernels)
-target_link_libraries(${PROJECT_NAME} ${CMAKE_SOURCE_DIR}/tpls/primme/lib/libprimme.a -llapack -lblas)
+target_link_libraries(${PROJECT_NAME} primme)
+# target_link_libraries(${PROJECT_NAME} PRIMME -llapack -lblas)
+# add_dependencies(${PROJECT_NAME} PRIMME)
 
 if(LAPACK_FOUND)
     target_compile_definitions(${PROJECT_NAME} PRIVATE LAPACK_FOUND=${LAPACK_FOUND})
