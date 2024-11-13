@@ -37,6 +37,13 @@ else()
 endif()
 message(STATUS "Inline Kokkos-Kernels build is ${KOKKOSKERNELS_INLINE_BUILD}")
 
+if(PRIMME_ROOT)
+  set(PRIMME_INLINE_BUILD OFF)
+else()
+  set(PRIMME_INLINE_BUILD ON)
+endif()
+message(STATUS "Inline PRIMME build is ${PRIMME_INLINE_BUILD}")
+
 if(Kokkos_ENABLE_OPENMP)
     set(HAVE_OPENMP ON)
 endif()
@@ -62,13 +69,16 @@ else()
     set(HAVE_KOKKOS_KERNELS ON)
 endif()
 
-add_subdirectory(tpls/primme)
-
-# set(PRIMME_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/tpls/primme/include)
-# set(PRIMME_LIB_DIR ${CMAKE_CURRENT_BINARY_DIR}/tpls/primme/lib)
-
-# # add_library(PRIMME STATIC IMPORTED)
-# set_target_properties(PRIMME PROPERTIES IMPORTED_LOCATION ${PRIMME_LIB_DIR}/libprimme.a)
+if(PRIMME_INLINE_BUILD)
+  # Add PRIMME
+  add_subdirectory(tpls/primme)
+  set(HAVE_PRIMME ON)
+else()
+# Link against installed PRIMME
+  find_package(primme REQUIRED)
+  message("--- Skema: Using PRIMME: ${primme_CONFIG}")
+  set(HAVE_PRIMME ON)
+endif()
 
 include_directories(
     ${Skema_SOURCE_DIR}/src/
@@ -96,12 +106,10 @@ add_executable(${PROJECT_NAME}
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "skema")
 
-target_link_libraries(${PROJECT_NAME} ${LAPACK_LIBRARIES} -llapack -lblas)
-target_link_libraries(${PROJECT_NAME} Kokkos::kokkos)
-target_link_libraries(${PROJECT_NAME} Kokkos::kokkoskernels)
-target_link_libraries(${PROJECT_NAME} primme)
-# target_link_libraries(${PROJECT_NAME} PRIMME -llapack -lblas)
-# add_dependencies(${PROJECT_NAME} PRIMME)
+target_link_libraries(${PROJECT_NAME} PUBLIC ${LAPACK_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PUBLIC Kokkos::kokkos)
+target_link_libraries(${PROJECT_NAME} PUBLIC Kokkos::kokkoskernels)
+target_link_libraries(${PROJECT_NAME} PUBLIC primme)
 
 if(LAPACK_FOUND)
     target_compile_definitions(${PROJECT_NAME} PRIVATE LAPACK_FOUND=${LAPACK_FOUND})
