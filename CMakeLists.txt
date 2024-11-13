@@ -115,5 +115,5 @@ if(LAPACK_FOUND)
     target_compile_definitions(${PROJECT_NAME} PRIVATE LAPACK_FOUND=${LAPACK_FOUND})
 endif()
 
-add_compile_options(-fsanitize=address)
-add_link_options(-fsanitize=address)
+# add_compile_options(-fsanitize=address)
+# add_link_options(-fsanitize=address)
