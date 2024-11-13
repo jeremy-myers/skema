@@ -5,8 +5,6 @@ cmake_minimum_required(VERSION 3.20)
 #---- to the directory where cmake has been invoked.
 project(Skema VERSION "1.0.0")
 
-# Add primme build with specific commit to eloy/index-conv-test-fun
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -46,6 +44,7 @@ message(STATUS "Inline PRIMME build is ${PRIMME_INLINE_BUILD}")
 
 if(Kokkos_ENABLE_OPENMP)
     set(HAVE_OPENMP ON)
+    set(PRIMME_ENABLE_OPENMP ON)
 endif()
 
 if(KOKKOS_INLINE_BUILD)
