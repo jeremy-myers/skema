@@ -86,7 +86,12 @@ auto GaussDimRedux::rmap(const scalar_type* alpha,
 
 template <>
 auto GaussDimRedux::axpy(const scalar_type val, matrix_type& A) -> void {
-  KokkosBlas::axpy(val, data, A);
+  try {
+    KokkosBlas::axpy(val, data, A);
+  } catch (std::exception& e) {
+    auto data_T = Impl::transpose(data);
+    KokkosBlas::axpy(val, data_T, A);
+  }
 }
 
 template <>

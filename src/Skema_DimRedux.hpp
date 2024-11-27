@@ -84,6 +84,7 @@ class DimRedux {
 
 class GaussDimRedux : public DimRedux<GaussDimRedux> {
  public:
+  GaussDimRedux();
   GaussDimRedux(const size_type nrow_,
                 const size_type ncol_,
                 const ordinal_type seed_,
@@ -155,6 +156,7 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
   //        STREAMING LOW-RANK MATRIX APPROXIMATION WITH AN APPLICATION TO
   //        SCIENTIFIC SIMULATION (Tropp et al., 2019):
  public:
+  SparseSignDimRedux();
   SparseSignDimRedux(const size_type nrow_,
                      const size_type ncol_,
                      const ordinal_type seed_,
