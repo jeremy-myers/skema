@@ -33,6 +33,11 @@ class SketchySVD {
   DimReduxT Phi;
   DimReduxT Psi;
 
+  auto axpy(const double,
+            matrix_type&,
+            const double,
+            const matrix_type&,
+            const range_type = std::make_pair<size_type>(0, 0)) -> void;
   auto low_rank_approx() -> void;
 
   auto impl_linear_update(const MatrixType&) -> void;

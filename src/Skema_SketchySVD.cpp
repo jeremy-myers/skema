@@ -387,6 +387,59 @@ void SketchySVD<MatrixType, DimReduxT>::impl_fixed_rank_approx(matrix_type& U,
   }
 };
 
+template <typename MatrixT, typename DimReduxT>
+auto SketchySVD<MatrixT, DimReduxT>::axpy(const double eta,
+                                          matrix_type& Y,
+                                          const double nu,
+                                          const matrix_type& A,
+                                          const range_type idx) -> void {
+  if (idx.first == idx.second) {
+    assert(Y.extent(0) == A.extent(0));
+    assert(Y.extent(1) == A.extent(1));
+
+    const size_type nrow{Y.extent(0)};
+    const size_type ncol{Y.extent(1)};
+
+    const size_type league_size{ncol};
+    Kokkos::TeamPolicy<> policy(league_size, Kokkos::AUTO());
+    typedef Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>::member_type
+        member_type;
+
+    Kokkos::parallel_for(
+        policy, KOKKOS_LAMBDA(member_type team_member) {
+          auto jj = team_member.league_rank();
+          Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, nrow),
+                               [&](auto& ii) {
+                                 scalar_type kij;
+                                 Y(ii, jj) = eta * Y(ii, jj) + nu * A(ii, jj);
+                               });
+        });
+    Kokkos::fence();
+  } else {
+    assert((idx.second - idx.first) == A.extent(0));
+    assert(Y.extent(1) == A.extent(1));
+
+    const size_type nrow{idx.second - idx.first};
+    const size_type ncol{Y.extent(1)};
+
+    const size_type league_size{ncol};
+    Kokkos::TeamPolicy<> policy(league_size, Kokkos::AUTO());
+    typedef Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>::member_type
+        member_type;
+
+    Kokkos::parallel_for(
+        policy, KOKKOS_LAMBDA(member_type team_member) {
+          auto jj = team_member.league_rank();
+          Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, nrow),
+                               [&](auto& ii) {
+                                 const auto ix{ii + idx.first};
+                                 Y(ix, jj) = eta * Y(ix, jj) + nu * A(ii, jj);
+                               });
+        });
+    Kokkos::fence();
+  }
+}
+
 template <typename MatrixType, typename DimReduxT>
 auto SketchySVD<MatrixType, DimReduxT>::impl_nystrom_linear_update(
     const MatrixType& A) -> void {
@@ -410,29 +463,46 @@ auto SketchySVD<MatrixType, DimReduxT>::impl_nystrom_linear_update(
 template <typename MatrixType, typename DimReduxT>
 auto SketchySVD<MatrixType, DimReduxT>::impl_linear_update(const MatrixType& A)
     -> void {
-  // Create window stepper to allow for kernels even though rowwise streaming is
-  // not implemented here.
+  size_type wsize{algParams.window};
+  range_type idx;
   auto window = Skema::getWindow<MatrixType>(algParams);
-  range_type idx{std::make_pair<size_type>(0, nrow)};
-  auto H = window->get(A, idx);
 
-  X = Upsilon.lmap(&eta, H, &nu);
-  Y = Omega.rmap(&eta, H, &nu);
-  auto W = Phi.lmap(&eta, H, &nu);
-  Z = Psi.rmap(&eta, W, &nu);
+  X = matrix_type("X", range, ncol);
+  Y = matrix_type("Y", nrow, range);
+  Z = matrix_type("Z", core, core);
 
-  if (algParams.debug) {
-    std::cout << "H = \n";
-    Impl::print(H);
+  /* Main loop */
+  for (auto irow = 0; irow < nrow; irow += wsize) {
+    if (irow + wsize < nrow) {
+      idx = std::make_pair(irow, irow + wsize);
+    } else {
+      idx = std::make_pair(irow, nrow);
+      wsize = idx.second - idx.first;
+    }
+    auto H = window->get(A, idx);
 
-    std::cout << "X = \n";
-    Impl::print(X);
+    auto x = Upsilon.lmap(&eta, H, &nu, 'N', 'N', idx);
+    auto y = Omega.rmap(&eta, H, &nu, 'N', 'T', idx);
+    auto w = Phi.lmap(&eta, H, &nu, 'N', 'N', idx);
+    auto z = Psi.rmap(&eta, w, &nu, 'N', 'T');
 
-    std::cout << "Y = \n";
-    Impl::print(Y);
+    axpy(nu, X, eta, x);
+    axpy(nu, Z, eta, z);
+    axpy(nu, Y, eta, y, idx);
 
-    std::cout << "Z = \n";
-    Impl::print(Z);
+    if (algParams.debug) {
+      std::cout << "H = \n";
+      Impl::print(H);
+
+      std::cout << "X = \n";
+      Impl::print(X);
+
+      std::cout << "Y = \n";
+      Impl::print(Y);
+
+      std::cout << "Z = \n";
+      Impl::print(Z);
+    }
   }
 };
 
