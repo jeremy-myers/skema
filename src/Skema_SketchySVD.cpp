@@ -207,7 +207,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   // [U2,T2] = qr(Psi*P,0);
   // W = T1\(U1'*Z*U2)/T2';
   timer.reset();
-  auto U1 = Phi.lmap(&one, Y, &zero, 'T', 'N');
+  auto U1 = Phi.lmap(&one, Y, &zero, 'N', 'N');
   time = timer.seconds();
   Kokkos::fence();
   if (print_level > 1) {
@@ -215,7 +215,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   }
 
   timer.reset();
-  auto U2 = Psi.lmap(&one, P, &zero, 'T', 'N');
+  auto U2 = Psi.lmap(&one, P, &zero, 'N', 'N');
   time = timer.seconds();
   Kokkos::fence();
   if (print_level > 1) {
@@ -443,8 +443,6 @@ auto SketchySVD<MatrixT, DimReduxT>::axpy(const double eta,
 template <typename MatrixType, typename DimReduxT>
 auto SketchySVD<MatrixType, DimReduxT>::impl_nystrom_linear_update(
     const MatrixType& A) -> void {
-  // Create window stepper to allow for kernels even though rowwise streaming is
-  // not implemented here.
   auto window = Skema::getWindow<MatrixType>(algParams);
   range_type idx{std::make_pair<size_type>(0, nrow)};
   auto H = window->get(A, idx);
@@ -464,8 +462,19 @@ template <typename MatrixType, typename DimReduxT>
 auto SketchySVD<MatrixType, DimReduxT>::impl_linear_update(const MatrixType& A)
     -> void {
   size_type wsize{algParams.window};
-  range_type idx;
   auto window = Skema::getWindow<MatrixType>(algParams);
+  range_type idx;
+
+  if (wsize == nrow) { 
+    idx = std::make_pair(0, nrow);
+    auto H = window->get(A, idx);
+
+    X = Upsilon.lmap(&eta, H, &nu, 'N', 'N');
+    Y = Omega.rmap(&eta, H, &nu, 'N', 'T');
+    auto w = Phi.lmap(&eta, H, &nu, 'N', 'N');
+    Z = Psi.rmap(&eta, w, &nu, 'N', 'T');
+    return;
+  }
 
   X = matrix_type("X", range, ncol);
   Y = matrix_type("Y", nrow, range);

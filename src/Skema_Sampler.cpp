@@ -115,7 +115,7 @@ void ReservoirSampler<crs_matrix_type>::sample(const crs_matrix_type& A) {
     range_type idx = std::make_pair(0, maxidx);
 
     // Build the first instance of matrix in Crs format
-    data = Impl::get_window(A, idx);
+    data = Impl::row_subview(A, idx);
     for (auto ii = 0; ii < maxidx; ++ii) {
       idxs(ii) = ii;
     }
@@ -126,7 +126,7 @@ void ReservoirSampler<crs_matrix_type>::sample(const crs_matrix_type& A) {
     // Create a Crs matrix with the remaining rows of A and pass to update
     idx = std::make_pair(maxidx, m);
     if (idx.second - idx.first > 0) {
-      auto rem = Impl::get_window(A, idx);
+      auto rem = Impl::row_subview(A, idx);
       sample(rem);
       return;
     } else {

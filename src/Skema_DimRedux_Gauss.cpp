@@ -14,7 +14,6 @@ auto GaussDimRedux::lmap(const scalar_type* alpha,
                          char transA,
                          char transB,
                          const range_type idx) -> matrix_type {
-  // generate(nrow, ncol);
   const auto m{nrow};
   const auto n{B.extent(1)};
   matrix_type C("GaussDimRedux::return", m, n);
@@ -30,8 +29,6 @@ auto GaussDimRedux::rmap(const scalar_type* alpha,
                          char transA,
                          char transB,
                          const range_type idx) -> matrix_type {
-  transB = 'T';
-
   const auto m{A.extent(0)};
   const auto n{nrow};
   matrix_type C("GaussDimRedux::return", m, n);
@@ -82,7 +79,6 @@ auto GaussDimRedux::rmap(const scalar_type* alpha,
   const auto n{nrow};
   matrix_type C("GaussDimRedux::return", m, n);
 
-  // generate(nrow, ncol, transB);
   auto data_T = Impl::transpose(data);
   Impl::mm(&transA, &transB, alpha, A, data_T, beta, C);
   return C;

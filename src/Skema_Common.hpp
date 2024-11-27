@@ -71,12 +71,17 @@ inline crs_matrix_type transpose(const crs_matrix_type& input) {
   return KokkosSparse::Impl::transpose_matrix(input);
 }
 
-inline matrix_type get_window(const matrix_type& input,
-                              const Kokkos::pair<size_type, size_type> idx) {
+inline matrix_type col_subview(const matrix_type& input,
+                               const Kokkos::pair<size_type, size_type> idx) {
+  return Kokkos::subview(input, Kokkos::ALL(), idx);
+}
+
+inline matrix_type row_subview(const matrix_type& input,
+                               const Kokkos::pair<size_type, size_type> idx) {
   return Kokkos::subview(input, idx, Kokkos::ALL());
 }
 
-inline crs_matrix_type get_window(
+inline crs_matrix_type row_subview(
     const crs_matrix_type& input,
     const Kokkos::pair<size_type, size_type> idx) {
   crs_matrix_type::row_map_type::non_const_type window_row_map(
@@ -115,7 +120,13 @@ inline void print(const matrix_type& A) {
 }
 
 inline void print(const crs_matrix_type& A) {
-  std::cout << std::endl;
+  for (auto irow = 0; irow < A.numRows(); ++irow) {
+    auto arow = A.row(irow);
+    for (auto jcol = 0; jcol < arow.length; ++jcol) {
+      std::cout << "(" << irow << ", " << arow.colidx(jcol)
+                << ") = " << arow.value(jcol) << std::endl;
+    }
+  }
 }
 
 inline void write(const vector_type& input, const char* filename) {

@@ -1,6 +1,7 @@
 #pragma once
 #include <Kokkos_Random.hpp>
 #include <Kokkos_StdAlgorithms.hpp>
+#include <algorithm>
 #include <cstddef>
 #include <random>
 #include "Skema_Utils.hpp"
@@ -124,7 +125,6 @@ class GaussDimRedux : public DimRedux<GaussDimRedux> {
 
  private:
   friend class DimRedux<GaussDimRedux>;
-
   matrix_type data;
   const scalar_type maxval;
 };
@@ -141,28 +141,6 @@ struct IsNegative {
   bool operator()(const ValueType val) const { return (val < 0); }
 };
 
-inline auto permuted_indices(const size_type indicesCount,
-                             const size_type dataCount,
-                             RNG& rng) -> index_type {
-  // create a permutation array of offsets into the data
-  std::vector<size_type> perm(dataCount);
-  std::iota(perm.begin(), perm.end(), 0);
-  std::shuffle(perm.begin(), perm.end(), rng);
-
-  // indices is repeated copies of the permutation array
-  // (or the first entries of the permutation array if there
-  // are fewer indices than data elements)
-  index_type dev_indices("dev_indices", indicesCount);
-  auto indices = Kokkos::create_mirror_view(dev_indices);
-  for (auto i = 0; i < size_type(indices.extent(0)); ++i) {
-    indices(i) = perm[i % perm.size()];
-  }
-
-  // Copy to the default space and return
-  Kokkos::deep_copy(dev_indices, indices);
-  Kokkos::fence();
-  return dev_indices;
-}
 class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
   // Sparse DimRedux map is n x k. The MATLAB implementation has zeta nnz per
   // row. To construct a sparse sign matrix Xi in F^{n x k} , we fix a
@@ -202,21 +180,31 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
     // There are zeta entries per row for n rows.
     // Here, we iterate n times in blocks of size zeta.
     // At each step, compute a random permutation of 0,...,k-1, take the
-    // first
-    // zeta numbers, and assign them to the ii-th block.
+    // first zeta numbers, and assign them to the ii-th block.
     crs_matrix_type::index_type::non_const_type entries("entries", zeta * nrow);
-    Kokkos::parallel_for(
-        nrow, KOKKOS_LAMBDA(const size_type ii) {
-          range_type idx = std::make_pair(ii * zeta, (ii + 1) * zeta);
-          auto e = Kokkos::subview(entries,
-                                   Kokkos::make_pair(idx.first, idx.second));
 
-          RNG rng(ii);
-          auto pi = permuted_indices(zeta, ncol, rng);
-          Kokkos::sort(pi);
-          Kokkos::deep_copy(e, pi);
-        });
-    Kokkos::fence();
+    // Unclear why the parallel_for loop hangs. Using a serial loop for now.
+    // Kokkos::parallel_for(
+    //     nrow, KOKKOS_LAMBDA(const size_type ii) {
+    //       range_type idx = std::make_pair(ii * zeta, (ii + 1) * zeta);
+    //       auto e = Kokkos::subview(entries,
+    //                                Kokkos::make_pair(idx.first, idx.second));
+    //       index_type pi("rand indices", zeta);
+    //       Kokkos::fill_random(pi, rand_pool, ncol);
+    //       Kokkos::sort(pi);
+    //       Kokkos::deep_copy(e, pi);
+    //     });
+    // Kokkos::fence();
+
+    for (auto ii = 0; ii < nrow; ++ii) {
+      range_type idx = std::make_pair(ii * zeta, (ii + 1) * zeta);
+      auto e =
+          Kokkos::subview(entries, Kokkos::make_pair(idx.first, idx.second));
+      index_type pi("rand indices", zeta);
+      Kokkos::fill_random(pi, rand_pool, ncol);
+      Kokkos::sort(pi);
+      Kokkos::deep_copy(e, pi);
+    }
 
     // The random values are taken from the Rademacher distribution (in the
     // real case only, which is what we do here).
@@ -224,7 +212,6 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
     // [-1,1] and use the functors IsPositiveFunctor and IsNegativeFunctor
     // with KE::replace_if() to apply the ceiling function to the positive
     // values and floor function to the negative values.
-
     vector_type values("values", zeta * nrow);
     Kokkos::fill_random(values, rand_pool, -1.0, 1.0);
     Kokkos::fence();
@@ -276,7 +263,9 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
   friend class DimRedux<SparseSignDimRedux>;
   crs_matrix_type data;
   const size_type zeta;
-  auto initialize(const size_type, const size_type) -> void;
+
+  auto col_subview(const crs_matrix_type&,
+                   const Kokkos::pair<size_type, size_type>) -> crs_matrix_type;
 };
 
 }  // namespace Skema
