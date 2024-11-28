@@ -11,7 +11,8 @@ using RNG = std::mt19937;
 namespace Skema {
 
 struct DimReduxStats {
-  scalar_type time{0.0};
+  scalar_type initialize{0.0};
+  scalar_type map{0.0};
 };
 
 template <typename Derived>
@@ -76,10 +77,7 @@ class DimRedux {
   inline size_type nrows() { return nrow; };
   inline size_type ncols() { return ncol; };
 
-  struct {
-    DimReduxStats generate;
-    DimReduxStats map;
-  } stats;
+  DimReduxStats stats;
 };
 
 class GaussDimRedux : public DimRedux<GaussDimRedux> {
@@ -91,8 +89,10 @@ class GaussDimRedux : public DimRedux<GaussDimRedux> {
                 const bool debug_ = false)
       : DimRedux<GaussDimRedux>(nrow_, ncol_, seed_, debug_),
         maxval(std::sqrt(2 * std::log(nrow_ * ncol_))) {
+    Kokkos::Timer timer;
     data = matrix_type("GaussDimRedux::data", nrow, ncol);
     Kokkos::fill_random(data, rand_pool, -maxval, maxval);
+    stats.initialize = timer.seconds();
   };
 
   GaussDimRedux(const GaussDimRedux&) = default;
@@ -167,6 +167,7 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
     namespace KE = Kokkos::Experimental;
     execution_space exec_space;
 
+    Kokkos::Timer timer;
     // This is equivalent to a prefix/exclusive scan.
     crs_matrix_type::row_map_type::non_const_type row_map("row_map", nrow + 1);
     Kokkos::parallel_scan(
@@ -230,6 +231,8 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
     auto nnz = entries.extent(0);
     data = crs_matrix_type("sparse sign dim redux", nrow, ncol, nnz, values,
                            row_map, entries);
+
+    stats.initialize = timer.seconds();
   };
 
   SparseSignDimRedux(const SparseSignDimRedux&) = default;
@@ -260,6 +263,8 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
 
   template <typename InputMatrixT>
   auto axpy(const scalar_type, InputMatrixT&) -> void;
+
+  DimReduxStats stats;
 
  private:
   friend class DimRedux<SparseSignDimRedux>;

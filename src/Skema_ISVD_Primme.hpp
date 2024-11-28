@@ -14,15 +14,16 @@ class ISVD_SVDS : public PRIMME_SVDS<MatrixType> {
     using primme_svds = PRIMME_SVDS<MatrixType>;
 
     // History & logging
-    std::string outputfilename = algParams.outputfilename;
-    outputfile = fopen(outputfilename.c_str(), "w");
-    if (outputfile == NULL)
+    std::string output_filename =
+        algParams.outputfilename.filename().stem().string() + "_primme.txt";
+    output_file = fopen(output_filename.c_str(), "w");
+    if (output_file == NULL)
       perror("PRIMME output file failed to open: ");
   };
 
   ~ISVD_SVDS() {
-    if (outputfile != NULL)
-      fclose(outputfile);
+    if (output_file != NULL)
+      fclose(output_file);
   };
 
   void compute(const MatrixType&,
@@ -52,7 +53,9 @@ class ISVD_SVDS : public PRIMME_SVDS<MatrixType> {
 
  protected:
   AlgParams algParams;
-  FILE* outputfile;
+  FILE* output_file;
+  FILE* params_file;
+  FILE* traces_file;
 };
 
 template class ISVD_SVDS<matrix_type>;

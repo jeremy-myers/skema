@@ -13,6 +13,7 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha,
                               char transA,
                               char transB,
                               const range_type idx) -> matrix_type {
+  Kokkos::Timer timer;
   const auto m{nrow};
   const auto n{B.extent(1)};
   matrix_type C("SparseSignDimRedux::return", m, n);
@@ -23,6 +24,7 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha,
   if (idx.first != idx.second)
     data_ = col_subview(data, idx);
   Impl::mm(&transA, &transB, alpha, data_, B, beta, C);
+  stats.map += timer.seconds();
   return C;
 }
 
@@ -34,6 +36,7 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha,
                               char transB,
                               const range_type idx) -> matrix_type {
   // return A * data' as (data * A')'
+  Kokkos::Timer timer;
   const auto m{nrow};
   const auto n{A.extent(0)};
   matrix_type C("SparseSignDimRedux::return", m, n);
@@ -44,6 +47,7 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha,
   auto At = Impl::transpose(A);
 
   Impl::mm(&transB, &transA, alpha, data, At, beta, C);
+  stats.map += timer.seconds();
   return Impl::transpose(C);
 }
 

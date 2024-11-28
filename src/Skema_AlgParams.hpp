@@ -1,6 +1,7 @@
 #pragma once
 #include <climits>
 #include <cstddef>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -10,8 +11,10 @@ struct AlgParams {
   // General options
   Skema::Solver_Method::type solver;
   Skema::Decomposition_Type::type decomposition_type;
-  std::string inputfilename;
-  std::string outputfilename;
+  // std::string inputfilename;
+  // std::string outputfilename;
+  std::filesystem::path inputfilename;
+  std::filesystem::path outputfilename;
   bool issparse;
   bool issymmetric;
   size_t matrix_m;
@@ -94,6 +97,10 @@ int parse_int(std::vector<std::string>& args,
               int default_value,
               int min = 0,
               int max = 100);
+
+std::filesystem::path parse_filepath(std::vector<std::string>& args,
+                                     const std::string& cl_arg,
+                                     const std::string& default_value);
 
 double parse_real(std::vector<std::string>& args,
                   const std::string& cl_arg,

@@ -47,11 +47,14 @@ void svds_monitorFun(void* basisSvals,
                      int* ierr);
 }
 
+struct XVDStats {
+  scalar_type time{0.0};
+};
 template <typename MatrixType>
 class XVDS {
  public:
-  XVDS(){};
-  virtual ~XVDS(){};
+  XVDS() {};
+  virtual ~XVDS() {};
 
   virtual void compute(const MatrixType&,
                        const size_type,
@@ -116,6 +119,10 @@ class PRIMME_SVDS : public XVDS<MatrixType> {
     primme_svds_initialize(&params);
     params.monitorFun = svds_monitorFun;
   }
+
+  struct {
+    XVDStats solver;
+  } stats;
 
  protected:
   primme_svds_params params;

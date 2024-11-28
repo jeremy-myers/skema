@@ -31,7 +31,7 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
   primme_svds::params.m = nrow;
   primme_svds::params.n = ncol;
   primme_svds::params.numSvals = rank;
-  primme_svds::params.outputFile = outputfile;
+  primme_svds::params.outputFile = output_file;
   primme_svds::params.eps = algParams.primme_eps;
   primme_svds::params.printLevel = algParams.primme_printLevel;
 
@@ -62,18 +62,17 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
   primme_svds_display_params(primme_svds::params);
 
   /* Call primme_svds  */
-  std::cout << "Calling PRIMME" << std::endl;
   int ret;
   ret = dprimme_svds(svals.data(), svecs.data(), rnrms.data(),
                      &(primme_svds::params));
   Kokkos::fence();
 
-  // fprintf(outputfile, "SVALS: ");
+  // fprintf(output_file, "SVALS: ");
   for (int64_t i = 0; i < rank; ++i) {
-    // fprintf(outputfile, "%.16f ", svals(i));
+    // fprintf(output_file, "%.16f ", svals(i));
     S(i) = svals(i);
   }
-  // fprintf(outputfile, "\n");
+  // fprintf(output_file, "\n");
 
   for (int64_t i = 0; i < nrow * rank; ++i) {
     U.data()[i] = svecs.data()[i];
@@ -90,7 +89,7 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
     fprintf(primme_svds::params.outputFile,
             "Error: primme_svds returned with nonzero exit status: %d \n", ret);
 
-  fflush(outputfile);
+  fflush(output_file);
 }
 
 template <typename MatrixT>

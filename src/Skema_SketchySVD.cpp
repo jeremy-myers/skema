@@ -306,18 +306,34 @@ auto SketchySVD<MatrixT, DimReduxT>::axpy(const double eta,
 template <typename MatrixType, typename DimReduxT>
 auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     -> void {
+  double time{0.0};
+  Kokkos::Timer timer;
   size_type wsize{algParams.window};
   auto window = Skema::getWindow<MatrixType>(algParams);
   range_type idx;
 
   if (wsize == nrow) {
     idx = std::make_pair(0, nrow);
+
+    timer.reset();
     auto H = window->get(A, idx);
 
     X = Upsilon.lmap(&eta, H, &nu, 'N', 'N');
     Y = Omega.rmap(&eta, H, &nu, 'N', 'T');
     auto w = Phi.lmap(&eta, H, &nu, 'N', 'N');
     Z = Psi.rmap(&eta, w, &nu, 'N', 'T');
+    time = timer.seconds();
+
+    std::cout << "\nUpsilon::initialize: " << Upsilon.stats.initialize
+              << ", map: " << Upsilon.stats.map;
+    std::cout << "\nOmega::initialize: " << Omega.stats.initialize
+              << ", map: " << Omega.stats.map;
+    std::cout << "\nPhi::initialize: " << Phi.stats.initialize
+              << ", map: " << Phi.stats.map;
+    std::cout << "\nPsi::initialize: " << Psi.stats.initialize
+              << ", map: " << Psi.stats.map;
+    std::cout << "\nTotal: " << time << std::endl;
+
     return;
   }
 
@@ -326,7 +342,9 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
   Z = matrix_type("Z", core, core);
 
   /* Main loop */
+  ordinal_type ucnt{0};  // window count
   for (auto irow = 0; irow < nrow; irow += wsize) {
+    timer.reset();
     if (irow + wsize < nrow) {
       idx = std::make_pair(irow, irow + wsize);
     } else {
@@ -344,6 +362,11 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     axpy(nu, Z, eta, z);
     axpy(nu, Y, eta, y, idx);
 
+    time += timer.seconds();
+    std::cout << " " << ucnt;
+    std::cout << " " << time << std::endl;
+    ++ucnt;
+
     if (algParams.debug) {
       std::cout << "H = \n";
       Impl::print(H);
@@ -358,6 +381,15 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
       Impl::print(Z);
     }
   }
+  std::cout << "\nUpsilon::initialize: " << Upsilon.stats.initialize
+            << ", map:" << Upsilon.stats.map;
+  std::cout << "\nOmega::initialize: " << Omega.stats.initialize
+            << ", map:" << Omega.stats.map;
+  std::cout << "\nPhi::initialize: " << Phi.stats.initialize
+            << ", map:" << Phi.stats.map;
+  std::cout << "\nPsi::initialize: " << Psi.stats.initialize
+            << ", map:" << Psi.stats.map;
+  std::cout << "\nTotal: " << time << std::endl;
 };
 
 // SketchySVD variant for symmetric positive definite matrices
@@ -514,15 +546,23 @@ void SketchySPD<MatrixType, DimReduxT>::fixed_rank_psd_approx(matrix_type& U,
 template <typename MatrixType, typename DimReduxT>
 auto SketchySPD<MatrixType, DimReduxT>::nystrom_linear_update(
     const MatrixType& A) -> void {
+  double time{0.0};
+  Kokkos::Timer timer;
   size_type wsize{algParams.window};
   auto window = Skema::getWindow<MatrixType>(algParams);
   range_type idx;
 
   if (wsize == nrow) {
     idx = std::make_pair<size_type>(0, nrow);
-    auto H = window->get(A, idx);
 
+    timer.reset();
+    auto H = window->get(A, idx);
     Y = Omega.rmap(&eta, H, &nu);
+    time = timer.seconds();
+
+    std::cout << "\nOmega::initialize: " << Omega.stats.initialize
+              << ", map: " << Omega.stats.map;
+    std::cout << "\nTotal: " << time << std::endl;
 
     if (algParams.debug) {
       std::cout << "H = \n";
@@ -534,9 +574,11 @@ auto SketchySPD<MatrixType, DimReduxT>::nystrom_linear_update(
     return;
   }
 
-  Y = matrix_type("Y", nrow, range);
   /* Main loop */
+  Y = matrix_type("Y", nrow, range);
+  ordinal_type ucnt{0};  // window count
   for (auto irow = 0; irow < nrow; irow += wsize) {
+    timer.reset();
     if (irow + wsize < nrow) {
       idx = std::make_pair(irow, irow + wsize);
     } else {
@@ -549,6 +591,11 @@ auto SketchySPD<MatrixType, DimReduxT>::nystrom_linear_update(
 
     axpy(nu, Y, eta, y, idx);
 
+    time += timer.seconds();
+    std::cout << " " << ucnt;
+    std::cout << " " << time << std::endl;
+    ++ucnt;
+
     if (algParams.debug) {
       std::cout << "H = \n";
       Impl::print(H);
@@ -557,6 +604,9 @@ auto SketchySPD<MatrixType, DimReduxT>::nystrom_linear_update(
       Impl::print(Y);
     }
   }
+  std::cout << "\nOmega::initialize: " << Omega.stats.initialize
+            << ", map: " << Omega.stats.map;
+  std::cout << "\nTotal: " << time << std::endl;
 };
 
 template <typename MatrixT, typename DimReduxT>

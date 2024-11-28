@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <ctime>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include "Skema_AlgParams.hpp"
@@ -116,6 +117,10 @@ int main(int argc, char* argv[]) {
       exit(1);
     }
     algParams.parse(args);
+
+    // Fix up the output filename
+    // outputfilename = algParams.outputfilename;
+    // algParams.outputfilename = output
 
     // Early exit for some generic choices
     if (algParams.window < algParams.isvd_num_samples) {

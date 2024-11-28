@@ -26,6 +26,7 @@ ISVD<MatrixType>::ISVD(const AlgParams& algParams_)
 template <typename MatrixType>
 void ISVD<MatrixType>::solve(const MatrixType& A) {
   Kokkos::Timer timer;
+  double time{0.0};
 
   const size_type nrow{algParams.matrix_m};
   const size_type ncol{algParams.matrix_n};
@@ -54,6 +55,7 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
   range_type rlargest{std::make_pair<size_type>(0, rank)};
 
   // Get first window
+  timer.reset();
   auto A_window = window->get(A, idx);
 
   // Sample first window
@@ -62,11 +64,14 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
   sampler.sample(A_window);
 
   // Compute initial decomposition
-  Impl::print(A_window);
   solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex);
 
   // Update vvecs with svals
   distribute(svals, vtvex);
+
+  time = timer.seconds();
+  std::cout << " " << ucnt;
+  std::cout << " " << time << std::endl;
 
   if (algParams.hist) {
     for (auto r = 0; r < rank; ++r) {
@@ -84,6 +89,7 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
       wsize = idx.second - idx.first;
     }
 
+    timer.reset();
     A_window = window->get(A, idx);
 
     // Sample window
@@ -95,6 +101,10 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
 
     // Update vvecs with svals
     distribute(svals, vtvex);
+
+    time = timer.seconds();
+    std::cout << " " << ucnt;
+    std::cout << " " << time << std::endl;
 
     if (algParams.hist) {
       for (auto r = 0; r < rank; ++r) {
@@ -109,19 +119,22 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
   normalize(svals, vtvex);
 
   // Compute final residuals
+  timer.reset();
   auto v = Impl::transpose(vtvex);
   auto u = U(A, svals, v, rank, algParams);
   auto rnrms = residuals(A, u, svals, v, rank, algParams, window);
+  time = timer.seconds();
+  std::cout << "Compute residuals: " << time << std::endl;
 
   if (algParams.hist) {
     std::string fname;
-    fname = algParams.outputfilename + "_svals.txt";
+    fname = algParams.outputfilename.filename().stem().string() + "_svals.txt";
     auto sval_trace = Kokkos::subview(
         sval_traces, Kokkos::ALL(),
         std::make_pair<size_type>(0, static_cast<size_type>(ucnt)));
     Impl::write(sval_traces, fname.c_str());
 
-    fname = algParams.outputfilename + "_rnrms.txt";
+    fname = algParams.outputfilename.filename().stem().string() + "_rnrms.txt";
     Impl::write(rnrms, fname.c_str());
   }
 }

@@ -128,8 +128,8 @@ void AlgParams::parse(std::vector<std::string>& args) {
   /* Parse options from command-line, using default values set above as defaults
    */
   // Generic options
-  inputfilename = parse_string(args, "--input", "");
-  outputfilename = parse_string(args, "--output", "");
+  inputfilename = parse_filepath(args, "--input", "");
+  outputfilename = parse_filepath(args, "--output", "");
   issparse = parse_bool(args, "--sparse", "--dense", false);
   issymmetric = parse_bool(args, "--symmetric", "--asymmetric", false);
   matrix_m = parse_int(args, "--m", matrix_m, 0, INT_MAX);
@@ -418,6 +418,13 @@ std::string parse_string(std::vector<std::string>& args,
     args.erase(arg_it, ++it);
   }
   return tmp;
+}
+
+std::filesystem::path parse_filepath(std::vector<std::string>& args,
+                                     const std::string& cl_arg,
+                                     const std::string& default_value) {
+  std::string path_str = parse_string(args, cl_arg, default_value);
+  return std::filesystem::path(path_str);
 }
 
 std::vector<int> parse_int_array(std::vector<std::string>& args,

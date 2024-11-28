@@ -14,11 +14,13 @@ auto GaussDimRedux::lmap(const scalar_type* alpha,
                          char transA,
                          char transB,
                          const range_type idx) -> matrix_type {
+  Kokkos::Timer timer;
   const auto m{nrow};
   const auto n{B.extent(1)};
   matrix_type C("GaussDimRedux::return", m, n);
 
   Impl::mm(&transA, &transB, alpha, data, B, beta, C);
+  stats.map += timer.seconds();
   return C;
 }
 
@@ -29,6 +31,7 @@ auto GaussDimRedux::rmap(const scalar_type* alpha,
                          char transA,
                          char transB,
                          const range_type idx) -> matrix_type {
+  Kokkos::Timer timer;
   const auto m{A.extent(0)};
   const auto n{nrow};
   matrix_type C("GaussDimRedux::return", m, n);
@@ -39,6 +42,7 @@ auto GaussDimRedux::rmap(const scalar_type* alpha,
   }
 
   Impl::mm(&transA, &transB, alpha, A, data_, beta, C);
+  stats.map += timer.seconds();
   return C;
 }
 
@@ -50,6 +54,7 @@ auto GaussDimRedux::lmap(const scalar_type* alpha,
                          char transB,
                          const range_type idx) -> matrix_type {
   // return (B'*data')'
+  Kokkos::Timer timer;
   const auto m{B.numCols()};
   const auto n{nrow};
   matrix_type C("GaussDimRedux::return", m, n);
@@ -64,6 +69,7 @@ auto GaussDimRedux::lmap(const scalar_type* alpha,
   }
   auto data_T = Impl::transpose(data_);
   Impl::mm(&transB, &transA, alpha, B, data_T, beta, C);
+  stats.map += timer.seconds();
   return Impl::transpose(C);
 }
 
@@ -75,12 +81,14 @@ auto GaussDimRedux::rmap(const scalar_type* alpha,
                          char transB,
                          const range_type idx) -> matrix_type {
   // return A*data', data' must be generated explicitly as transpose
+  Kokkos::Timer timer;
   const auto m{A.numRows()};
   const auto n{nrow};
   matrix_type C("GaussDimRedux::return", m, n);
 
   auto data_T = Impl::transpose(data);
   Impl::mm(&transA, &transB, alpha, A, data_T, beta, C);
+  stats.map += timer.seconds();
   return C;
 }
 
