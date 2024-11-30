@@ -10,25 +10,52 @@
 #include "Skema_Window.hpp"
 
 namespace Skema {
+
+struct History {
+  matrix_type svals;
+  vector_type solve;
+  History() {};
+  History(const size_type rank, const size_type n)
+      : svals("svals history", rank, n), solve("solver history", n) {};
+};
 template <typename MatrixType>
 class ISVD {
  public:
-  ISVD(const AlgParams&);
+  ISVD(const AlgParams& algParams_)
+      : algParams(algParams_),
+        nrow(algParams_.matrix_m),
+        ncol(algParams_.matrix_n),
+        rank(algParams_.rank),
+        svals(vector_type("svals", rank)),
+        vtvex(matrix_type("vtvex", rank, ncol)),
+        window(getWindow<MatrixType>(algParams)),
+        wsize0(algParams.window) {}
   ~ISVD() {};
 
   /* Public methods */
-  void solve(const MatrixType&);
+  auto compute_residuals(const MatrixType&) -> vector_type;
+  inline auto history() -> History { return hist; };
+  auto solve(const MatrixType&) -> void;
+
+  /* Accessors */
+  inline auto U() -> matrix_type { return u; };
+  inline auto S() -> vector_type { return svals; };
+  inline auto V() -> matrix_type { return Impl::transpose(vtvex); };
 
  protected:
+  const size_type nrow;
+  const size_type ncol;
+  const size_type rank;
+  matrix_type u;
+  vector_type svals;
+  matrix_type vtvex;
   const AlgParams algParams;
+  const size_type wsize0;
   std::unique_ptr<WindowBase<MatrixType>> window;
+  History hist;
 
   /* Compute U = A*V*Sigma^{-1} */
-  auto U(const MatrixType&,
-         const vector_type&,
-         const matrix_type,
-         const ordinal_type,
-         const AlgParams&) -> matrix_type;
+  auto compute_U(const MatrixType&) -> void;
 
   KOKKOS_INLINE_FUNCTION
   void distribute(const vector_type& svals, const matrix_type& vvecs) {

@@ -3,6 +3,7 @@
 #include "Skema_BlasLapack.hpp"
 #include "Skema_Common.hpp"
 #include "Skema_DimRedux.hpp"
+#include "Skema_Residuals.hpp"
 #include "Skema_Utils.hpp"
 #include "Skema_Window.hpp"
 
@@ -25,7 +26,8 @@ SketchySVD<MatrixType, DimReduxT>::SketchySVD(const AlgParams& algParams_)
       Upsilon(DimReduxT(range, nrow, algParams.seeds[0], algParams.debug)),
       Omega(DimReduxT(range, ncol, algParams.seeds[1], algParams.debug)),
       Phi(DimReduxT(core, nrow, algParams.seeds[2], algParams.debug)),
-      Psi(DimReduxT(core, ncol, algParams.seeds[3], algParams.debug)){};
+      Psi(DimReduxT(core, ncol, algParams.seeds[3], algParams.debug)),
+      window(getWindow<MatrixType>(algParams)){};
 
 template <typename MatrixType, typename DimReduxT>
 auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
@@ -154,9 +156,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
 };
 
 template <typename MatrixType, typename DimReduxT>
-void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx(matrix_type& U,
-                                                          vector_type& S,
-                                                          matrix_type& V) {
+void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx() {
   // [Q,C,P] = low_rank_approx();
   // [U,S,V] = svd(C);
   // S = S(1:r,1:r);
@@ -233,9 +233,9 @@ void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx(matrix_type& U,
   // Set final low-rank approximation
   timer.reset();
   auto rlargest = std::make_pair<size_type>(0, rank);
-  U = Kokkos::subview(QUc, Kokkos::ALL(), rlargest);
-  S = Kokkos::subview(sc, rlargest);
-  V = Kokkos::subview(PVc, Kokkos::ALL(), rlargest);
+  uvecs = Kokkos::subview(QUc, Kokkos::ALL(), rlargest);
+  svals = Kokkos::subview(sc, rlargest);
+  vvecs = Kokkos::subview(PVc, Kokkos::ALL(), rlargest);
   Kokkos::fence();
   time = timer.seconds();
   if (print_level > 1) {
@@ -304,12 +304,23 @@ auto SketchySVD<MatrixT, DimReduxT>::axpy(const double eta,
 }
 
 template <typename MatrixType, typename DimReduxT>
+auto SketchySVD<MatrixType, DimReduxT>::compute_residuals(const MatrixType& A)
+    -> vector_type {
+  // Compute final residuals
+  double time{0.0};
+  Kokkos::Timer timer;
+  auto rnrms = residuals(A, uvecs, svals, vvecs, rank, algParams, window);
+  time = timer.seconds();
+  std::cout << "Compute residuals: " << time << std::endl;
+  return rnrms;
+}
+
+template <typename MatrixType, typename DimReduxT>
 auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     -> void {
   double time{0.0};
   Kokkos::Timer timer;
   size_type wsize{algParams.window};
-  auto window = Skema::getWindow<MatrixType>(algParams);
   range_type idx;
 
   if (wsize == nrow) {
@@ -404,11 +415,11 @@ SketchySPD<MatrixType, DimReduxT>::SketchySPD(const AlgParams& algParams_)
       eta(algParams_.sketch_eta),
       nu(algParams_.sketch_nu),
       algParams(algParams_),
-      Omega(DimReduxT(range, ncol, algParams.seeds[1], algParams.debug)){};
+      Omega(DimReduxT(ncol, range, algParams.seeds[0], algParams.debug)),
+      window(getWindow<MatrixType>(algParams)){};
 
 template <typename MatrixType, typename DimReduxT>
-void SketchySPD<MatrixType, DimReduxT>::fixed_rank_psd_approx(matrix_type& U,
-                                                              vector_type& S) {
+void SketchySPD<MatrixType, DimReduxT>::fixed_rank_psd_approx() {
   // Numerically stable Fixed-Rank Nyström Approximation. Instead of
   // approximating the psd matrix A directly, we approximate the shifted matrix
   // Aν = A + νI and then remove the shift.
@@ -459,7 +470,7 @@ void SketchySPD<MatrixType, DimReduxT>::fixed_rank_psd_approx(matrix_type& U,
   // Form the matrix B = Ω∗Yν
   timer.reset();
   auto Yt = Impl::transpose(Y);
-  auto B = Omega.lmap(&one, Y, &zero);
+  auto B = Omega.lmap(&one, Y, &zero, 'T', 'N');
   Kokkos::fence();
   time = timer.seconds();
   if (debug) {
@@ -522,15 +533,15 @@ void SketchySPD<MatrixType, DimReduxT>::fixed_rank_psd_approx(matrix_type& U,
   // Truncate to rank r
   timer.reset();
   range_type rlargest = std::make_pair<size_type>(0, rank);
-  U = Kokkos::subview(Uwy, Kokkos::ALL(), rlargest);
+  uvecs = Kokkos::subview(Uwy, Kokkos::ALL(), rlargest);
 
   // Sr = S(1:r, 1:r);
-  S = Kokkos::subview(Swy, rlargest);
+  svals = Kokkos::subview(Swy, rlargest);
 
   // Square to get eigenvalues; remove shift
   for (auto rr = 0; rr < rank; ++rr) {
-    scalar_type remove_shift = S(rr) * S(rr) - nu;
-    S(rr) = std::max(0.0, remove_shift);
+    scalar_type remove_shift = svals(rr) * svals(rr) - nu;
+    svals(rr) = std::max(0.0, remove_shift);
   }
 
   time = timer.seconds();
@@ -544,12 +555,22 @@ void SketchySPD<MatrixType, DimReduxT>::fixed_rank_psd_approx(matrix_type& U,
 };
 
 template <typename MatrixType, typename DimReduxT>
+auto SketchySPD<MatrixType, DimReduxT>::compute_residuals(const MatrixType& A)
+    -> vector_type {  // Compute final residuals
+  double time{0.0};
+  Kokkos::Timer timer;
+  auto rnrms = residuals(A, uvecs, svals, rank, algParams, window);
+  time = timer.seconds();
+  std::cout << "Compute residuals: " << time << std::endl;
+  return rnrms;
+}
+
+template <typename MatrixType, typename DimReduxT>
 auto SketchySPD<MatrixType, DimReduxT>::nystrom_linear_update(
     const MatrixType& A) -> void {
   double time{0.0};
   Kokkos::Timer timer;
   size_type wsize{algParams.window};
-  auto window = Skema::getWindow<MatrixType>(algParams);
   range_type idx;
 
   if (wsize == nrow) {
@@ -586,9 +607,7 @@ auto SketchySPD<MatrixType, DimReduxT>::nystrom_linear_update(
       wsize = idx.second - idx.first;
     }
     auto H = window->get(A, idx);
-
-    auto y = Omega.rmap(&eta, H, &nu, 'N', 'T', idx);
-
+    auto y = Omega.rmap(&eta, H, &nu, 'N', 'N', idx);
     axpy(nu, Y, eta, y, idx);
 
     time += timer.seconds();
@@ -668,33 +687,41 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
   matrix_type U;
   vector_type S;
   matrix_type V;
+  vector_type r;
   if (algParams.dim_redux == DimRedux_Map::GAUSS) {
     if (algParams.issymmetric) {
       SketchySPD<matrix_type, GaussDimRedux> sketch(algParams);
       sketch.nystrom_linear_update(matrix);
-      sketch.fixed_rank_psd_approx(U, S);
+      sketch.fixed_rank_psd_approx();
+      r = sketch.compute_residuals(matrix);
     } else {
       SketchySVD<matrix_type, GaussDimRedux> sketch(algParams);
       sketch.linear_update(matrix);
-      sketch.fixed_rank_approx(U, S, V);
+      sketch.fixed_rank_approx();
+      r = sketch.compute_residuals(matrix);
     }
   } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
     if (algParams.issymmetric) {
       SketchySPD<matrix_type, SparseSignDimRedux> sketch(algParams);
       sketch.nystrom_linear_update(matrix);
-      sketch.fixed_rank_psd_approx(U, S);
+      sketch.fixed_rank_psd_approx();
+      r = sketch.compute_residuals(matrix);
     } else {
       SketchySVD<matrix_type, SparseSignDimRedux> sketch(algParams);
       sketch.linear_update(matrix);
-      sketch.fixed_rank_approx(U, S, V);
+      sketch.fixed_rank_approx();
+      r = sketch.compute_residuals(matrix);
     }
   } else {
     std::cout << "DimRedux: make another selection." << std::endl;
     exit(1);
   }
+  std::string fname;
+  fname = algParams.outputfilename.filename().stem().string() + "_svals.txt";
+  Impl::write(S, fname.c_str());
 
-  if (algParams.print_level > 0)
-    Impl::print(S);
+  fname = algParams.outputfilename.filename().stem().string() + "_rnrms.txt";
+  Impl::write(r, fname.c_str());
 };
 
 template <>
@@ -703,15 +730,18 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
   matrix_type U;
   vector_type S;
   matrix_type V;
+  vector_type r;
   if (algParams.dim_redux == DimRedux_Map::GAUSS) {
     if (algParams.issymmetric) {
       SketchySPD<crs_matrix_type, GaussDimRedux> sketch(algParams);
       sketch.nystrom_linear_update(matrix);
-      sketch.fixed_rank_psd_approx(U, S);
+      sketch.fixed_rank_psd_approx();
+      r = sketch.compute_residuals(matrix);
     } else {
       SketchySVD<crs_matrix_type, GaussDimRedux> sketch(algParams);
       sketch.linear_update(matrix);
-      sketch.fixed_rank_approx(U, S, V);
+      sketch.fixed_rank_approx();
+      r = sketch.compute_residuals(matrix);
     }
   } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
     std::cout << "DimRedux: Sparse Sign maps with sparse input is not "
@@ -724,8 +754,11 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
     exit(1);
   }
 
-  if (algParams.print_level > 0)
-    Impl::print(S);
+  if (algParams.hist) {
+    std::string fname;
+    fname = algParams.outputfilename.filename().stem().string() + "_rnrms.txt";
+    Impl::write(r, fname.c_str());
+  }
 };
 
 }  // namespace Skema

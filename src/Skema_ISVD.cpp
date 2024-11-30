@@ -20,11 +20,7 @@ namespace Skema {
 /* Constructor */
 /* ************************************************************************* */
 template <typename MatrixType>
-ISVD<MatrixType>::ISVD(const AlgParams& algParams_)
-    : algParams(algParams_), window(getWindow<MatrixType>(algParams)) {}
-
-template <typename MatrixType>
-void ISVD<MatrixType>::solve(const MatrixType& A) {
+auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   Kokkos::Timer timer;
   double time{0.0};
 
@@ -36,12 +32,11 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
   std::string svals_filename;
 
   matrix_type uvecs("uvecs", rank + wsize, rank);
-  vector_type svals("svals", rank);
-  matrix_type vtvex("vtvecs", rank, ncol);
 
   const size_type width{
       static_cast<size_type>(std::ceil(double(nrow) / double(wsize)))};
-  matrix_type sval_traces("sval_traces", rank, width);
+
+  hist = History(rank, width);
 
   // Create solver & sampler
   Skema::ISVD_SVDS<MatrixType> solver(algParams);
@@ -73,11 +68,10 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
   std::cout << " " << ucnt;
   std::cout << " " << time << std::endl;
 
-  if (algParams.hist) {
-    for (auto r = 0; r < rank; ++r) {
-      sval_traces(r, ucnt) = svals(r);
-    }
+  for (auto r = 0; r < rank; ++r) {
+    hist.svals(r, ucnt) = svals(r);
   }
+  hist.solve(ucnt) = time;
 
   ++ucnt;
   /* Main loop */
@@ -106,52 +100,48 @@ void ISVD<MatrixType>::solve(const MatrixType& A) {
     std::cout << " " << ucnt;
     std::cout << " " << time << std::endl;
 
-    if (algParams.hist) {
-      for (auto r = 0; r < rank; ++r) {
-        sval_traces(r, ucnt) = svals(r);
-      }
+    for (auto r = 0; r < rank; ++r) {
+      hist.svals(r, ucnt) = svals(r);
     }
-
+    hist.solve(ucnt) = time;
     ++ucnt;
   }
 
   // Normalize vvecs
   normalize(svals, vtvex);
+  Kokkos::resize(hist.svals, rank, ucnt);
+  Kokkos::resize(hist.solve, ucnt);
+  Kokkos::fence();
+}
 
+template <typename MatrixType>
+auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> vector_type {
   // Compute final residuals
-  timer.reset();
-  auto v = Impl::transpose(vtvex);
-  auto u = U(A, svals, v, rank, algParams);
-  auto rnrms = residuals(A, u, svals, v, rank, algParams, window);
+  double time{0.0};
+  Kokkos::Timer timer;
+
+  vector_type rnrms;
+  if (algParams.issymmetric) {
+    auto v = Impl::transpose(vtvex);
+    rnrms = residuals(A, v, svals, rank, algParams, window);
+  } else {
+    compute_U(A);
+    auto v = Impl::transpose(vtvex);
+    rnrms = residuals(A, u, svals, v, rank, algParams, window);
+  }
   time = timer.seconds();
   std::cout << "Compute residuals: " << time << std::endl;
-
-  if (algParams.hist) {
-    std::string fname;
-    fname = algParams.outputfilename.filename().stem().string() + "_svals.txt";
-    auto sval_trace = Kokkos::subview(
-        sval_traces, Kokkos::ALL(),
-        std::make_pair<size_type>(0, static_cast<size_type>(ucnt)));
-    Impl::write(sval_traces, fname.c_str());
-
-    fname = algParams.outputfilename.filename().stem().string() + "_rnrms.txt";
-    Impl::write(rnrms, fname.c_str());
-  }
+  return rnrms;
 }
 
 /* Compute U = A*V*Sigma^{-1} */
 template <typename MatrixType>
-auto ISVD<MatrixType>::U(const MatrixType& A,
-                         const vector_type& S,
-                         const matrix_type V,
-                         const ordinal_type rank,
-                         const AlgParams& algParams) -> matrix_type {
-  const size_type nrow{static_cast<size_type>(algParams.matrix_m)};
-  const size_type ncol{static_cast<size_type>(algParams.matrix_n)};
-  size_type wsize{algParams.window};
-
-  matrix_type U("U", nrow, rank);
-  matrix_type u;
+auto ISVD<MatrixType>::compute_U(const MatrixType& A) -> void {
+  double time{0.0};
+  Kokkos::Timer timer;
+  size_type wsize{wsize0};
+  u = matrix_type("U", nrow, rank);
+  matrix_type utmp;
 
   const char N{'N'};
   const char T{'T'};
@@ -167,32 +157,56 @@ auto ISVD<MatrixType>::U(const MatrixType& A,
     }
 
     auto A_window = window->get(A, idx);
-    u = Kokkos::subview(U, idx, Kokkos::ALL());
-    Impl::mm(&N, &N, &one, A_window, V, &zero, u);
+    auto v = Impl::transpose(vtvex);
+    utmp = Kokkos::subview(u, idx, Kokkos::ALL());
+    Impl::mm(&N, &N, &one, A_window, v, &zero, utmp);
   }
 
   Kokkos::parallel_for(
       rank, KOKKOS_LAMBDA(const int r) {
-        auto ur = Kokkos::subview(U, Kokkos::ALL(), r);
-        auto s = S(r);
+        auto ur = Kokkos::subview(u, Kokkos::ALL(), r);
+        auto s = svals(r);
         for (auto i = 0; i < nrow; ++i) {
           ur(i) /= s;
         }
       });
 
-  return U;
+  time = timer.seconds();
+  std::cout << "Compute U: " << time << std::endl;
 }
 
 template <>
 void isvd(const matrix_type& A, const AlgParams& algParams) {
   ISVD<matrix_type> sketch(algParams);
   sketch.solve(A);
+  auto rnrms = sketch.compute_residuals(A);
+  std::string fname;
+  fname = algParams.outputfilename.filename().stem().string() + "_rnrms.txt";
+  Impl::write(rnrms, fname.c_str());
+
+  if (algParams.hist) {
+    auto hist = sketch.history();
+    fname =
+        algParams.outputfilename.filename().stem().string() + "_hist_svals.txt";
+    Impl::write(hist.svals, fname.c_str());
+  }
 };
 
 template <>
 void isvd(const crs_matrix_type& A, const AlgParams& algParams) {
   ISVD<crs_matrix_type> sketch(algParams);
   sketch.solve(A);
+
+  auto rnrms = sketch.compute_residuals(A);
+  std::string fname;
+  fname = algParams.outputfilename.filename().stem().string() + "_rnrms.txt";
+  Impl::write(rnrms, fname.c_str());
+
+  if (algParams.hist) {
+    auto hist = sketch.history();
+    fname = algParams.outputfilename.filename().stem().string() + "_svals.txt";
+    Impl::write(hist.svals, fname.c_str());
+  }
 };
 
 }  // namespace Skema

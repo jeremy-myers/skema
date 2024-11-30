@@ -15,10 +15,9 @@ auto GaussDimRedux::lmap(const scalar_type* alpha,
                          char transB,
                          const range_type idx) -> matrix_type {
   Kokkos::Timer timer;
-  const auto m{nrow};
+  const auto m{(transA == 'N') ? nrow : ncol};
   const auto n{B.extent(1)};
   matrix_type C("GaussDimRedux::return", m, n);
-
   Impl::mm(&transA, &transB, alpha, data, B, beta, C);
   stats.map += timer.seconds();
   return C;
@@ -33,15 +32,10 @@ auto GaussDimRedux::rmap(const scalar_type* alpha,
                          const range_type idx) -> matrix_type {
   Kokkos::Timer timer;
   const auto m{A.extent(0)};
-  const auto n{nrow};
+  const auto n{(transB == 'T') ? nrow : ncol};
   matrix_type C("GaussDimRedux::return", m, n);
 
-  matrix_type data_(data);
-  if (idx.first != idx.second) {
-    data_ = Kokkos::subview(data, Kokkos::ALL(), idx);
-  }
-
-  Impl::mm(&transA, &transB, alpha, A, data_, beta, C);
+  Impl::mm(&transA, &transB, alpha, A, data, beta, C);
   stats.map += timer.seconds();
   return C;
 }
@@ -83,12 +77,14 @@ auto GaussDimRedux::rmap(const scalar_type* alpha,
   // return A*data', data' must be generated explicitly as transpose
   Kokkos::Timer timer;
   const auto m{A.numRows()};
-  const auto n{nrow};
+  const auto n{(transB == 'T') ? nrow : ncol};
   matrix_type C("GaussDimRedux::return", m, n);
 
-  auto data_T = Impl::transpose(data);
-  Impl::mm(&transA, &transB, alpha, A, data_T, beta, C);
-  stats.map += timer.seconds();
+  matrix_type data_(data);
+  if (transB == 'T')
+    data_ = Impl::transpose(data);
+
+  Impl::mm(&transA, &transB, alpha, A, data_, beta, C);
   return C;
 }
 
