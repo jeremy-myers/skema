@@ -15,6 +15,7 @@ struct AlgParams {
   // std::string outputfilename;
   std::filesystem::path inputfilename;
   std::filesystem::path outputfilename;
+  std::filesystem::path debug_filename;
   bool issparse;
   bool issymmetric;
   size_t matrix_m;

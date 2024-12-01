@@ -12,6 +12,7 @@ AlgParams::AlgParams()
       decomposition_type(Skema::Decomposition_Type::default_type),
       inputfilename(""),
       outputfilename(""),
+      debug_filename(""),
       issparse(false),
       issymmetric(false),
       matrix_m(0),
@@ -130,6 +131,7 @@ void AlgParams::parse(std::vector<std::string>& args) {
   // Generic options
   inputfilename = parse_filepath(args, "--input", "");
   outputfilename = parse_filepath(args, "--output", "");
+  debug_filename = parse_filepath(args, "--debug-file", "");
   issparse = parse_bool(args, "--sparse", "--dense", false);
   issymmetric = parse_bool(args, "--symmetric", "--asymmetric", false);
   matrix_m = parse_int(args, "--m", matrix_m, 0, INT_MAX);

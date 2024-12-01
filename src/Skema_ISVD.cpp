@@ -130,7 +130,7 @@ auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> vector_type {
     rnrms = residuals(A, u, svals, v, rank, algParams, window);
   }
   time = timer.seconds();
-  std::cout << "Compute residuals: " << time << std::endl;
+  std::cout << "\nCompute residuals: " << time << std::endl;
   return rnrms;
 }
 
@@ -180,9 +180,25 @@ void isvd(const matrix_type& A, const AlgParams& algParams) {
   ISVD<matrix_type> sketch(algParams);
   sketch.solve(A);
   auto rnrms = sketch.compute_residuals(A);
+
+  auto U = sketch.U();
+  auto S = sketch.S();
+  auto V = sketch.V();
+
   std::string fname;
   fname = algParams.outputfilename.filename().stem().string() + "_rnrms.txt";
   Impl::write(rnrms, fname.c_str());
+
+  if (!algParams.debug_filename.empty()) {
+    fname = algParams.debug_filename.filename().stem().string() + "_U.txt";
+    Impl::write(U, fname.c_str());
+
+    fname = algParams.debug_filename.filename().stem().string() + "_S.txt";
+    Impl::write(S, fname.c_str());
+
+    fname = algParams.debug_filename.filename().stem().string() + "_V.txt";
+    Impl::write(V, fname.c_str());
+  }
 
   if (algParams.hist) {
     auto hist = sketch.history();
@@ -198,9 +214,25 @@ void isvd(const crs_matrix_type& A, const AlgParams& algParams) {
   sketch.solve(A);
 
   auto rnrms = sketch.compute_residuals(A);
+
+  auto U = sketch.U();
+  auto S = sketch.S();
+  auto V = sketch.V();
+
   std::string fname;
   fname = algParams.outputfilename.filename().stem().string() + "_rnrms.txt";
   Impl::write(rnrms, fname.c_str());
+
+  if (!algParams.debug_filename.empty()) {
+    fname = algParams.debug_filename.filename().stem().string() + "_U.txt";
+    Impl::write(U, fname.c_str());
+
+    fname = algParams.debug_filename.filename().stem().string() + "_S.txt";
+    Impl::write(S, fname.c_str());
+
+    fname = algParams.debug_filename.filename().stem().string() + "_V.txt";
+    Impl::write(V, fname.c_str());
+  }
 
   if (algParams.hist) {
     auto hist = sketch.history();

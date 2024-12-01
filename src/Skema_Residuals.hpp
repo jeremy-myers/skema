@@ -14,7 +14,6 @@ inline vector_type residuals_by_window(const MatrixType& A,
   vector_type rnorms("rnorms", rank);
   const size_type nrow{algParams.matrix_m};
   const size_type ncol{algParams.matrix_n};
-  const scalar_type sqrt2{std::sqrt(2.0)};
   size_type wsize{algParams.window};
 
   range_type idx;
@@ -60,17 +59,12 @@ inline vector_type residuals_by_window(const MatrixType& A,
       auto del_av_sv = Kokkos::subview(R_, idx, r);
       // vector_type del_av_sv("av-sv", wsize);
       KokkosBlas::update(1.0, av, -1.0, sv, 0.0, del_av_sv);
-      // for (int i = 0, j = idx.first; (i < wsize && j < idx.second); ++i, ++j)
-      // {
-      //   R_(j, r) = del_av_sv(i);
-      // }
     }
   }
 
   for (auto r = rlargest.first; r < rlargest.second; ++r) {
     auto diff = Kokkos::subview(R_, Kokkos::ALL(), r);
-    scalar_type nrm = KokkosBlas::nrm2(diff);
-    rnorms(r) = sqrt2 * nrm;
+    rnorms(r) = std::sqrt(KokkosBlas::nrm2(diff));
   }
   return rnorms;
 }
@@ -86,7 +80,6 @@ inline vector_type residuals_by_window(const MatrixType& A,
   vector_type rnorms("rnorms", rank);
   const size_type nrow{algParams.matrix_m};
   const size_type ncol{algParams.matrix_n};
-  const scalar_type sqrt2{std::sqrt(2.0)};
   size_type wsize{algParams.window};
 
   range_type idx;
@@ -152,8 +145,7 @@ inline vector_type residuals_by_window(const MatrixType& A,
 
   for (auto r = rlargest.first; r < rlargest.second; ++r) {
     auto diff = Kokkos::subview(rnorms_, Kokkos::ALL(), r);
-    scalar_type nrm = KokkosBlas::nrm2(diff);
-    rnorms(r) = sqrt2 * nrm;
+    rnorms(r) = std::sqrt(KokkosBlas::nrm2(diff));
   }
   return rnorms;
 }
@@ -172,7 +164,6 @@ inline vector_type residuals(const MatrixType& A,
   vector_type rnorms("rnorms", rank);
   const size_type nrow{algParams.matrix_m};
   const size_type ncol{algParams.matrix_n};
-  const scalar_type sqrt2{std::sqrt(2.0)};
 
   range_type idx;
   range_type rlargest = std::make_pair<size_type, size_type>(0, rank);
@@ -207,8 +198,7 @@ inline vector_type residuals(const MatrixType& A,
   }
   for (auto r = rlargest.first; r < rlargest.second; ++r) {
     auto diff = Kokkos::subview(R_, Kokkos::ALL(), r);
-    scalar_type nrm = KokkosBlas::nrm2(diff);
-    rnorms(r) = sqrt2 * nrm;
+    rnorms(r) = std::sqrt(KokkosBlas::nrm2(diff));
   }
   return rnorms;
 }
@@ -228,7 +218,6 @@ inline vector_type residuals(const MatrixType& A,
   vector_type rnorms("rnorms", rank);
   const size_type nrow{algParams.matrix_m};
   const size_type ncol{algParams.matrix_n};
-  const scalar_type sqrt2{std::sqrt(2.0)};
 
   range_type idx;
   range_type rlargest = std::make_pair<size_type, size_type>(0, rank);
@@ -280,8 +269,7 @@ inline vector_type residuals(const MatrixType& A,
   }
   for (auto r = rlargest.first; r < rlargest.second; ++r) {
     auto diff = Kokkos::subview(rnorms_, Kokkos::ALL(), r);
-    scalar_type nrm = KokkosBlas::nrm2(diff);
-    rnorms(r) = sqrt2 * nrm;
+    rnorms(r) = std::sqrt(KokkosBlas::nrm2(diff));
   }
   return rnorms;
 }

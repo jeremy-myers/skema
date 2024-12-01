@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <random>
+#include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
 
 using RNG = std::mt19937;
@@ -26,19 +27,25 @@ class DimRedux {
   const ordinal_type seed;
   const pool_type rand_pool;
   bool initialized;
+  const std::string label;
   const bool debug;
+  const std::filesystem::path debug_filename;
 
  public:
   DimRedux(const size_type nrow_,
            const size_type ncol_,
            const ordinal_type seed_,
-           const bool debug_)
+           const std::string label_,
+           const bool debug_,
+           const std::filesystem::path debug_filename_)
       : nrow(nrow_),
         ncol(ncol_),
         seed(seed_),
         rand_pool(pool_type(seed_)),
         initialized(false),
-        debug(debug_) {};
+        label(label_),
+        debug(debug_),
+        debug_filename(debug_filename_) {};
   DimRedux(const DimRedux&) = default;
   DimRedux(DimRedux&&) = default;
   DimRedux& operator=(const DimRedux&);
@@ -86,13 +93,29 @@ class GaussDimRedux : public DimRedux<GaussDimRedux> {
   GaussDimRedux(const size_type nrow_,
                 const size_type ncol_,
                 const ordinal_type seed_,
-                const bool debug_ = false)
-      : DimRedux<GaussDimRedux>(nrow_, ncol_, seed_, debug_),
+                const std::string label_ = "GaussDimRedux",
+                const bool debug_ = false,
+                const std::filesystem::path debug_filename_ = "")
+      : DimRedux<GaussDimRedux>(nrow_,
+                                ncol_,
+                                seed_,
+                                label_,
+                                debug_,
+                                debug_filename_),
         maxval(std::sqrt(2 * std::log(nrow_ * ncol_))) {
     Kokkos::Timer timer;
-    data = matrix_type("GaussDimRedux::data", nrow, ncol);
+    data = matrix_type(label, nrow, ncol);
     Kokkos::fill_random(data, rand_pool, -maxval, maxval);
     stats.initialize = timer.seconds();
+
+    if (debug) {
+      Impl::print(data);
+    }
+
+    if (!debug_filename.empty()) {
+      std::string fname{debug_filename.stem().string() + "_" + label + ".txt"};
+      Impl::write(data, fname.c_str());
+    }
   };
 
   GaussDimRedux(const GaussDimRedux&) = default;
@@ -160,8 +183,15 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
   SparseSignDimRedux(const size_type nrow_,
                      const size_type ncol_,
                      const ordinal_type seed_,
-                     const bool debug_ = false)
-      : DimRedux<SparseSignDimRedux>(nrow_, ncol_, seed_, debug_),
+                     const std::string label_ = "SparseSignDimRedux",
+                     const bool debug_ = false,
+                     const std::filesystem::path debug_filename_ = "")
+      : DimRedux<SparseSignDimRedux>(nrow_,
+                                     ncol_,
+                                     seed_,
+                                     label_,
+                                     debug_,
+                                     debug_filename_),
         zeta(std::max<size_type>(2, std::min<size_type>(ncol_, 8))) {
     // Create a CRS row map with zeta entries per row.
     namespace KE = Kokkos::Experimental;
@@ -185,20 +215,6 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
     // At each step, compute a random permutation of 0,...,k-1, take the
     // first zeta numbers, and assign them to the ii-th block.
     crs_matrix_type::index_type::non_const_type entries("entries", zeta * nrow);
-
-    // Unclear why the parallel_for loop hangs. Using a serial loop for now.
-    // Kokkos::parallel_for(
-    //     nrow, KOKKOS_LAMBDA(const size_type ii) {
-    //       range_type idx = std::make_pair(ii * zeta, (ii + 1) * zeta);
-    //       auto e = Kokkos::subview(entries,
-    //                                Kokkos::make_pair(idx.first, idx.second));
-    //       index_type pi("rand indices", zeta);
-    //       Kokkos::fill_random(pi, rand_pool, ncol);
-    //       Kokkos::sort(pi);
-    //       Kokkos::deep_copy(e, pi);
-    //     });
-    // Kokkos::fence();
-
     for (auto ii = 0; ii < nrow; ++ii) {
       range_type idx = std::make_pair(ii * zeta, (ii + 1) * zeta);
       auto e =
@@ -229,10 +245,18 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
 
     // Create the CRS matrix
     auto nnz = entries.extent(0);
-    data = crs_matrix_type("sparse sign dim redux", nrow, ncol, nnz, values,
-                           row_map, entries);
+    data = crs_matrix_type(label, nrow, ncol, nnz, values, row_map, entries);
 
     stats.initialize = timer.seconds();
+
+    if (debug) {
+      Impl::print(data);
+    }
+
+    if (!debug_filename.empty()) {
+      std::string fname{debug_filename.stem().string() + "_" + label + ".mtx"};
+      Impl::write(data, fname.c_str());
+    }
   };
 
   SparseSignDimRedux(const SparseSignDimRedux&) = default;
