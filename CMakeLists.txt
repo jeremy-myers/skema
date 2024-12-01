@@ -36,9 +36,9 @@ endif()
 message(STATUS "Inline Kokkos-Kernels build is ${KOKKOSKERNELS_INLINE_BUILD}")
 
 if(PRIMME_ROOT)
-  set(PRIMME_INLINE_BUILD OFF)
+    set(PRIMME_INLINE_BUILD OFF)
 else()
-  set(PRIMME_INLINE_BUILD ON)
+    set(PRIMME_INLINE_BUILD ON)
 endif()
 message(STATUS "Inline PRIMME build is ${PRIMME_INLINE_BUILD}")
 
@@ -69,14 +69,14 @@ else()
 endif()
 
 if(PRIMME_INLINE_BUILD)
-  # Add PRIMME
-  add_subdirectory(tpls/primme)
-  set(HAVE_PRIMME ON)
+    # Add PRIMME
+    add_subdirectory(tpls/primme)
+    set(HAVE_PRIMME ON)
 else()
-# Link against installed PRIMME
-  find_package(primme REQUIRED)
-  message("--- Skema: Using PRIMME: ${primme_CONFIG}")
-  set(HAVE_PRIMME ON)
+    # Link against installed PRIMME
+    find_package(primme REQUIRED)
+    message("--- Skema: Using PRIMME: ${primme_CONFIG}")
+    set(HAVE_PRIMME ON)
 endif()
 
 include_directories(
@@ -113,6 +113,3 @@ target_link_libraries(${PROJECT_NAME} PUBLIC primme)
 if(LAPACK_FOUND)
     target_compile_definitions(${PROJECT_NAME} PRIVATE LAPACK_FOUND=${LAPACK_FOUND})
 endif()
-
-# add_compile_options(-fsanitize=address)
-# add_link_options(-fsanitize=address)
