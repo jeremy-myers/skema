@@ -11,8 +11,6 @@ struct AlgParams {
   // General options
   Skema::Solver_Method::type solver;
   Skema::Decomposition_Type::type decomposition_type;
-  // std::string inputfilename;
-  // std::string outputfilename;
   std::filesystem::path inputfilename;
   std::filesystem::path outputfilename;
   std::filesystem::path debug_filename;

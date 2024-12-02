@@ -18,7 +18,11 @@ auto GaussDimRedux::lmap(const scalar_type* alpha,
   const auto m{(transA == 'N') ? nrow : ncol};
   const auto n{B.extent(1)};
   matrix_type C("GaussDimRedux::return", m, n);
-  Impl::mm(&transA, &transB, alpha, data, B, beta, C);
+  matrix_type data_(data);
+  if (idx.first != idx.second) {
+    data_ = Kokkos::subview(data, Kokkos::ALL(), idx);
+  }
+  Impl::mm(&transA, &transB, alpha, data_, B, beta, C);
   stats.map += timer.seconds();
   return C;
 }
