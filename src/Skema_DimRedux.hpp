@@ -3,6 +3,7 @@
 #include <Kokkos_StdAlgorithms.hpp>
 #include <algorithm>
 #include <cstddef>
+#include <filesystem>
 #include <random>
 #include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
