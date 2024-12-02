@@ -113,3 +113,20 @@ target_link_libraries(${PROJECT_NAME} PUBLIC primme)
 if(LAPACK_FOUND)
     target_compile_definitions(${PROJECT_NAME} PRIVATE LAPACK_FOUND=${LAPACK_FOUND})
 endif()
+
+
+# Target definitions
+add_executable(convert
+    ${CMAKE_SOURCE_DIR}/driver/convert.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_AlgParams.cpp
+)
+set_target_properties(convert PROPERTIES OUTPUT_NAME "convert")
+
+target_link_libraries(convert PUBLIC ${LAPACK_LIBRARIES})
+target_link_libraries(convert PUBLIC Kokkos::kokkos)
+target_link_libraries(convert PUBLIC Kokkos::kokkoskernels)
+target_link_libraries(convert PUBLIC primme)
+
+if(LAPACK_FOUND)
+    target_compile_definitions(convert PRIVATE LAPACK_FOUND=${LAPACK_FOUND})
+endif()
