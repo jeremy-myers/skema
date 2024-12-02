@@ -52,16 +52,14 @@ int dense_driver(const std::string& inputfilename, AlgParams& algParams) {
     std::cout << "Must specify both matrix dimensions." << std::endl;
     exit(1);
   }
-
+  std::cout << "Reading " << inputfilename << "... " << std::endl;
   Kokkos::Timer timer;
   matrix_type matrix("Input matrix", algParams.matrix_m, algParams.matrix_n);
   KokkosKernels::Impl::kk_read_2Dview_from_file<matrix_type>(
       matrix, inputfilename.c_str());
   double time = timer.seconds();
-  if (algParams.print_level > 0) {
-    std::cout << "Reading matrix from file " << inputfilename << std::endl;
-    std::cout << "  Read file in: " << time << "s" << std::endl;
-  }
+
+  std::cout << "Done: " << time << " s" << std::endl;
 
   // Kernel
   if (algParams.kernel_func != Skema::Kernel_Map::NONE) {
@@ -78,15 +76,14 @@ int dense_driver(const std::string& inputfilename, AlgParams& algParams) {
 }
 
 int sparse_driver(const std::string& inputfilename, AlgParams& algParams) {
+  std::cout << "Reading " << inputfilename << "... " << std::flush;
   Kokkos::Timer timer;
   crs_matrix_type matrix;
   matrix = KokkosSparse::Impl::read_kokkos_crst_matrix<crs_matrix_type>(
       inputfilename.c_str());
   double time = timer.seconds();
-  if (algParams.print_level > 0) {
-    std::cout << "Reading matrix from file " << inputfilename << std::endl;
-    std::cout << "  Read file in: " << time << "s" << std::endl;
-  }
+  std::cout << "Done: " << time << " s" << std::endl;
+
   algParams.matrix_m = matrix.numRows();
   algParams.matrix_n = matrix.numCols();
   algParams.matrix_nnz = matrix.nnz();
@@ -116,10 +113,6 @@ int main(int argc, char* argv[]) {
       exit(1);
     }
     algParams.parse(args);
-
-    // Fix up the output filename
-    // outputfilename = algParams.outputfilename;
-    // algParams.outputfilename = output
 
     // Early exit for some generic choices
     if (algParams.window < algParams.isvd_num_samples) {
