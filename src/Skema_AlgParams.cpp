@@ -7,7 +7,7 @@
 #include <sstream>
 #include "Skema_Utils.hpp"
 
-AlgParams::AlgParams()
+Skema::AlgParams::AlgParams()
     : solver(Skema::Solver_Method::default_type),
       decomposition_type(Skema::Decomposition_Type::default_type),
       inputfilename(""),
@@ -47,12 +47,12 @@ AlgParams::AlgParams()
       kernel_func(Skema::Kernel_Map::default_type),
       kernel_gamma(1.0) {}
 
-void error(std::string s) {
+void Skema::error(std::string s) {
   std::cerr << "FATAL ERROR: " << s << std::endl;
   throw std::runtime_error(s);
 }
 
-void AlgParams::print(std::ostream& out) const {
+void Skema::AlgParams::print(std::ostream& out) const {
   if (issparse) {
     out << "  sparse matrix";
   } else {
@@ -125,7 +125,65 @@ void AlgParams::print(std::ostream& out) const {
   }
 }
 
-void AlgParams::parse(std::vector<std::string>& args) {
+void Skema::AlgParams::print_help(std::ostream& out) {
+  out << "Method options:" << std::endl;
+  out << "  --method\tdecomposition method: ";
+  for (auto i = 0; i < Skema::Solver_Method::num_types; ++i) {
+    out << Skema::Solver_Method::names[i];
+    if (i != Skema::Solver_Method::num_types - 1)
+      out << ", ";
+  }
+  out << std::endl;
+  out << std::endl;
+  out << "  isvd:" << std::endl;
+  out << "  --isvd-initial-guess\twhether to accelerate iSVD with an initial "
+         "guess"
+      << std::endl;
+  out << "  --isvd-num-samples\thow many rows to keep with sampling based "
+         "convergence criterion (symmetric matrices only)"
+      << std::endl;
+  out << "  --isvd-convtest-eps\titerative solver tolerance for sampling "
+         "based convergence criterion (symmetric matrices only)"
+      << std::endl;
+  out << "  --isvd-convtest-skip\thow many eigenpairs for sampling based "
+         "convergence criterion (symmetric matrices only)"
+      << std::endl;
+  out << std::endl;
+
+  // SketchySVD options
+  out << "  sketch:" << std::endl;
+  out << "  --model\tdim redux type: ";
+  for (auto i = 0; i < Skema::DimRedux_Map::num_types; ++i) {
+    out << Skema::DimRedux_Map::names[i];
+    if (i != Skema::DimRedux_Map::num_types - 1)
+      out << ", ";
+  }
+  out << std::endl;
+  out << "  --range\trange size of the dim redux map" << std::endl;
+  out << "  --core\tcore size of the dim redux map (rectangular matrices "
+         "only)"
+      << std::endl;
+  out << std::endl;
+
+  // PRIMME solver options
+  out << "  primme:" << std::endl;
+  out << "  --primme_printLevel\tsets print level used by PRIMME" << std::endl;
+  out << "  --primme_eps\t\tsets tolerance used by PRIMME" << std::endl;
+  out << std::endl;
+
+  // Kernel options
+  out << "Kernel options: " << std::endl;
+  out << "  --kernel\tkernel function: ";
+  for (auto i = 0; i < Skema::Kernel_Map::num_types; ++i) {
+    out << Skema::Kernel_Map::names[i];
+    if (i != Skema::Kernel_Map::num_types - 1)
+      out << ", ";
+  }
+  out << std::endl;
+  out << "  --gamma\tgamma parameter for kernel" << std::endl;
+}
+
+void Skema::AlgParams::parse(std::vector<std::string>& args) {
   /* Parse options from command-line, using default values set above as defaults
    */
   // Generic options
@@ -201,10 +259,10 @@ void AlgParams::parse(std::vector<std::string>& args) {
     isvd_sampling = true;
 }
 
-bool parse_bool(std::vector<std::string>& args,
-                const std::string& cl_arg_on,
-                const std::string& cl_arg_off,
-                bool default_value) {
+bool Skema::parse_bool(std::vector<std::string>& args,
+                       const std::string& cl_arg_on,
+                       const std::string& cl_arg_off,
+                       bool default_value) {
   // return true if arg_on is found
   auto it = std::find(args.begin(), args.end(), cl_arg_on);
   // If not found, try removing the '--'
@@ -234,12 +292,12 @@ bool parse_bool(std::vector<std::string>& args,
 }
 
 template <typename T>
-T parse_enum(std::vector<std::string>& args,
-             const std::string& cl_arg,
-             T default_value,
-             unsigned num_values,
-             const T* values,
-             const char* const* names) {
+T Skema::parse_enum(std::vector<std::string>& args,
+                    const std::string& cl_arg,
+                    T default_value,
+                    unsigned num_values,
+                    const T* values,
+                    const char* const* names) {
   auto it = std::find(args.begin(), args.end(), cl_arg);
   // If not found, try removing the '--'
   if ((it == args.end()) && (cl_arg.size() > 2) && (cl_arg[0] == '-') &&
@@ -281,7 +339,7 @@ T parse_enum(std::vector<std::string>& args,
 }
 
 template <typename T>
-typename T::type parse_enum_helper(const std::string& name) {
+typename T::type Skema::parse_enum_helper(const std::string& name) {
   for (unsigned i = 0; i < T::num_types; ++i) {
     if (name == T::names[i])
       return T::types[i];
@@ -300,11 +358,11 @@ typename T::type parse_enum_helper(const std::string& name) {
   return T::default_type;
 }
 
-int parse_int(std::vector<std::string>& args,
-              const std::string& cl_arg,
-              int default_value,
-              int min,
-              int max) {
+int Skema::parse_int(std::vector<std::string>& args,
+                     const std::string& cl_arg,
+                     int default_value,
+                     int min,
+                     int max) {
   int tmp = default_value;
   auto it = std::find(args.begin(), args.end(), cl_arg);
   // If not found, try removing the '--'
@@ -350,11 +408,11 @@ int parse_int(std::vector<std::string>& args,
   return tmp;
 }
 
-double parse_real(std::vector<std::string>& args,
-                  const std::string& cl_arg,
-                  double default_value,
-                  double min,
-                  double max) {
+double Skema::parse_real(std::vector<std::string>& args,
+                         const std::string& cl_arg,
+                         double default_value,
+                         double min,
+                         double max) {
   double tmp = default_value;
   auto it = std::find(args.begin(), args.end(), cl_arg);
   // If not found, try removing the '--'
@@ -396,9 +454,9 @@ double parse_real(std::vector<std::string>& args,
   return tmp;
 }
 
-std::string parse_string(std::vector<std::string>& args,
-                         const std::string& cl_arg,
-                         const std::string& default_value) {
+std::string Skema::parse_string(std::vector<std::string>& args,
+                                const std::string& cl_arg,
+                                const std::string& default_value) {
   std::string tmp = default_value;
   auto it = std::find(args.begin(), args.end(), cl_arg);
   // If not found, try removing the '--'
@@ -422,18 +480,18 @@ std::string parse_string(std::vector<std::string>& args,
   return tmp;
 }
 
-std::filesystem::path parse_filepath(std::vector<std::string>& args,
-                                     const std::string& cl_arg,
-                                     const std::string& default_value) {
+std::filesystem::path Skema::parse_filepath(std::vector<std::string>& args,
+                                            const std::string& cl_arg,
+                                            const std::string& default_value) {
   std::string path_str = parse_string(args, cl_arg, default_value);
   return std::filesystem::path(path_str);
 }
 
-std::vector<int> parse_int_array(std::vector<std::string>& args,
-                                 const std::string& cl_arg,
-                                 const std::vector<int>& default_value,
-                                 int min,
-                                 int max) {
+std::vector<int> Skema::parse_int_array(std::vector<std::string>& args,
+                                        const std::string& cl_arg,
+                                        const std::vector<int>& default_value,
+                                        int min,
+                                        int max) {
   char* cend = 0;
   int tmp;
   std::vector<int> vals;
@@ -494,15 +552,15 @@ std::vector<int> parse_int_array(std::vector<std::string>& args,
   return default_value;
 }
 
-std::vector<std::string> build_arg_list(int argc, char** argv) {
+std::vector<std::string> Skema::build_arg_list(int argc, char** argv) {
   std::vector<std::string> arg_list(argc - 1);
   for (int i = 1; i < argc; ++i)
     arg_list[i - 1] = argv[i];
   return arg_list;
 }
 
-bool check_and_print_unused_args(const std::vector<std::string>& args,
-                                 std::ostream& out) {
+bool Skema::check_and_print_unused_args(const std::vector<std::string>& args,
+                                        std::ostream& out) {
   if (args.size() == 0)
     return false;
 

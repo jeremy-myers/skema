@@ -4,7 +4,7 @@
 #include "Skema_AlgParams.hpp"
 #include "Skema_Utils.hpp"
 
-int convert(const std::string& inputfilename, AlgParams& algParams) {
+int convert(const std::string& inputfilename, Skema::AlgParams& algParams) {
   std::cout << "Reading " << inputfilename << "... " << std::flush;
   crs_matrix_type matrix;
   Kokkos::Timer timer;
@@ -32,13 +32,13 @@ int convert(const std::string& inputfilename, AlgParams& algParams) {
 int main(int argc, char* argv[]) {
   Kokkos::initialize(argc, argv);
   {
-    auto args = build_arg_list(argc, argv);
+    auto args = Skema::build_arg_list(argc, argv);
 
-    AlgParams algParams;
+    Skema::AlgParams algParams;
 
     // Driver options
     std::string inputfilename = "";
-    inputfilename = parse_string(args, "--input", inputfilename);
+    inputfilename = Skema::parse_string(args, "--input", inputfilename);
     if (inputfilename == "") {
       std::cout << "Must provide matrix input" << std::endl;
       exit(1);

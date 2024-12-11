@@ -7,6 +7,8 @@
 #include <vector>
 #include "Skema_Utils.hpp"
 
+namespace Skema {
+
 struct AlgParams {
   // General options
   Skema::Solver_Method::type solver;
@@ -71,6 +73,8 @@ struct AlgParams {
 
   // Print options
   void print(std::ostream& out) const;
+
+  static void print_help(std::ostream& out);
 };
 
 void error(std::string s);
@@ -124,3 +128,5 @@ std::vector<std::string> build_arg_list(int argc, char** argv);
 // are any, false otherwise
 bool check_and_print_unused_args(const std::vector<std::string>& args,
                                  std::ostream& out);
+
+}

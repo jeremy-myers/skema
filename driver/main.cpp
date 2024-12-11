@@ -13,8 +13,33 @@
 #include "Skema_SketchySVD.hpp"
 #include "Skema_Utils.hpp"
 
+void usage(char** argv) {
+  std::cout << "Usage: " << argv[0] << " [options]" << std::endl;
+  std::cout << "General options:" << std::endl;
+  std::cout << "  --input\tpath to input matrix. Supported filetypes: "
+               "txt, mtx (Matrix Market), bin"
+            << std::endl;
+  std::cout << "  --output\tpath to output prefix. Skema will "
+               "automatically append filenames to write specific data"
+            << std::endl;
+  std::cout << "  --sparse\tspecify whether matrix is dense or sparse"
+            << std::endl;
+  std::cout << "  --symmetric\twhether matrix is symmetric" << std::endl;
+  std::cout
+      << "  --m\t\tnumber of matrix rows (required if dense or filetype is txt)"
+      << std::endl;
+  std::cout
+      << "  --n\t\tnumber of matrix columns (required if dense or filetype "
+         "is txt)"
+      << std::endl;
+  std::cout << "  --rank\tdesired rank of decomposition" << std::endl;
+  std::cout << "  --window\tsize of window in streaming setting" << std::endl;
+  std::cout << std::endl;
+  Skema::AlgParams::print_help(std::cout);
+}
+
 template <typename MatrixType>
-int main_driver(const MatrixType& matrix, const AlgParams& algParams) {
+int main_driver(const MatrixType& matrix, const Skema::AlgParams& algParams) {
   std::cout << "\nMatrix:\n"
             << "  " << algParams.matrix_m << " x " << algParams.matrix_n;
   if (algParams.issparse) {
@@ -47,7 +72,8 @@ int main_driver(const MatrixType& matrix, const AlgParams& algParams) {
   return 0;
 }
 
-int dense_driver(const std::string& inputfilename, AlgParams& algParams) {
+int dense_driver(const std::string& inputfilename,
+                 Skema::AlgParams& algParams) {
   if (algParams.matrix_m == 0 || algParams.matrix_n == 0) {
     std::cout << "Must specify both matrix dimensions." << std::endl;
     exit(1);
@@ -75,7 +101,8 @@ int dense_driver(const std::string& inputfilename, AlgParams& algParams) {
   return 0;
 }
 
-int sparse_driver(const std::string& inputfilename, AlgParams& algParams) {
+int sparse_driver(const std::string& inputfilename,
+                  Skema::AlgParams& algParams) {
   std::cout << "Reading " << inputfilename << "... " << std::flush;
   Kokkos::Timer timer;
   crs_matrix_type matrix;
@@ -97,72 +124,78 @@ int sparse_driver(const std::string& inputfilename, AlgParams& algParams) {
 int main(int argc, char* argv[]) {
   Kokkos::initialize(argc, argv);
   {
-    auto args = build_arg_list(argc, argv);
+    auto args = Skema::build_arg_list(argc, argv);
 
-    AlgParams algParams;
-
-    // Driver options
-    std::string inputfilename = "";
-    std::string outputfilename = "";
-    std::string history_file = "";
-
-    inputfilename = parse_string(args, "--input", inputfilename);
-
-    if (inputfilename == "") {
-      std::cout << "Must provide matrix input" << std::endl;
-      exit(1);
-    }
-    algParams.parse(args);
-
-    // Early exit for some generic choices
-    if (algParams.window < algParams.isvd_num_samples) {
-      std::cout << "Sampling not supported when number of samples is "
-                   "greater than the window size. Setting number of samples to "
-                   "window size."
-                << std::endl;
-      algParams.isvd_num_samples = algParams.window;
-    }
-
-    /* Fix up options. */
-    // iSVD
-    if (algParams.isvd_num_samples > 0)
-      algParams.isvd_sampling = true;
-    if (algParams.isvd_convtest_skip == 0)
-      algParams.isvd_convtest_skip = algParams.rank;
-
-    if (algParams.print_level > 0) {
-      std::cout << "\n===============================================";
-      std::cout << "\n==================== Skema ====================";
-      std::cout << "\n===============================================";
-      std::cout << "\nOptions: ";
-      std::cout << "\n  input = " << inputfilename;
-      std::cout << "\n  output prefix = " << algParams.outputfilename
-                << std::endl;
-      algParams.print(std::cout);
-      std::cout << "==============================================="
-                << std::endl;
-    }
-
-    auto start = std::chrono::system_clock::now();
-    std::time_t start_time = std::chrono::system_clock::to_time_t(start);
-    if (algParams.print_level > 0) {
-      std::cout << "\nSkema started at " << std::ctime(&start_time)
-                << std::endl;
-    }
-
-    if (algParams.issparse) {
-      sparse_driver(inputfilename, algParams);
+    const bool help = Skema::parse_bool(args, "--help", "--no-help", false);
+    if ((argc < 2) || (help)) {
+      usage(argv);
     } else {
-      dense_driver(inputfilename, algParams);
-    }
+      Skema::AlgParams algParams;
 
-    auto end = std::chrono::system_clock::now();
-    std::time_t end_time = std::chrono::system_clock::to_time_t(end);
-    std::chrono::duration<double> elapsed_seconds = end - start;
-    if (algParams.print_level > 0) {
-      std::cout << "\nSkema completed at " << std::ctime(&end_time)
-                << "Elapsed time: " << elapsed_seconds.count() << " sec"
-                << std::endl;
+      // Driver options
+      std::string inputfilename = "";
+      std::string outputfilename = "";
+      std::string history_file = "";
+
+      inputfilename = Skema::parse_string(args, "--input", inputfilename);
+
+      if (inputfilename == "") {
+        std::cout << "Must provide matrix input" << std::endl;
+        exit(1);
+      }
+      algParams.parse(args);
+
+      // Early exit for some generic choices
+      if (algParams.window < algParams.isvd_num_samples) {
+        std::cout
+            << "Sampling not supported when number of samples is "
+               "greater than the window size. Setting number of samples to "
+               "window size."
+            << std::endl;
+        algParams.isvd_num_samples = algParams.window;
+      }
+
+      /* Fix up options. */
+      // iSVD
+      if (algParams.isvd_num_samples > 0)
+        algParams.isvd_sampling = true;
+      if (algParams.isvd_convtest_skip == 0)
+        algParams.isvd_convtest_skip = algParams.rank;
+
+      if (algParams.print_level > 0) {
+        std::cout << "\n===============================================";
+        std::cout << "\n==================== Skema ====================";
+        std::cout << "\n===============================================";
+        std::cout << "\nOptions: ";
+        std::cout << "\n  input = " << inputfilename;
+        std::cout << "\n  output prefix = " << algParams.outputfilename
+                  << std::endl;
+        algParams.print(std::cout);
+        std::cout << "==============================================="
+                  << std::endl;
+      }
+
+      auto start = std::chrono::system_clock::now();
+      std::time_t start_time = std::chrono::system_clock::to_time_t(start);
+      if (algParams.print_level > 0) {
+        std::cout << "\nSkema started at " << std::ctime(&start_time)
+                  << std::endl;
+      }
+
+      if (algParams.issparse) {
+        sparse_driver(inputfilename, algParams);
+      } else {
+        dense_driver(inputfilename, algParams);
+      }
+
+      auto end = std::chrono::system_clock::now();
+      std::time_t end_time = std::chrono::system_clock::to_time_t(end);
+      std::chrono::duration<double> elapsed_seconds = end - start;
+      if (algParams.print_level > 0) {
+        std::cout << "\nSkema completed at " << std::ctime(&end_time)
+                  << "Elapsed time: " << elapsed_seconds.count() << " sec"
+                  << std::endl;
+      }
     }
   }
   Kokkos::finalize();
