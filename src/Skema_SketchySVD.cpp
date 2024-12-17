@@ -58,7 +58,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   const int print_level{algParams.print_level};
   const bool debug{algParams.debug};
 
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "  Computing initial approximation" << std::endl;
   }
 
@@ -73,7 +73,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   Kokkos::fence();
   // X = Pt;
   time = timer.seconds();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "    QR = " << std::right << std::setprecision(3) << time
               << " sec" << std::endl;
   }
@@ -83,7 +83,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   linalg::qr(Y, nrow, range);
   Kokkos::fence();
   time = timer.seconds();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "    QR = " << std::right << std::setprecision(3) << time
               << " sec" << std::endl;
   }
@@ -95,7 +95,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   auto U1 = Phi.lmap(&one, Y, &zero, 'N', 'N');
   time = timer.seconds();
   Kokkos::fence();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "    LMAP = " << time << " sec" << std::endl;
   }
 
@@ -103,7 +103,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   auto U2 = Psi.lmap(&one, P, &zero, 'N', 'N');
   time = timer.seconds();
   Kokkos::fence();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "    LMAP = " << time << " sec" << std::endl;
   }
 
@@ -112,7 +112,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   linalg::qr(U1, T1, core, range);
   Kokkos::fence();
   time = timer.seconds();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "    QR = " << std::right << std::setprecision(3) << time
               << " sec" << std::endl;
   }
@@ -122,7 +122,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   linalg::qr(U2, T2, core, range);
   Kokkos::fence();
   time = timer.seconds();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "    QR = " << std::right << std::setprecision(3) << time
               << " sec" << std::endl;
   }
@@ -134,7 +134,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   Impl::mm(&T, &N, &one, U1, Z, &zero, Z1);
   Kokkos::fence();
   time = timer.seconds();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "    GEMM = " << std::right << std::setprecision(3) << time
               << " sec" << std::endl;
   }
@@ -145,7 +145,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   Impl::mm(&N, &N, &one, Z1, U2, &zero, Z2);
   Kokkos::fence();
   time = timer.seconds();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "    GEMM = " << std::right << std::setprecision(3) << time
               << " sec" << std::endl;
   }
@@ -155,7 +155,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   linalg::ls(&N, T1, Z2, range, range, range);
   Kokkos::fence();
   time = timer.seconds();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "    LS = " << std::right << std::setprecision(3) << time
               << " sec" << std::endl;
   }
@@ -167,7 +167,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   linalg::ls(&N, T2, Z2t, range, range, range);
   Kokkos::fence();
   time = timer.seconds();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "    LS = " << std::right << std::setprecision(3) << time
               << " sec" << std::endl;
   }
@@ -193,7 +193,7 @@ void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx() {
   const int print_level{algParams.print_level};
   const bool debug{algParams.debug};
 
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "\nComputing fixed-rank approximation" << std::endl;
   }
 
@@ -206,7 +206,7 @@ void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx() {
   low_rank_approx();
   Kokkos::fence();
   time = timer.seconds();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "  INITIAL APPROX = " << std::right << std::setprecision(3)
               << time << " sec" << std::endl;
   }
@@ -220,7 +220,7 @@ void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx() {
   linalg::svd(Z, range, range, Uc, sc, Vc);
   Kokkos::fence();
   time = timer.seconds();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "  SVD = " << std::right << std::setprecision(3) << time
               << " sec" << std::endl;
   }
@@ -232,7 +232,7 @@ void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx() {
   Impl::mm(&N, &N, &one, Y, Uc, &zero, QUc);
   Kokkos::fence();
   time = timer.seconds();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "  GEMM = " << std::right << std::setprecision(3) << time
               << " sec" << std::endl;
   }
@@ -244,7 +244,7 @@ void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx() {
   Impl::mm(&N, &T, &one, X, Vc, &zero, PVc);
   Kokkos::fence();
   time = timer.seconds();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "  GEMM = " << std::right << std::setprecision(3) << time
               << " sec" << std::endl;
   }
@@ -258,13 +258,13 @@ void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx() {
   vvecs = Kokkos::subview(PVc, Kokkos::ALL(), rlargest);
   Kokkos::fence();
   time = timer.seconds();
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "  SET = " << std::right << std::setprecision(3) << time
               << " sec" << std::endl;
   }
   total_time += time;
 
-  if (print_level > 1) {
+  if (print_level > 0) {
     std::cout << "APPROX = " << std::right << std::setprecision(3) << total_time
               << " sec" << std::endl;
   }
