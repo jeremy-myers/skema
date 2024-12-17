@@ -13,6 +13,7 @@
 #include "Skema_ISVD_Primme.hpp"
 #include "Skema_Residuals.hpp"
 #include "Skema_Sampler.hpp"
+#include "Skema_Timing.hpp"
 #include "Skema_Utils.hpp"
 
 namespace Skema {
@@ -23,6 +24,7 @@ template <typename MatrixType>
 auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   Kokkos::Timer timer;
   double time{0.0};
+  Skema::Timing timings;
 
   const size_type nrow{algParams.matrix_m};
   const size_type ncol{algParams.matrix_n};

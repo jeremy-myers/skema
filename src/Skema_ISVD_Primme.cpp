@@ -12,6 +12,53 @@
 #include "Skema_Utils.hpp"
 
 namespace Skema {
+
+template <typename MatrixType>
+void ISVD_SVDS<MatrixType>::print_stats(const vector_type& svals,
+                                        const vector_type& rnrms,
+                                        primme_svds_params& params) {
+  if (fp_primme_json == NULL)
+    perror("PRIMME json file failed to open: ");
+
+  std::string tab1 = "    ";
+  std::string tab2 = "        ";
+  std::string tab3 = "            ";
+  if (count > 0)
+    fprintf(fp_primme_json, ",\n");
+
+  fprintf(fp_primme_json, "%s\"%d\": {\n", tab1.c_str(), count);
+  fprintf(fp_primme_json, "%s\"svals\": [\n", tab2.c_str());
+  for (int64_t i = 0; i < svals.extent(0); ++i) {
+    fprintf(fp_primme_json, "%s%.16f", tab3.c_str(), svals(i));
+    if (i < svals.extent(0) - 1) {
+      fprintf(fp_primme_json, ",\n");
+    }
+  }
+  fprintf(fp_primme_json, "\n%s],\n", tab2.c_str());
+
+  fprintf(fp_primme_json, "%s\"rnorms\": [\n", tab2.c_str());
+  for (int64_t i = 0; i < rnrms.extent(0); ++i) {
+    fprintf(fp_primme_json, "%s%.16f", tab3.c_str(), rnrms(i));
+    if (i < svals.extent(0) - 1) {
+      fprintf(fp_primme_json, ",\n");
+    }
+  }
+  fprintf(fp_primme_json, "\n%s],\n", tab2.c_str());
+
+  fprintf(fp_primme_json, "%s\"numOuterIterations\": %lld,\n", tab2.c_str(),
+          params.stats.numOuterIterations);
+  fprintf(fp_primme_json, "%s\"numMatvecs\": %lld,\n", tab2.c_str(),
+          params.stats.numMatvecs);
+  fprintf(fp_primme_json, "%s\"elapsedTime\": %.16f,\n", tab2.c_str(),
+          params.stats.elapsedTime);
+  fprintf(fp_primme_json, "%s\"timeMatvec\": %.16f,\n", tab2.c_str(),
+          params.stats.timeMatvec);
+  fprintf(fp_primme_json, "%s\"timeOrtho\": %.16f\n", tab2.c_str(),
+          params.stats.timeOrtho);
+  fprintf(fp_primme_json, "%s}", tab1.c_str());
+  fflush(fp_primme_json);
+}
+
 template <typename MatrixType>
 void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
                                     const size_type nrow,
@@ -31,7 +78,7 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
   primme_svds::params.m = nrow;
   primme_svds::params.n = ncol;
   primme_svds::params.numSvals = rank;
-  primme_svds::params.outputFile = output_file;
+  primme_svds::params.outputFile = fp_primme_monitor;
   primme_svds::params.eps = algParams.primme_eps;
   primme_svds::params.printLevel = algParams.primme_printLevel;
 
@@ -67,12 +114,12 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
                      &(primme_svds::params));
   Kokkos::fence();
 
-  // fprintf(output_file, "SVALS: ");
+  // Save this window
+  print_stats(svals, rnrms, primme_svds::params);
+
   for (int64_t i = 0; i < rank; ++i) {
-    // fprintf(output_file, "%.16f ", svals(i));
     S(i) = svals(i);
   }
-  // fprintf(output_file, "\n");
 
   for (int64_t i = 0; i < nrow * rank; ++i) {
     U.data()[i] = svecs.data()[i];
@@ -89,7 +136,8 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
     fprintf(primme_svds::params.outputFile,
             "Error: primme_svds returned with nonzero exit status: %d \n", ret);
 
-  fflush(output_file);
+  fflush(fp_primme_monitor);
+  ++count;
 }
 
 template <typename MatrixT>
@@ -505,8 +553,6 @@ void ISVD_SVDS<matrix_type>::compute(
   compute(matrix, nrow, ncol, rank, U, S, Vt);
 }
 
-// Wrapper for compute that sets convtest & initial guess for dense inputs if
-// desired
 extern "C" {
 void isvd_sparse_convTestFun(double* sval,
                              void* leftsvec,
@@ -844,4 +890,5 @@ void ISVD_SVDS<crs_matrix_type>::compute(
 
   compute(matrix, nrow, ncol, rank, U, S, Vt);
 }
+
 }  // namespace Skema
