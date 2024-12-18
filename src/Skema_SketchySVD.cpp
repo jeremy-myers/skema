@@ -77,6 +77,17 @@ auto SketchySVD<MatrixType, DimReduxT>::print_stats() -> void {
     perror("PRIMME json file failed to open: ");
 
   std::string tab1 = "    ";
+  std::string tab2 = "        ";
+
+  fprintf(fp_json_output, "%s\"svals\": [\n", tab1.c_str());
+  for (auto i = 0; i < svals.extent(0); ++i) {
+    fprintf(fp_json_output, "%s%.16f", tab2.c_str(), svals(i));
+    if (i < svals.extent(0) - 1) {
+      fprintf(fp_json_output, ",\n");
+    }
+  }
+  fprintf(fp_json_output, "\n%s],\n", tab1.c_str());
+
   for (auto it = timings.begin(); it != timings.end(); ++it) {
     fprintf(fp_json_output, "%s\"%s\": %.16f", tab1.c_str(), it->first.c_str(),
             it->second);
@@ -520,6 +531,17 @@ auto SketchySPD<MatrixType, DimReduxT>::print_stats() -> void {
     perror("PRIMME json file failed to open: ");
 
   std::string tab1 = "    ";
+  std::string tab2 = "        ";
+
+  fprintf(fp_json_output, "%s\"svals\": [\n", tab1.c_str());
+  for (auto i = 0; i < svals.extent(0); ++i) {
+    fprintf(fp_json_output, "%s%.16f", tab2.c_str(), svals(i));
+    if (i < svals.extent(0) - 1) {
+      fprintf(fp_json_output, ",\n");
+    }
+  }
+  fprintf(fp_json_output, "\n%s],\n", tab1.c_str());
+
   for (auto it = timings.begin(); it != timings.end(); ++it) {
     fprintf(fp_json_output, "%s\"%s\": %.16f", tab1.c_str(), it->first.c_str(),
             it->second);
@@ -624,8 +646,6 @@ void SketchySPD<MatrixType, DimReduxT>::fixed_rank_psd_approx() {
   timings["update"] += timer.seconds();
 
   // C = chol( (B + B^T) / 2)
-  std::cout << "C = " << std::endl;
-  Impl::print(C);
   try {
     linalg::chol(C);
   } catch (const std::exception& e) {
@@ -831,7 +851,7 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
   matrix_type V;
   vector_type r;
   if (algParams.dim_redux == DimRedux_Map::GAUSS) {
-    if (algParams.issymmetric) {
+    if ((algParams.issymmetric) && (!algParams.force_three_sketch)) {
       SketchySPD<matrix_type, GaussDimRedux> sketch(algParams);
       try {
         sketch.nystrom_linear_update(matrix);
@@ -892,7 +912,7 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
       }
     }
   } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
-    if (algParams.issymmetric) {
+    if ((algParams.issymmetric) && (!algParams.force_three_sketch)) {
       SketchySPD<matrix_type, SparseSignDimRedux> sketch(algParams);
       try {
         sketch.nystrom_linear_update(matrix);
@@ -983,7 +1003,7 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
   matrix_type V;
   vector_type r;
   if (algParams.dim_redux == DimRedux_Map::GAUSS) {
-    if (algParams.issymmetric) {
+    if ((algParams.issymmetric) && (!algParams.force_three_sketch)) {
       SketchySPD<crs_matrix_type, GaussDimRedux> sketch(algParams);
       try {
         sketch.nystrom_linear_update(matrix);

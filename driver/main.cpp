@@ -91,6 +91,9 @@ int dense_driver(const std::string& inputfilename,
   if (algParams.kernel_func != Skema::Kernel_Map::NONE) {
     algParams.matrix_n = algParams.matrix_m;
     algParams.issymmetric = true;
+    if (algParams.force_three_sketch) {
+      algParams.issymmetric = false;
+    }
   }
 
   algParams.matrix_nnz = algParams.matrix_m * algParams.matrix_n;

@@ -57,6 +57,7 @@ struct AlgParams {
   double sketch_eta;
   double sketch_nu;
   std::vector<int> seeds;
+  bool force_three_sketch;
 
   /* DimRedux */
   Skema::DimRedux_Map::type dim_redux;

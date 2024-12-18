@@ -245,7 +245,7 @@ inline void chol(matrix_type& A) {
 #if !defined(LAPACK_FOUND)
   std::cout << "Error: dpotrf not found." << std::endl;
 #else
-  char uplo{'L'};
+  char uplo{'U'};
   lapack_int m{static_cast<lapack_int>(A.extent(0))};
   lapack_int n{static_cast<lapack_int>(A.extent(1))};
   lapack_int lda{static_cast<lapack_int>(A.extent(0))};
@@ -258,7 +258,7 @@ inline void chol(matrix_type& A) {
               << " is not positive definite, and the factorization could not "
                  "be completed."
               << std::endl;
-    exit(info);
+    // exit(info);
   }
 
   for (auto j = 0; j < n; ++j) {

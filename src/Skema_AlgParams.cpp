@@ -42,6 +42,7 @@ Skema::AlgParams::AlgParams()
       primme_methodStage2("PRIMME_DEFAULT_METHOD"),
       sketch_range(1),
       sketch_core(1),
+      force_three_sketch(false),
       dim_redux(Skema::DimRedux_Map::default_type),
       seeds({0, 1, 2, 3}),
       kernel_func(Skema::Kernel_Map::default_type),
@@ -216,6 +217,7 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
       parse_real(args, "--eta", 1.0, 0.0, std::numeric_limits<double>::max());
   sketch_nu =
       parse_real(args, "--nu", 1.0, 0.0, std::numeric_limits<double>::max());
+  force_three_sketch = parse_bool(args, "--force-three-sketch", "--force-three-sketch-off", false);
 
   // iSVD solver options
   isvd_dense_solver = parse_bool(args, "--svd", "--svds", false);
