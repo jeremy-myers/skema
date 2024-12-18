@@ -1,4 +1,6 @@
+
 #pragma once
+#include <map>
 #include "Skema_AlgParams.hpp"
 #include "Skema_Utils.hpp"
 #include "Skema_Window.hpp"
@@ -9,11 +11,17 @@ template <typename MatrixType, typename DimReduxT>
 class SketchySVD {
  public:
   SketchySVD(const AlgParams&);
-  ~SketchySVD() = default;
+  ~SketchySVD() {
+    if (fp_json_output != NULL) {
+      fprintf(fp_json_output, "\n}");
+      fclose(fp_json_output);
+    }
+  };
 
   auto compute_residuals(const MatrixType&) -> vector_type;
   auto linear_update(const MatrixType&) -> void;
   auto fixed_rank_approx() -> void;
+  auto print_stats() -> void;
 
   /* Public accessors */
   inline auto U() -> matrix_type { return uvecs; };
@@ -45,6 +53,9 @@ class SketchySVD {
   DimReduxT Phi;
   DimReduxT Psi;
 
+  FILE* fp_json_output;
+  std::map<std::string, double> timings;
+
   auto axpy(const double,
             matrix_type&,
             const double,
@@ -59,11 +70,17 @@ template <typename MatrixType, typename DimReduxT>
 class SketchySPD {
  public:
   SketchySPD(const AlgParams&);
-  ~SketchySPD() = default;
+  ~SketchySPD() {
+    if (fp_json_output != NULL) {
+      fprintf(fp_json_output, "\n}");
+      fclose(fp_json_output);
+    }
+  };
 
   auto compute_residuals(const MatrixType&) -> vector_type;
   auto nystrom_linear_update(const MatrixType&) -> void;
   auto fixed_rank_psd_approx() -> void;
+  auto print_stats() -> void;
 
   /* Public accessors */
   inline auto U() -> matrix_type { return uvecs; };
@@ -72,7 +89,7 @@ class SketchySPD {
  private:
   matrix_type uvecs;
   vector_type svals;
-  
+
   // Sketch
   matrix_type Y;
   const size_type nrow;
@@ -86,6 +103,9 @@ class SketchySPD {
 
   // DimRedux
   DimReduxT Omega;
+
+  FILE* fp_json_output;
+  std::map<std::string, double> timings;
 
   auto axpy(const double,
             matrix_type&,

@@ -245,7 +245,7 @@ inline void chol(matrix_type& A) {
 #if !defined(LAPACK_FOUND)
   std::cout << "Error: dpotrf not found." << std::endl;
 #else
-  char uplo{'U'};
+  char uplo{'L'};
   lapack_int m{static_cast<lapack_int>(A.extent(0))};
   lapack_int n{static_cast<lapack_int>(A.extent(1))};
   lapack_int lda{static_cast<lapack_int>(A.extent(0))};
