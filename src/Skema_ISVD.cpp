@@ -13,7 +13,6 @@
 #include "Skema_ISVD_Primme.hpp"
 #include "Skema_Residuals.hpp"
 #include "Skema_Sampler.hpp"
-#include "Skema_Timing.hpp"
 #include "Skema_Utils.hpp"
 
 namespace Skema {
