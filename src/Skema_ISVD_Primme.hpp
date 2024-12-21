@@ -1,6 +1,5 @@
 #pragma once
 #include <cstddef>
-#include <map>
 #include "Skema_AlgParams.hpp"
 #include "Skema_EIGSVD.hpp"
 #include "Skema_Sampler.hpp"
@@ -15,26 +14,17 @@ class ISVD_SVDS : public PRIMME_SVDS<MatrixType> {
     using primme_svds = PRIMME_SVDS<MatrixType>;
 
     // History & logging
-    std::string monitor_filename =
+    std::string output_filename =
         algParams.outputfilename.filename().stem().string() + "_primme.txt";
-    fp_primme_monitor = fopen(monitor_filename.c_str(), "w");
-    if (fp_primme_monitor == NULL)
+    fp_output_filename = fopen(output_filename.c_str(), "w");
+    if (fp_output_filename == NULL) {
       perror("PRIMME output file failed to open: ");
-
-    std::string json_filename =
-        algParams.outputfilename.filename().stem().string() + "_primme.json";
-    fp_primme_json = fopen(json_filename.c_str(), "w");
-    if (fp_primme_json == NULL)
-      perror("PRIMME json file failed to open: ");
-    fprintf(fp_primme_json, "{\n");
+    }
   };
 
   ~ISVD_SVDS() {
-    if (fp_primme_monitor != NULL)
-      fclose(fp_primme_monitor);
-    if (fp_primme_json != NULL) {
-      fprintf(fp_primme_json, "\n}");
-      fclose(fp_primme_json);
+    if (fp_output_filename != NULL) {
+      fclose(fp_output_filename);
     }
   };
 
@@ -63,12 +53,13 @@ class ISVD_SVDS : public PRIMME_SVDS<MatrixType> {
               vector_type&,
               matrix_type&);
 
-  void print_stats(const vector_type&, const vector_type&, primme_svds_params&);
+  inline std::shared_ptr<XVDS_stats> stats() override {
+    return PRIMME_SVDS<MatrixType>::stats();
+  };
 
  protected:
   AlgParams algParams;
-  FILE* fp_primme_monitor;
-  FILE* fp_primme_json;
+  FILE* fp_output_filename;
   int count;
 };
 

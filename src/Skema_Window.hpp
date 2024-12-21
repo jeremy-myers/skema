@@ -4,12 +4,24 @@
 #include "Skema_Utils.hpp"
 
 namespace Skema {
+
+struct Window_stats {
+  ordinal_type count{0};
+  scalar_type time{0.0};
+  scalar_type elapsed_time{0.0};
+};
+
 template <typename MatrixType>
 class WindowBase {
  public:
-  WindowBase(const AlgParams& algParams_) {}
+  WindowBase(const AlgParams& algParams_)
+      : stats_(std::make_shared<Window_stats>()) {}
   virtual ~WindowBase() {};
   virtual MatrixType get(const MatrixType&, const range_type) = 0;
+  inline std::shared_ptr<Window_stats> stats() { return stats_; }
+
+ protected:
+  std::shared_ptr<Window_stats> stats_;
 };
 
 template <typename MatrixType>
@@ -20,11 +32,18 @@ class Window : public WindowBase<MatrixType> {
 
   inline auto get(const matrix_type& input, const range_type idx)
       -> matrix_type {
-    return Kokkos::subview(input, idx, Kokkos::ALL());
+    Kokkos::Timer timer;
+    auto window = Kokkos::subview(input, idx, Kokkos::ALL());
+    scalar_type time = timer.seconds();
+    WindowBase<MatrixType>::stats_->count++;
+    WindowBase<MatrixType>::stats_->time = time;
+    WindowBase<MatrixType>::stats_->elapsed_time += time;
+    return window;
   }
 
   inline auto get(const crs_matrix_type& input, const range_type idx)
       -> crs_matrix_type {
+    Kokkos::Timer timer;
     crs_matrix_type::row_map_type::non_const_type window_row_map(
         "A_sub_row_map", idx.second - idx.first + 1);
     auto window_entries =
@@ -42,7 +61,10 @@ class Window : public WindowBase<MatrixType> {
 
     crs_matrix_type window("window", idx.second - idx.first, input.numCols(),
                            nnz, window_values, window_row_map, window_entries);
-
+    scalar_type time = timer.seconds();
+    WindowBase<MatrixType>::stats_->count++;
+    WindowBase<MatrixType>::stats_->time = time;
+    WindowBase<MatrixType>::stats_->elapsed_time += time;
     return window;
   }
 };
@@ -58,9 +80,17 @@ class GaussRBFWindow : public WindowBase<MatrixType> {
 
   inline auto get(const matrix_type& input, const range_type idx)
       -> matrix_type {
+    // Timers are incremented internally
     auto slice = helper.get(input, idx);
-    return map.compute(slice, slice.extent(0), slice.extent(1), input,
-                       input.extent(0), input.extent(1), input.extent(1), idx);
+    auto window =
+        map.compute(slice, slice.extent(0), slice.extent(1), input,
+                    input.extent(0), input.extent(1), input.extent(1), idx);
+    // Update window timers from kernel
+    auto kstats = map.stats();
+    WindowBase<MatrixType>::stats_->count++;
+    WindowBase<MatrixType>::stats_->time += kstats->time;
+    WindowBase<MatrixType>::stats_->elapsed_time += kstats->elapsed_time;
+    return window;
   }
 
   inline auto get(const crs_matrix_type& input, const range_type idx)

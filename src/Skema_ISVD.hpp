@@ -4,6 +4,8 @@
 #include <Kokkos_Macros.hpp>
 #include <Kokkos_Random.hpp>
 #include <cstddef>
+#include <fstream>
+#include <iostream>
 #include "Skema_AlgParams.hpp"
 #include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
@@ -11,13 +13,8 @@
 
 namespace Skema {
 
-struct History {
-  matrix_type svals;
-  vector_type solve;
-  History() {};
-  History(const size_type rank, const size_type n)
-      : svals("svals history", rank, n), solve("solver history", n) {};
-};
+struct XVDS_stats;  // Forward declaration
+
 template <typename MatrixType>
 class ISVD {
  public:
@@ -29,12 +26,25 @@ class ISVD {
         svals(vector_type("svals", rank)),
         vtvex(matrix_type("vtvex", rank, ncol)),
         window(getWindow<MatrixType>(algParams)),
-        wsize0(algParams.window) {}
-  ~ISVD() {};
+        wsize0(algParams.window) {
+    if (!algParams.history_filename.filename().empty()) {
+      history_file.open(algParams.history_filename.filename());
+      history_file << "{" << std::endl;
+    }
+  }
+
+  ~ISVD() {
+    if (history_file.is_open()) {
+      history_file << std::endl;
+      history_file << "}" << std::endl;
+      history_file.close();
+    }
+  };
 
   /* Public methods */
   auto compute_residuals(const MatrixType&) -> vector_type;
-  inline auto history() -> History { return hist; };
+  auto print_stats(const std::shared_ptr<XVDS_stats>&,
+                   const std::shared_ptr<Window_stats>&) -> void;
   auto solve(const MatrixType&) -> void;
 
   /* Accessors */
@@ -52,7 +62,8 @@ class ISVD {
   const AlgParams algParams;
   const size_type wsize0;
   std::unique_ptr<WindowBase<MatrixType>> window;
-  History hist;
+  FILE* fp;
+  std::ofstream history_file;
 
   /* Compute U = A*V*Sigma^{-1} */
   auto compute_U(const MatrixType&) -> void;
@@ -80,11 +91,6 @@ class ISVD {
           }
         });
   };
-
-  struct {
-    scalar_type time_svd{0.0};
-    scalar_type time_update{0.0};
-  } stats;
 };
 
 template class ISVD<matrix_type>;

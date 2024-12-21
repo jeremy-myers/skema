@@ -46,6 +46,15 @@ void svds_monitorFun(void* basisSvals,
                      primme_svds_params* primme_svds,
                      int* ierr);
 }
+
+struct XVDS_stats {
+  int64_t numOuterIterations{0};
+  int64_t numMatvecs{0};
+  double elapsedTime{0.0};
+  double timeMatvec{0.0};
+  double timeOrtho{0.0};
+};
+
 template <typename MatrixType>
 class XVDS {
  public:
@@ -61,12 +70,15 @@ class XVDS {
                        matrix_type&) = 0;
 
   virtual void reinitialize() = 0;
+
+  virtual std::shared_ptr<XVDS_stats> stats() = 0;
 };
 
 template <typename MatrixType>
 class PRIMME_EIGS : public XVDS<MatrixType> {
  public:
-  PRIMME_EIGS(const AlgParams& algParams_) : algParams(algParams_) {
+  PRIMME_EIGS(const AlgParams& algParams_)
+      : algParams(algParams_), primme_stats(std::make_shared<XVDS_stats>()) {
     primme_initialize(&params);
   };
 
@@ -88,15 +100,26 @@ class PRIMME_EIGS : public XVDS<MatrixType> {
     params.monitorFun = eigs_monitorFun;
   }
 
+  inline std::shared_ptr<XVDS_stats> stats() override {
+    primme_stats->numOuterIterations = params.stats.numOuterIterations;
+    primme_stats->numMatvecs = params.stats.numMatvecs;
+    primme_stats->elapsedTime = params.stats.elapsedTime;
+    primme_stats->timeMatvec = params.stats.timeMatvec;
+    primme_stats->timeOrtho = params.stats.timeOrtho;
+    return primme_stats;
+  };
+
  protected:
   primme_params params;
   AlgParams algParams;
+  std::shared_ptr<XVDS_stats> primme_stats;
 };
 
 template <typename MatrixType>
 class PRIMME_SVDS : public XVDS<MatrixType> {
  public:
-  PRIMME_SVDS(const AlgParams& algParams_) : algParams(algParams_) {
+  PRIMME_SVDS(const AlgParams& algParams_)
+      : algParams(algParams_), primme_stats(std::make_shared<XVDS_stats>()) {
     primme_svds_initialize(&params);
     params.monitorFun = svds_monitorFun;
   };
@@ -116,9 +139,19 @@ class PRIMME_SVDS : public XVDS<MatrixType> {
     params.monitorFun = svds_monitorFun;
   }
 
+  inline std::shared_ptr<XVDS_stats> stats() override {
+    primme_stats->numOuterIterations = params.stats.numOuterIterations;
+    primme_stats->numMatvecs = params.stats.numMatvecs;
+    primme_stats->elapsedTime = params.stats.elapsedTime;
+    primme_stats->timeMatvec = params.stats.timeMatvec;
+    primme_stats->timeOrtho = params.stats.timeOrtho;
+    return primme_stats;
+  };
+
  protected:
   primme_svds_params params;
   AlgParams algParams;
+  std::shared_ptr<XVDS_stats> primme_stats;
 };
 
 template class PRIMME_SVDS<matrix_type>;

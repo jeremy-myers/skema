@@ -15,6 +15,7 @@ struct AlgParams {
   Skema::Decomposition_Type::type decomposition_type;
   std::filesystem::path inputfilename;
   std::filesystem::path outputfilename;
+  std::filesystem::path history_filename;
   std::filesystem::path debug_filename;
   bool issparse;
   bool issymmetric;

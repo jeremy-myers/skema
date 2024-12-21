@@ -25,10 +25,10 @@ const matrix_type ReservoirSampler<matrix_type>::matrix() const {
 
 template <>
 void ReservoirSampler<matrix_type>::sample(const matrix_type& A) {
-  if (nsamples == 0)
+  if (nsamples == 0) {
     return;
+  }
 
-  Kokkos::Timer timer;
   const size_type m{static_cast<size_type>(A.extent(0))};
 
   if (!initialized) {
@@ -48,12 +48,12 @@ void ReservoirSampler<matrix_type>::sample(const matrix_type& A) {
         data(i, j) = A(i, j);
       }
     }
-    for (auto i = 0; i < maxidx; ++i)
+    for (auto i = 0; i < maxidx; ++i) {
       idxs(i) = i;
+    }
     count = maxidx;
     offset = maxidx;
 
-    stats.elapsed_time += timer.seconds();
     // Get the range for the remaining rows of A and pass to update
     std::pair<size_t, size_t> idx = std::make_pair(maxidx, m);
     if (idx.second - idx.first > 0) {
@@ -79,7 +79,6 @@ void ReservoirSampler<matrix_type>::sample(const matrix_type& A) {
     }
     offset += m;
     rand_pool.free_state(generator);
-    stats.elapsed_time += timer.seconds();
     return;
   }
 }
@@ -98,7 +97,6 @@ void ReservoirSampler<crs_matrix_type>::sample(const crs_matrix_type& A) {
   if (nsamples == 0)
     return;
 
-  Kokkos::Timer timer;
   const size_type m{static_cast<size_type>(A.numRows())};
   if (!initialized) {
     // If here then matrix has no existing samples.
@@ -122,7 +120,6 @@ void ReservoirSampler<crs_matrix_type>::sample(const crs_matrix_type& A) {
     count = maxidx;
     offset = maxidx;
 
-    stats.elapsed_time += timer.seconds();
     // Create a Crs matrix with the remaining rows of A and pass to update
     idx = std::make_pair(maxidx, m);
     if (idx.second - idx.first > 0) {
@@ -241,7 +238,6 @@ void ReservoirSampler<crs_matrix_type>::sample(const crs_matrix_type& A) {
 
     // Update the offset
     offset += m;
-    stats.elapsed_time += timer.seconds();
     return;
   }
 }

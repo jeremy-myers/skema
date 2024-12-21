@@ -73,8 +73,9 @@ matrix_type GaussRBF<matrix_type>::compute(const matrix_type& X,
     }
   }
 
-  stats.time = timer.seconds();
-  stats.elapsed_time += stats.time;
+  auto time = timer.seconds();
+  this->stats_->time = time;
+  this->stats_->elapsed_time += time;
 
   return data;
 }

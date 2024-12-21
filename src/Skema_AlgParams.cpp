@@ -12,6 +12,7 @@ Skema::AlgParams::AlgParams()
       decomposition_type(Skema::Decomposition_Type::default_type),
       inputfilename(""),
       outputfilename(""),
+      history_filename(""),
       debug_filename(""),
       issparse(false),
       issymmetric(false),
@@ -64,6 +65,7 @@ void Skema::AlgParams::print(std::ostream& out) const {
   out << "  rank = " << rank << std::endl;
   out << "  window size = " << window << std::endl;
   out << "  solver = " << Skema::Solver_Method::names[solver] << std::endl;
+  out << "  history file = " << history_filename << std::endl;
 
   switch (Skema::Solver_Method::types[solver]) {
     case Skema::Solver_Method::ISVD:
@@ -191,6 +193,7 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
   inputfilename = parse_filepath(args, "--input", "");
   outputfilename = parse_filepath(args, "--output", "");
   debug_filename = parse_filepath(args, "--debug-file", "");
+  history_filename = parse_filepath(args, "--history-file", "");
   issparse = parse_bool(args, "--sparse", "--dense", false);
   issymmetric = parse_bool(args, "--symmetric", "--asymmetric", false);
   matrix_m = parse_int(args, "--m", matrix_m, 0, INT_MAX);
@@ -217,7 +220,8 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
       parse_real(args, "--eta", 1.0, 0.0, std::numeric_limits<double>::max());
   sketch_nu =
       parse_real(args, "--nu", 1.0, 0.0, std::numeric_limits<double>::max());
-  force_three_sketch = parse_bool(args, "--force-three-sketch", "--force-three-sketch-off", false);
+  force_three_sketch = parse_bool(args, "--force-three-sketch",
+                                  "--force-three-sketch-off", false);
 
   // iSVD solver options
   isvd_dense_solver = parse_bool(args, "--svd", "--svds", false);

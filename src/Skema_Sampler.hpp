@@ -71,11 +71,7 @@ class ReservoirSampler : public Sampler<MatrixType> {
   inline size_type num_samples() const override {
     return base_sampler::num_samples();
   };
-
-  struct {
-    scalar_type elapsed_time{0.0};
-  } stats;
-
+  
  protected:
   MatrixType data;
   index_type idxs;

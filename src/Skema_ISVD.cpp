@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <cassert>
-#include <cmath>
 #include <cstddef>
 #include <cstdlib>
+#include <iomanip>
 #include <string>
 #include <utility>
 #include <vector>
@@ -16,28 +16,16 @@
 #include "Skema_Utils.hpp"
 
 namespace Skema {
-/* ************************************************************************* */
-/* Constructor */
-/* ************************************************************************* */
 template <typename MatrixType>
 auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
-  Kokkos::Timer timer;
-  double time{0.0};
-  Skema::Timing timings;
-
   const size_type nrow{algParams.matrix_m};
   const size_type ncol{algParams.matrix_n};
   const size_type rank{algParams.rank};
   const bool sampling{algParams.isvd_sampling};
   size_type wsize{algParams.window};
-  std::string svals_filename;
 
+  // Temporary array for local computations
   matrix_type uvecs("uvecs", rank + wsize, rank);
-
-  const size_type width{
-      static_cast<size_type>(std::ceil(double(nrow) / double(wsize)))};
-
-  hist = History(rank, width);
 
   // Create solver & sampler
   Skema::ISVD_SVDS<MatrixType> solver(algParams);
@@ -51,12 +39,11 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   range_type rlargest{std::make_pair<size_type>(0, rank)};
 
   // Get first window
-  timer.reset();
   auto A_window = window->get(A, idx);
 
   // Sample first window
   // Sampling must come before call to compute since LAPACK will destroy the
-  // contents of the window if that solver is used
+  // contents of the window if LAPACK dgesvd is used
   sampler.sample(A_window);
 
   // Compute initial decomposition
@@ -65,14 +52,11 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   // Update vvecs with svals
   distribute(svals, vtvex);
 
-  time = timer.seconds();
-  std::cout << " " << ucnt;
-  std::cout << " " << time << std::endl;
-
-  for (auto r = 0; r < rank; ++r) {
-    hist.svals(r, ucnt) = svals(r);
+  auto window_stats = window->stats();
+  auto solver_stats = solver.stats();
+  if (algParams.hist) {
+    print_stats(solver_stats, window_stats);
   }
-  hist.solve(ucnt) = time;
 
   ++ucnt;
   /* Main loop */
@@ -84,7 +68,6 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
       wsize = idx.second - idx.first;
     }
 
-    timer.reset();
     A_window = window->get(A, idx);
 
     // Sample window
@@ -97,21 +80,16 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
     // Update vvecs with svals
     distribute(svals, vtvex);
 
-    time = timer.seconds();
-    std::cout << " " << ucnt;
-    std::cout << " " << time << std::endl;
-
-    for (auto r = 0; r < rank; ++r) {
-      hist.svals(r, ucnt) = svals(r);
+    window_stats = window->stats();
+    solver_stats = solver.stats();
+    if (algParams.hist) {
+      print_stats(solver_stats, window_stats);
     }
-    hist.solve(ucnt) = time;
     ++ucnt;
   }
 
   // Normalize vvecs
   normalize(svals, vtvex);
-  Kokkos::resize(hist.svals, rank, ucnt);
-  Kokkos::resize(hist.solve, ucnt);
   Kokkos::fence();
 }
 
@@ -176,6 +154,73 @@ auto ISVD<MatrixType>::compute_U(const MatrixType& A) -> void {
   std::cout << "Compute U: " << time << std::endl;
 }
 
+template <typename MatrixType>
+auto ISVD<MatrixType>::print_stats(
+    const std::shared_ptr<XVDS_stats>& solver_stats,
+    const std::shared_ptr<Window_stats>& window_stats) -> void {
+  auto count = window_stats->count;
+  std::string tab1 = "    ";
+  std::string tab2 = "        ";
+  std::string tab3 = "            ";
+
+  if (history_file.is_open()) {
+    if (count > 1)
+      history_file << "," << std::endl;
+
+    history_file << tab1 << "\"" << count << "\": {" << std::endl;
+    history_file << tab2 << "\"svals\": [" << std::endl;
+    for (int64_t i = 0; i < svals.extent(0); ++i) {
+      history_file << tab3 << std::setprecision(16) << svals(i);
+      if (i < svals.extent(0) - 1) {
+        history_file << "," << std::endl;
+      }
+    }
+    history_file << std::endl;
+    history_file << tab2 << "]," << std::endl;
+
+    history_file << tab2 << "\"window\": " << std::setprecision(16)
+                 << window_stats->time << "," << std::endl;
+
+    history_file << tab2 << "\"primme_svds\": {" << std::endl;
+    history_file << tab3 << "\"numOuterIterations\": "
+                 << solver_stats->numOuterIterations << "," << std::endl;
+    history_file << tab3 << "\"numMatvecs\": " << solver_stats->numMatvecs
+                 << "," << std::endl;
+    history_file << tab3 << "\"elapsedTime\": " << std::setprecision(16)
+                 << solver_stats->elapsedTime << "," << std::endl;
+    history_file << tab3 << "\"timeMatvec\": " << std::setprecision(16)
+                 << solver_stats->timeMatvec << "," << std::endl;
+    history_file << tab3 << "\"timeOrtho\": " << std::setprecision(16)
+                 << solver_stats->timeOrtho << std::endl;
+
+    history_file << tab2 << "}" << std::endl;
+    history_file << tab1 << "}";
+    history_file.flush();
+  } else {
+    std::cout << "window " << count << " svals:";
+    for (int64_t i = 0; i < svals.extent(0); ++i) {
+      std::cout << std::setprecision(16) << " " << svals(i);
+    }
+    std::cout << std::endl;
+    std::cout << "window " << count << " time: " << std::setprecision(16)
+              << window_stats->time << std::endl;
+    std::cout << "window " << count << " primme_svds.numOuterIterations: "
+              << solver_stats->numOuterIterations << std::endl;
+    std::cout << "window " << count
+              << " primme_svds.numMatvecs: " << solver_stats->numMatvecs
+              << std::endl;
+    std::cout << "window " << count
+              << " primme_svds.elapsedTime: " << std::setprecision(16)
+              << solver_stats->elapsedTime << std::endl;
+    std::cout << "window " << count
+              << " primme_svds.timeMatvec: " << std::setprecision(16)
+              << solver_stats->timeMatvec << std::endl;
+    std::cout << "window " << count
+              << " primme_svds.timeOrtho: " << std::setprecision(16)
+              << solver_stats->timeOrtho << std::endl;
+  }
+}
+
 template <>
 void isvd(const matrix_type& A, const AlgParams& algParams) {
   ISVD<matrix_type> sketch(algParams);
@@ -199,13 +244,6 @@ void isvd(const matrix_type& A, const AlgParams& algParams) {
 
     fname = algParams.debug_filename.filename().stem().string() + "_V.txt";
     Impl::write(V, fname.c_str());
-  }
-
-  if (algParams.hist) {
-    auto hist = sketch.history();
-    fname =
-        algParams.outputfilename.filename().stem().string() + "_hist_svals.txt";
-    Impl::write(hist.svals, fname.c_str());
   }
 };
 
@@ -233,12 +271,6 @@ void isvd(const crs_matrix_type& A, const AlgParams& algParams) {
 
     fname = algParams.debug_filename.filename().stem().string() + "_V.txt";
     Impl::write(V, fname.c_str());
-  }
-
-  if (algParams.hist) {
-    auto hist = sketch.history();
-    fname = algParams.outputfilename.filename().stem().string() + "_svals.txt";
-    Impl::write(hist.svals, fname.c_str());
   }
 };
 
