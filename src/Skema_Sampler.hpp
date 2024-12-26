@@ -71,7 +71,7 @@ class ReservoirSampler : public Sampler<MatrixType> {
   inline size_type num_samples() const override {
     return base_sampler::num_samples();
   };
-  
+
  protected:
   MatrixType data;
   index_type idxs;

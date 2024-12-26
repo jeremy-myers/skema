@@ -11,17 +11,12 @@ template <typename MatrixType, typename DimReduxT>
 class SketchySVD {
  public:
   SketchySVD(const AlgParams&);
-  ~SketchySVD() {
-    if (fp_json_output != NULL) {
-      fprintf(fp_json_output, "\n}");
-      fclose(fp_json_output);
-    }
-  };
+  ~SketchySVD() {};
 
-  auto compute_residuals(const MatrixType&) -> vector_type;
+  auto compute_residuals(const MatrixType&) -> void;
   auto linear_update(const MatrixType&) -> void;
   auto fixed_rank_approx() -> void;
-  auto print_stats() -> void;
+  auto save_history(std::filesystem::path) -> void;
 
   /* Public accessors */
   inline auto U() -> matrix_type { return uvecs; };
@@ -32,6 +27,7 @@ class SketchySVD {
   matrix_type uvecs;
   vector_type svals;
   matrix_type vvecs;
+  vector_type rnrms;
 
   // Sketch
   matrix_type X;
@@ -53,8 +49,7 @@ class SketchySVD {
   DimReduxT Phi;
   DimReduxT Psi;
 
-  FILE* fp_json_output;
-  std::map<std::string, double> timings;
+  std::map<std::string, std::map<std::string, double>> timings;
 
   auto axpy(const double,
             matrix_type&,
@@ -70,17 +65,12 @@ template <typename MatrixType, typename DimReduxT>
 class SketchySPD {
  public:
   SketchySPD(const AlgParams&);
-  ~SketchySPD() {
-    if (fp_json_output != NULL) {
-      fprintf(fp_json_output, "\n}");
-      fclose(fp_json_output);
-    }
-  };
+  ~SketchySPD() {};
 
-  auto compute_residuals(const MatrixType&) -> vector_type;
+  auto compute_residuals(const MatrixType&) -> void;
   auto nystrom_linear_update(const MatrixType&) -> void;
   auto fixed_rank_psd_approx() -> void;
-  auto print_stats() -> void;
+  auto save_history(std::filesystem::path) -> void;
 
   /* Public accessors */
   inline auto U() -> matrix_type { return uvecs; };
@@ -89,6 +79,7 @@ class SketchySPD {
  private:
   matrix_type uvecs;
   vector_type svals;
+  vector_type rnrms;
 
   // Sketch
   matrix_type Y;
@@ -104,8 +95,7 @@ class SketchySPD {
   // DimRedux
   DimReduxT Omega;
 
-  FILE* fp_json_output;
-  std::map<std::string, double> timings;
+  std::map<std::string, std::map<std::string, double>> timings;
 
   auto axpy(const double,
             matrix_type&,

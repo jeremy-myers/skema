@@ -34,7 +34,8 @@ class ISVD_SVDS : public PRIMME_SVDS<MatrixType> {
                const size_type,
                matrix_type&,
                vector_type&,
-               matrix_type&) override;
+               matrix_type&,
+               vector_type&) override;
 
   void compute(const MatrixType&,
                const size_type,
@@ -43,6 +44,7 @@ class ISVD_SVDS : public PRIMME_SVDS<MatrixType> {
                matrix_type&,
                vector_type&,
                matrix_type&,
+               vector_type&,
                const ReservoirSampler<MatrixType>&);
 
   void set_u0(const MatrixType&,

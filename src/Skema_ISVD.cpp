@@ -47,7 +47,8 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   sampler.sample(A_window);
 
   // Compute initial decomposition
-  solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex);
+  solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex,
+                 rnrms);
 
   // Update vvecs with svals
   distribute(svals, vtvex);
@@ -55,7 +56,8 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   auto window_stats = window->stats();
   auto solver_stats = solver.stats();
   if (algParams.hist) {
-    print_stats(solver_stats, window_stats);
+    // print_stats(solver_stats, window_stats);
+    save_window_history(solver_stats, window_stats);
   }
 
   ++ucnt;
@@ -75,7 +77,7 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
 
     // Compute decomposition with optional sampler
     solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex,
-                   sampler);
+                   rnrms, sampler);
 
     // Update vvecs with svals
     distribute(svals, vtvex);
@@ -83,7 +85,8 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
     window_stats = window->stats();
     solver_stats = solver.stats();
     if (algParams.hist) {
-      print_stats(solver_stats, window_stats);
+      // print_stats(solver_stats, window_stats);
+      save_window_history(solver_stats, window_stats);
     }
     ++ucnt;
   }
@@ -94,12 +97,11 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
 }
 
 template <typename MatrixType>
-auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> vector_type {
+auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> void {
   // Compute final residuals
   double time{0.0};
   Kokkos::Timer timer;
 
-  vector_type rnrms;
   if (algParams.issymmetric) {
     auto v = Impl::transpose(vtvex);
     rnrms = residuals(A, v, svals, rank, algParams, window);
@@ -110,7 +112,6 @@ auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> vector_type {
   }
   time = timer.seconds();
   std::cout << "\nCompute residuals: " << time << std::endl;
-  return rnrms;
 }
 
 /* Compute U = A*V*Sigma^{-1} */
@@ -155,87 +156,69 @@ auto ISVD<MatrixType>::compute_U(const MatrixType& A) -> void {
 }
 
 template <typename MatrixType>
-auto ISVD<MatrixType>::print_stats(
+auto ISVD<MatrixType>::save_history(std::filesystem::path fname) -> void {
+  // Write the final history to file or stdout
+  // containers of non-integral types need special treatement
+  std::vector<scalar_type> s(rank);
+  std::vector<scalar_type> r(rank);
+  for (auto i = 0; i < rank; ++i) {
+    s[i] = svals(i);
+    r[i] = rnrms(i);
+  }
+  nlohmann::json j_svals(s);
+  nlohmann::json j_rnrms(r);
+  hist["svals"] = j_svals;
+  hist["rnrms"] = j_rnrms;
+
+  if (!fname.filename().empty()) {
+    std::ofstream f;
+    f.open(fname.filename());
+    f << std::setw(4) << hist << std::endl;
+  } else {
+    std::cout << std::setw(4) << hist << std::endl;
+  }
+}
+
+template <typename MatrixType>
+auto ISVD<MatrixType>::save_window_history(
     const std::shared_ptr<XVDS_stats>& solver_stats,
     const std::shared_ptr<Window_stats>& window_stats) -> void {
-  auto count = window_stats->count;
-  std::string tab1 = "    ";
-  std::string tab2 = "        ";
-  std::string tab3 = "            ";
+  auto count = std::to_string(window_stats->count);
 
-  if (history_file.is_open()) {
-    if (count > 1)
-      history_file << "," << std::endl;
-
-    history_file << tab1 << "\"" << count << "\": {" << std::endl;
-    history_file << tab2 << "\"svals\": [" << std::endl;
-    for (int64_t i = 0; i < svals.extent(0); ++i) {
-      history_file << tab3 << std::setprecision(16) << svals(i);
-      if (i < svals.extent(0) - 1) {
-        history_file << "," << std::endl;
-      }
-    }
-    history_file << std::endl;
-    history_file << tab2 << "]," << std::endl;
-
-    history_file << tab2 << "\"window\": " << std::setprecision(16)
-                 << window_stats->time << "," << std::endl;
-
-    history_file << tab2 << "\"primme_svds\": {" << std::endl;
-    history_file << tab3 << "\"numOuterIterations\": "
-                 << solver_stats->numOuterIterations << "," << std::endl;
-    history_file << tab3 << "\"numMatvecs\": " << solver_stats->numMatvecs
-                 << "," << std::endl;
-    history_file << tab3 << "\"elapsedTime\": " << std::setprecision(16)
-                 << solver_stats->elapsedTime << "," << std::endl;
-    history_file << tab3 << "\"timeMatvec\": " << std::setprecision(16)
-                 << solver_stats->timeMatvec << "," << std::endl;
-    history_file << tab3 << "\"timeOrtho\": " << std::setprecision(16)
-                 << solver_stats->timeOrtho << std::endl;
-
-    history_file << tab2 << "}" << std::endl;
-    history_file << tab1 << "}";
-    history_file.flush();
-  } else {
-    std::cout << "window " << count << " svals:";
-    for (int64_t i = 0; i < svals.extent(0); ++i) {
-      std::cout << std::setprecision(16) << " " << svals(i);
-    }
-    std::cout << std::endl;
-    std::cout << "window " << count << " time: " << std::setprecision(16)
-              << window_stats->time << std::endl;
-    std::cout << "window " << count << " primme_svds.numOuterIterations: "
-              << solver_stats->numOuterIterations << std::endl;
-    std::cout << "window " << count
-              << " primme_svds.numMatvecs: " << solver_stats->numMatvecs
-              << std::endl;
-    std::cout << "window " << count
-              << " primme_svds.elapsedTime: " << std::setprecision(16)
-              << solver_stats->elapsedTime << std::endl;
-    std::cout << "window " << count
-              << " primme_svds.timeMatvec: " << std::setprecision(16)
-              << solver_stats->timeMatvec << std::endl;
-    std::cout << "window " << count
-              << " primme_svds.timeOrtho: " << std::setprecision(16)
-              << solver_stats->timeOrtho << std::endl;
+  // containers of non-integral types need special treatement
+  std::vector<scalar_type> s(rank);
+  std::vector<scalar_type> r(rank);
+  for (auto i = 0; i < rank; ++i) {
+    s[i] = svals(i);
+    r[i] = rnrms(i);
   }
+  nlohmann::json j_svals(s);
+  nlohmann::json j_rnrms(r);
+  hist[count]["svals"] = j_svals;
+  hist[count]["rnrms"] = j_rnrms;
+
+  hist[count]["update"]["window"] = window_stats->time;
+  hist[count]["primme_svds"]["numOuterIterations"] =
+      solver_stats->numOuterIterations;
+  hist[count]["primme_svds"]["numMatvecs"] = solver_stats->numMatvecs;
+  hist[count]["primme_svds"]["elapsedTime"] = solver_stats->elapsedTime;
+  hist[count]["primme_svds"]["timeMatvec"] = solver_stats->timeMatvec;
+  hist[count]["primme_svds"]["timeOrtho"] = solver_stats->timeOrtho;
 }
 
 template <>
 void isvd(const matrix_type& A, const AlgParams& algParams) {
   ISVD<matrix_type> sketch(algParams);
   sketch.solve(A);
-  auto rnrms = sketch.compute_residuals(A);
-
-  auto U = sketch.U();
-  auto S = sketch.S();
-  auto V = sketch.V();
-
-  std::string fname;
-  fname = algParams.outputfilename.filename().stem().string() + "_rnrms.txt";
-  Impl::write(rnrms, fname.c_str());
+  sketch.compute_residuals(A);
 
   if (!algParams.debug_filename.empty()) {
+    std::string fname;
+
+    auto U = sketch.U();
+    auto S = sketch.S();
+    auto V = sketch.V();
+
     fname = algParams.debug_filename.filename().stem().string() + "_U.txt";
     Impl::write(U, fname.c_str());
 
@@ -251,18 +234,19 @@ template <>
 void isvd(const crs_matrix_type& A, const AlgParams& algParams) {
   ISVD<crs_matrix_type> sketch(algParams);
   sketch.solve(A);
+  sketch.compute_residuals(A);
 
-  auto rnrms = sketch.compute_residuals(A);
-
-  auto U = sketch.U();
-  auto S = sketch.S();
-  auto V = sketch.V();
-
-  std::string fname;
-  fname = algParams.outputfilename.filename().stem().string() + "_rnrms.txt";
-  Impl::write(rnrms, fname.c_str());
+  if (algParams.hist) {
+    sketch.save_history(algParams.history_filename);
+  }
 
   if (!algParams.debug_filename.empty()) {
+    std::string fname;
+
+    auto U = sketch.U();
+    auto S = sketch.S();
+    auto V = sketch.V();
+
     fname = algParams.debug_filename.filename().stem().string() + "_U.txt";
     Impl::write(U, fname.c_str());
 

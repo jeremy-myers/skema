@@ -67,7 +67,8 @@ class XVDS {
                        const size_type,
                        matrix_type&,
                        vector_type&,
-                       matrix_type&) = 0;
+                       matrix_type&,
+                       vector_type&) = 0;
 
   virtual void reinitialize() = 0;
 
@@ -93,7 +94,8 @@ class PRIMME_EIGS : public XVDS<MatrixType> {
                const size_type,
                matrix_type&,
                vector_type&,
-               matrix_type&) override;
+               matrix_type&,
+               vector_type&) override;
 
   inline void reinitialize() override {
     primme_initialize(&params);
@@ -132,7 +134,8 @@ class PRIMME_SVDS : public XVDS<MatrixType> {
                const size_type,
                matrix_type&,
                vector_type&,
-               matrix_type&) override;
+               matrix_type&,
+               vector_type&) override;
 
   inline void reinitialize() override {
     primme_svds_initialize(&params);

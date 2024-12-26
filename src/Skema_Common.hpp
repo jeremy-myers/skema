@@ -5,6 +5,7 @@
 #include <ostream>
 #include "KokkosSparse_IOUtils.hpp"
 #include "Skema_Utils.hpp"
+#include "json.hpp"
 
 /* Common helper functions */
 namespace Skema {

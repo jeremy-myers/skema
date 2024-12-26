@@ -8,3 +8,6 @@
 [submodule "tpls/kokkos-kernels"]
 	path = tpls/kokkos-kernels
 	url = https://github.com/kokkos/kokkos-kernels.git
+[submodule "tpls/json"]
+	path = tpls/json
+	url = https://github.com/nlohmann/json.git

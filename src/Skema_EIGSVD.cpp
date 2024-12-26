@@ -14,7 +14,8 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
                                        const size_type rank,
                                        matrix_type& U,
                                        vector_type& S,
-                                       matrix_type& V) {
+                                       matrix_type& V,
+                                       vector_type& R) {
   Kokkos::Timer timer;
 
   vector_type evals("evals", rank);
@@ -67,7 +68,8 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
                                            const size_type rank,
                                            matrix_type& U,
                                            vector_type& S,
-                                           matrix_type& V) {
+                                           matrix_type& V,
+                                           vector_type& R) {
   Kokkos::Timer timer;
 
   vector_type evals("evals", rank);
@@ -112,7 +114,8 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType& matrix,
                                       const size_type rank,
                                       matrix_type& U,
                                       vector_type& S,
-                                      matrix_type& V) {
+                                      matrix_type& V,
+                                      vector_type& R) {
   Kokkos::Timer timer;
 
   vector_type svals("svals", rank);
@@ -162,8 +165,9 @@ void primme_eigs(const matrix_type& matrix, const AlgParams& algParams) {
   matrix_type u;
   vector_type s;
   matrix_type vt;
+  vector_type r;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
-                 u, s, vt);
+                 u, s, vt, r);
 }
 
 template <>
@@ -173,8 +177,9 @@ void primme_eigs(const crs_matrix_type& matrix, const AlgParams& algParams) {
   matrix_type u;
   vector_type s;
   matrix_type vt;
+  vector_type r;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
-                 u, s, vt);
+                 u, s, vt, r);
 }
 
 template <>
@@ -183,8 +188,9 @@ void primme_svds(const matrix_type& matrix, const AlgParams& algParams) {
   matrix_type u;
   vector_type s;
   matrix_type vt;
+  vector_type r;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
-                 u, s, vt);
+                 u, s, vt, r);
 }
 
 template <>
@@ -194,7 +200,8 @@ void primme_svds(const crs_matrix_type& matrix, const AlgParams& algParams) {
   matrix_type u;
   vector_type s;
   matrix_type vt;
+  vector_type r;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
-                 u, s, vt);
+                 u, s, vt, r);
 }
 }  // namespace Skema

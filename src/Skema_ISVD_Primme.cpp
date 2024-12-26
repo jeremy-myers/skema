@@ -20,7 +20,8 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
                                     const size_type rank,
                                     matrix_type& U,
                                     vector_type& S,
-                                    matrix_type& Vt) {
+                                    matrix_type& Vt,
+                                    vector_type& R) {
   ISVD_Matrix<MatrixType> matrix(Vt, X, nrow, ncol, rank, nrow - rank);
   vector_type svals("svals", rank);
   vector_type svecs("svecs", (nrow + ncol) * rank);
@@ -71,6 +72,7 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
   // Save this window
   for (int64_t i = 0; i < rank; ++i) {
     S(i) = svals(i);
+    R(i) = rnrms(i);
   }
 
   for (int64_t i = 0; i < nrow * rank; ++i) {
@@ -466,6 +468,7 @@ void ISVD_SVDS<matrix_type>::compute(
     matrix_type& U,
     vector_type& S,
     matrix_type& Vt,
+    vector_type& R,
     const ReservoirSampler<matrix_type>& sampler) {
   using primme_svds = PRIMME_SVDS<matrix_type>;
 
@@ -502,7 +505,7 @@ void ISVD_SVDS<matrix_type>::compute(
     set_u0(matrix, nrow, ncol, rank, U, S, Vt);
   }
 
-  compute(matrix, nrow, ncol, rank, U, S, Vt);
+  compute(matrix, nrow, ncol, rank, U, S, Vt, R);
 }
 
 extern "C" {
@@ -804,6 +807,7 @@ void ISVD_SVDS<crs_matrix_type>::compute(
     matrix_type& U,
     vector_type& S,
     matrix_type& Vt,
+    vector_type& R,
     const ReservoirSampler<crs_matrix_type>& sampler) {
   using primme_svds = PRIMME_SVDS<crs_matrix_type>;
 
@@ -840,7 +844,7 @@ void ISVD_SVDS<crs_matrix_type>::compute(
     set_u0(matrix, nrow, ncol, rank, U, S, Vt);
   }
 
-  compute(matrix, nrow, ncol, rank, U, S, Vt);
+  compute(matrix, nrow, ncol, rank, U, S, Vt, R);
 }
 
 }  // namespace Skema

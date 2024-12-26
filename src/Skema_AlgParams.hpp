@@ -131,4 +131,4 @@ std::vector<std::string> build_arg_list(int argc, char** argv);
 bool check_and_print_unused_args(const std::vector<std::string>& args,
                                  std::ostream& out);
 
-}
+}  // namespace Skema

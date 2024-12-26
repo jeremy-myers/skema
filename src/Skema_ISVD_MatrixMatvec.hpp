@@ -19,7 +19,7 @@ class ISVD_Matrix {
         lower_nrow(lower_nrow_) {
     assert((upper_nrow + lower_nrow == matrix_nrow));
   }
-  ~ISVD_Matrix(){};
+  ~ISVD_Matrix() {};
 
   const matrix_type upper;
   const MatrixType lower;

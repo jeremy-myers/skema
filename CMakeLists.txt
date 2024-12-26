@@ -79,6 +79,10 @@ else()
     set(HAVE_PRIMME ON)
 endif()
 
+# Nlohmann jons
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+add_subdirectory(tpls/json)
+
 include_directories(
     ${Skema_SOURCE_DIR}/src/
     ${Skema_SOURCE_DIR}/driver/
@@ -86,6 +90,7 @@ include_directories(
     ${KokkosKernels_INCLUDE_DIRS_RET}
     ${PRIMME_INCLUDE_DIR}
     ${LAPACK_INCLUDE_DIR}
+    ${Skema_SOURCE_DIR}/tpls/json/single_include/nlohmann/
 )
 
 # Target definitions
@@ -109,6 +114,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ${LAPACK_LIBRARIES})
 target_link_libraries(${PROJECT_NAME} PUBLIC Kokkos::kokkos)
 target_link_libraries(${PROJECT_NAME} PUBLIC Kokkos::kokkoskernels)
 target_link_libraries(${PROJECT_NAME} PUBLIC primme)
+target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
 
 if(LAPACK_FOUND)
     target_compile_definitions(${PROJECT_NAME} PRIVATE LAPACK_FOUND=${LAPACK_FOUND})
