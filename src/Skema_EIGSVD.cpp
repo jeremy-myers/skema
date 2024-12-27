@@ -30,6 +30,9 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
   params.target = primme_largest;
   params.matrixMatvec = eigs_default_dense_matvec;
   params.monitorFun = eigs_monitorFun;
+  for (auto i = 0; i < 4; ++i) {
+    params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
+  }
 
   auto window = getWindow<matrix_type>(algParams);
   EIGS_Kernel_Matrix kernel(matrix, window, matrix.extent(1), algParams.window);
@@ -83,6 +86,9 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   params.eps = algParams.primme_eps;
   params.matrixMatvec = eigs_default_sparse_matvec;
   params.monitorFun = eigs_monitorFun;
+  for (auto i = 0; i < 4; ++i) {
+    params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
+  }
 
   FILE* fp = fopen(algParams.outputfilename.c_str(), "w");
   params.outputFile = fp;
@@ -128,6 +134,9 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType& matrix,
   params.n = ncol;
   params.numSvals = rank;
   params.eps = algParams.primme_eps;
+  for (auto i = 0; i < 4; ++i) {
+    params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
+  }
 
   if (algParams.issparse) {
     params.matrixMatvec = svds_default_sparse_matvec;

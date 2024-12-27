@@ -56,7 +56,6 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   auto window_stats = window->stats();
   auto solver_stats = solver.stats();
   if (algParams.hist) {
-    // print_stats(solver_stats, window_stats);
     save_window_history(solver_stats, window_stats);
   }
 
@@ -85,7 +84,6 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
     window_stats = window->stats();
     solver_stats = solver.stats();
     if (algParams.hist) {
-      // print_stats(solver_stats, window_stats);
       save_window_history(solver_stats, window_stats);
     }
     ++ucnt;

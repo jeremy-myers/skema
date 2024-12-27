@@ -36,6 +36,9 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
   primme_svds::params.outputFile = fp_output_filename;
   primme_svds::params.eps = algParams.primme_eps;
   primme_svds::params.printLevel = algParams.primme_printLevel;
+  for (auto i = 0; i < 4; ++i) {
+    primme_svds::params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
+  }
 
   if (algParams.issparse) {
     primme_svds::params.matrixMatvec = isvd_default_sparse_matvec;
