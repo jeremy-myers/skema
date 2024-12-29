@@ -15,7 +15,10 @@ class ISVD_SVDS : public PRIMME_SVDS<MatrixType> {
 
     // History & logging
     std::string output_filename =
-        algParams.outputfilename.filename().stem().string() + "_primme.txt";
+        !algParams.primme_outputFile.empty()
+            ? algParams.primme_outputFile.filename().string()
+            : "isvd_primme.txt";
+
     fp_output_filename = fopen(output_filename.c_str(), "w");
     if (fp_output_filename == NULL) {
       perror("PRIMME output file failed to open: ");
@@ -73,6 +76,7 @@ extern "C" {
 void isvd_dense_convTestFun(double* sval,
                             void* leftsvec,
                             void* rightvec,
+
                             double* rnorm,
                             int* method,
                             int* isconv,

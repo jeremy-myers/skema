@@ -774,7 +774,7 @@ auto SketchySPD<MatrixType, DimReduxT>::nystrom_linear_update(
 
   if (!algParams.debug_filename.empty()) {
     std::string fname;
-    fname = algParams.outputfilename.filename().stem().string() + "_Y.txt";
+    fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
     Impl::write(Y, fname.c_str());
   }
 };

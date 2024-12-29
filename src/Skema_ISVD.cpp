@@ -109,7 +109,7 @@ auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> void {
     rnrms = residuals(A, u, svals, v, rank, algParams, window);
   }
   time = timer.seconds();
-  std::cout << "\nCompute residuals: " << time << std::endl;
+  // std::cout << "\nCompute residuals: " << time << std::endl;
 }
 
 /* Compute U = A*V*Sigma^{-1} */
@@ -150,7 +150,7 @@ auto ISVD<MatrixType>::compute_U(const MatrixType& A) -> void {
       });
 
   time = timer.seconds();
-  std::cout << "Compute U: " << time << std::endl;
+  // std::cout << "Compute U: " << time << std::endl;
 }
 
 template <typename MatrixType>

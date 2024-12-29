@@ -19,8 +19,7 @@ void usage(char** argv) {
   std::cout << "  --input\tpath to input matrix. Supported filetypes: "
                "txt, mtx (Matrix Market), bin"
             << std::endl;
-  std::cout << "  --output\tpath to output prefix. Skema will "
-               "automatically append filenames to write specific data"
+  std::cout << "  --history-file\tpath to history file (stored as json)."
             << std::endl;
   std::cout << "  --sparse\tspecify whether matrix is dense or sparse"
             << std::endl;
@@ -40,19 +39,22 @@ void usage(char** argv) {
 
 template <typename MatrixType>
 int main_driver(const MatrixType& matrix, const Skema::AlgParams& algParams) {
-  std::cout << "\nMatrix:\n"
-            << "  " << algParams.matrix_m << " x " << algParams.matrix_n;
+  std::cout << "\nMatrix: " << algParams.matrix_m << " x "
+            << algParams.matrix_n;
   if (algParams.issparse) {
     std::cout << ", nnz = " << algParams.matrix_nnz << " ("
               << (scalar_type(algParams.matrix_nnz) /
                   scalar_type(algParams.matrix_m * algParams.matrix_n)) *
                      100
-              << "\% dense)\n";
+              << "\% dense)";
   }
   std::cout << std::endl;
 
   if (algParams.debug)
     Skema::Impl::print(matrix);
+
+  std::cout << "Solver: " << Skema::Solver_Method::names[algParams.solver]
+            << std::endl;
 
   switch (Skema::Solver_Method::types[algParams.solver]) {
     case Skema::Solver_Method::PRIMME:
@@ -72,7 +74,7 @@ int main_driver(const MatrixType& matrix, const Skema::AlgParams& algParams) {
   return 0;
 }
 
-int dense_driver(const std::string& inputfilename,
+int dense_driver(const std::filesystem::path inputfilename,
                  Skema::AlgParams& algParams) {
   if (algParams.matrix_m == 0 || algParams.matrix_n == 0) {
     std::cout << "Must specify both matrix dimensions." << std::endl;
@@ -104,7 +106,7 @@ int dense_driver(const std::string& inputfilename,
   return 0;
 }
 
-int sparse_driver(const std::string& inputfilename,
+int sparse_driver(const std::filesystem::path inputfilename,
                   Skema::AlgParams& algParams) {
   std::cout << "Reading " << inputfilename << "... " << std::flush;
   Kokkos::Timer timer;
@@ -136,13 +138,10 @@ int main(int argc, char* argv[]) {
       Skema::AlgParams algParams;
 
       // Driver options
-      std::string inputfilename = "";
-      std::string outputfilename = "";
-      std::string history_file = "";
+      std::filesystem::path inputfilename =
+          Skema::parse_filepath(args, "--input", "");
 
-      inputfilename = Skema::parse_string(args, "--input", inputfilename);
-
-      if (inputfilename == "") {
+      if (inputfilename.empty()) {
         std::cout << "Must provide matrix input" << std::endl;
         exit(1);
       }
@@ -170,9 +169,7 @@ int main(int argc, char* argv[]) {
         std::cout << "\n==================== Skema ====================";
         std::cout << "\n===============================================";
         std::cout << "\nOptions: ";
-        std::cout << "\n  input = " << inputfilename;
-        std::cout << "\n  output prefix = " << algParams.outputfilename
-                  << std::endl;
+        std::cout << "\n  input = " << inputfilename << std::endl;
         algParams.print(std::cout);
         std::cout << "==============================================="
                   << std::endl;

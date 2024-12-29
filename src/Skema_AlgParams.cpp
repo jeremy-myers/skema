@@ -13,6 +13,7 @@ Skema::AlgParams::AlgParams()
       inputfilename(""),
       outputfilename(""),
       history_filename(""),
+      primme_outputFile(""),
       debug_filename(""),
       issparse(false),
       issymmetric(false),
@@ -55,17 +56,12 @@ void Skema::error(std::string s) {
 }
 
 void Skema::AlgParams::print(std::ostream& out) const {
-  if (issparse) {
-    out << "  sparse matrix";
-  } else {
-    out << "  dense matrix";
-    out << ", size = " << matrix_m << " x " << matrix_n;
-  }
-  out << "\n";
   out << "  rank = " << rank << std::endl;
-  out << "  window size = " << window << std::endl;
-  out << "  solver = " << Skema::Solver_Method::names[solver] << std::endl;
-  out << "  history file = " << history_filename << std::endl;
+  out << "  history file = "
+      << (!history_filename.empty() ? history_filename : "stdout") << std::endl;
+  if (window > 0) {
+    out << "  window = " << window << std::endl;
+  }
 
   switch (Skema::Solver_Method::types[solver]) {
     case Skema::Solver_Method::ISVD:
@@ -77,6 +73,45 @@ void Skema::AlgParams::print(std::ostream& out) const {
       }
       std::cout << "  iSVD initial guess = " << std::boolalpha
                 << isvd_initial_guess << std::endl;
+
+      if (!isvd_dense_solver) {
+        out << "  PRIMME outputFile = "
+            << (!primme_outputFile.empty() ? primme_outputFile.string()
+                                           : "stdout")
+            << std::endl;
+        out << "  PRIMME method = " << primme_method << std::endl;
+        out << "  PRIMME methodStage2 = " << primme_methodStage2 << std::endl;
+        out << "  PRIMME printLevel = " << primme_printLevel << std::endl;
+        out << "  PRIMME tolerance = " << primme_eps << std::endl;
+        out << "  PRIMME locking = " << std::boolalpha << primme_locking
+            << std::endl;
+        if (isvd_num_samples > 0) {
+          out << "  PRIMME conv test func eps = " << isvd_convtest_eps
+              << std::endl;
+          out << "  PRIMME conv test skip = " << isvd_convtest_skip
+              << std::endl;
+        }
+        if (primme_maxIter > 0) {
+          out << "  PRIMME maxOuterIters = " << primme_maxIter << std::endl;
+          ;
+        }
+        if (primme_maxMatvecs > 0) {
+          out << "  PRIMME maxMatvecs = " << primme_maxMatvecs << std::endl;
+          ;
+        }
+        if (primme_maxBasisSize > 0) {
+          out << "  PRIMME maxBasisSize = " << primme_maxBasisSize << std::endl;
+        }
+        if (primme_maxBlockSize > 0) {
+          out << "  PRIMME maxBlockSize = " << primme_maxBlockSize << std::endl;
+        }
+        if (primme_minRestartSize > 0) {
+          out << "  PRIMME minRestartSize = " << primme_minRestartSize
+              << std::endl;
+          ;
+        }
+      }
+
       break;
 
     case Skema::Solver_Method::SKETCH:
@@ -88,34 +123,33 @@ void Skema::AlgParams::print(std::ostream& out) const {
       break;
 
     case Skema::Solver_Method::PRIMME:
-      out << "    PRIMME method = " << primme_method << std::endl;
-      out << "    PRIMME methodStage2 = " << primme_methodStage2 << std::endl;
-      out << "    PRIMME printLevel = " << primme_printLevel << std::endl;
-      out << "    PRIMME tolerance = " << primme_eps << std::endl;
-      out << "    PRIMME locking = " << std::boolalpha << primme_locking
+      out << "  PRIMME method = " << primme_method << std::endl;
+      out << "  PRIMME methodStage2 = " << primme_methodStage2 << std::endl;
+      out << "  PRIMME printLevel = " << primme_printLevel << std::endl;
+      out << "  PRIMME tolerance = " << primme_eps << std::endl;
+      out << "  PRIMME locking = " << std::boolalpha << primme_locking
           << std::endl;
       if (isvd_num_samples > 0) {
-        out << "    PRIMME conv test func eps = " << isvd_convtest_eps
+        out << "  PRIMME conv test func eps = " << isvd_convtest_eps
             << std::endl;
-        out << "    PRIMME conv test skip = " << isvd_convtest_skip
-            << std::endl;
+        out << "  PRIMME conv test skip = " << isvd_convtest_skip << std::endl;
       }
       if (primme_maxIter > 0) {
-        out << "    PRIMME maxOuterIters = " << primme_maxIter << std::endl;
+        out << "  PRIMME maxOuterIters = " << primme_maxIter << std::endl;
         ;
       }
       if (primme_maxMatvecs > 0) {
-        out << "    PRIMME maxMatvecs = " << primme_maxMatvecs << std::endl;
+        out << "  PRIMME maxMatvecs = " << primme_maxMatvecs << std::endl;
         ;
       }
       if (primme_maxBasisSize > 0) {
-        out << "    PRIMME maxBasisSize = " << primme_maxBasisSize << std::endl;
+        out << "  PRIMME maxBasisSize = " << primme_maxBasisSize << std::endl;
       }
       if (primme_maxBlockSize > 0) {
-        out << "    PRIMME maxBlockSize = " << primme_maxBlockSize << std::endl;
+        out << "  PRIMME maxBlockSize = " << primme_maxBlockSize << std::endl;
       }
       if (primme_minRestartSize > 0) {
-        out << "    PRIMME minRestartSize = " << primme_minRestartSize
+        out << "  PRIMME minRestartSize = " << primme_minRestartSize
             << std::endl;
         ;
       }
@@ -170,6 +204,9 @@ void Skema::AlgParams::print_help(std::ostream& out) {
 
   // PRIMME solver options
   out << "  primme:" << std::endl;
+  out << "  --primme_outputFile\tfile to write output by PRIMME (used by both "
+         "iSVD & PRIMME)"
+      << std::endl;
   out << "  --primme_printLevel\tsets print level used by PRIMME" << std::endl;
   out << "  --primme_eps\t\tsets tolerance used by PRIMME" << std::endl;
   out << std::endl;
@@ -237,6 +274,7 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
                                   "--isvd-initial-guess-off", false);
 
   // PRIMME solver options
+  primme_outputFile = parse_filepath(args, "--primme_outputFile", "");
   primme_printLevel = parse_int(args, "--primme_printLevel", 0, 0, 5);
   primme_eps = parse_real(args, "--primme_eps", primme_eps,
                           std::numeric_limits<double>::epsilon(), 1.0);

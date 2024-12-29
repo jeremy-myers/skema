@@ -1,5 +1,6 @@
 #pragma once
 #include "Skema_AlgParams.hpp"
+#include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
 #include "primme.h"
 
@@ -54,6 +55,12 @@ struct XVDS_stats {
   double timeMatvec{0.0};
   double timeOrtho{0.0};
 };
+
+template <typename VectorT, typename PrimmeStats>
+auto save_primme_stats(const std::filesystem::path,
+                       const VectorT&,
+                       const VectorT&,
+                       const PrimmeStats*);
 
 template <typename MatrixType>
 class XVDS {

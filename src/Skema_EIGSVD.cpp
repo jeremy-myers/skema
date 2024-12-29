@@ -6,6 +6,39 @@
 
 namespace Skema {
 
+template <typename VectorT, typename PrimmeStats>
+auto save_primme_stats(const std::filesystem::path fname,
+                       const VectorT& svals,
+                       const VectorT& rnrms,
+                       const PrimmeStats* stats) {
+  nlohmann::json save;
+
+  const size_type rank{svals.extent(0)};
+  std::vector<scalar_type> s(rank);
+  std::vector<scalar_type> r(rank);
+  for (auto i = 0; i < rank; ++i) {
+    s[i] = svals(i);
+    r[i] = rnrms(i);
+  }
+  nlohmann::json j_svals(s);
+  nlohmann::json j_rnrms(r);
+  save["svals"] = j_svals;
+  save["rnrms"] = j_rnrms;
+  save["numOuterIterations"] = stats->numOuterIterations;
+  save["numMatvecs"] = stats->numMatvecs;
+  save["elapsedTime"] = stats->elapsedTime;
+  save["timeMatvec"] = stats->timeMatvec;
+  save["timeOrtho"] = stats->timeOrtho;
+
+  if (!fname.filename().empty()) {
+    std::ofstream f;
+    f.open(fname.filename());
+    f << std::setw(4) << save << std::endl;
+  } else {
+    std::cout << std::setw(4) << save << std::endl;
+  }
+}
+
 // EIGS: Requires explicit specialization for kernel
 template <>
 void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
@@ -41,7 +74,10 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
     params.matrixMatvec = eigs_kernel_dense_matvec;
   }
 
-  FILE* fp = fopen(algParams.outputfilename.c_str(), "w");
+  std::string filename = !algParams.primme_outputFile.empty()
+                             ? algParams.primme_outputFile.filename().string()
+                             : "primme.txt";
+  FILE* fp = fopen(filename.c_str(), "w");
   params.outputFile = fp;
 
   if (fp == NULL)
@@ -57,11 +93,21 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
   Kokkos::fence();
   scalar_type time = timer.seconds();
 
-  if (ret != 0)
+  if (ret != 0) {
     fprintf(params.outputFile,
             "Error: primme_svds returned with nonzero exit status: %d \n", ret);
-
-  fclose(fp);
+  }
+  if (fp != NULL) {
+    fclose(fp);
+  }
+  std::filesystem::path json_file =
+      (!algParams.primme_outputFile.empty()
+           ? algParams.primme_outputFile.filename()
+                 .stem()
+                 .replace_extension("json")
+                 .string()
+           : "primme.json");
+  save_primme_stats(json_file, evals, rnrms, &params.stats);
 }
 
 template <>
@@ -90,7 +136,10 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
     params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
   }
 
-  FILE* fp = fopen(algParams.outputfilename.c_str(), "w");
+  std::string filename = !algParams.primme_outputFile.empty()
+                             ? algParams.primme_outputFile.filename().string()
+                             : "primme.txt";
+  FILE* fp = fopen(filename.c_str(), "w");
   params.outputFile = fp;
 
   if (fp == NULL)
@@ -106,11 +155,14 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   Kokkos::fence();
   scalar_type time = timer.seconds();
 
-  if (ret != 0)
-    fprintf(params.outputFile,
-            "Error: primme_svds returned with nonzero exit status: %d \n", ret);
-
-  fclose(fp);
+  std::filesystem::path json_file =
+      (!algParams.primme_outputFile.empty()
+           ? algParams.primme_outputFile.filename()
+                 .stem()
+                 .replace_extension("json")
+                 .string()
+           : "primme.json");
+  save_primme_stats(json_file, evals, rnrms, &params.stats);
 }
 
 template <typename MatrixType>
@@ -144,7 +196,10 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType& matrix,
     params.matrixMatvec = svds_default_dense_matvec;
   }
 
-  FILE* fp = fopen(algParams.outputfilename.c_str(), "w");
+  std::string filename = !algParams.primme_outputFile.empty()
+                             ? algParams.primme_outputFile.filename().string()
+                             : "primme.txt";
+  FILE* fp = fopen(filename.c_str(), "w");
   params.outputFile = fp;
 
   if (fp == NULL)
@@ -161,11 +216,14 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType& matrix,
   Kokkos::fence();
   scalar_type time = timer.seconds();
 
-  if (ret != 0)
-    fprintf(params.outputFile,
-            "Error: primme_svds returned with nonzero exit status: %d \n", ret);
-
-  fclose(fp);
+  std::filesystem::path json_file =
+      (!algParams.primme_outputFile.empty()
+           ? algParams.primme_outputFile.filename()
+                 .stem()
+                 .replace_extension("json")
+                 .string()
+           : "primme.json");
+  save_primme_stats(json_file, svals, rnrms, &params.stats);
 }
 
 template <>

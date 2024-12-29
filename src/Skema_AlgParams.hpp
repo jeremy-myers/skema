@@ -32,10 +32,10 @@ struct AlgParams {
   bool isvd_dense_solver;
   bool isvd_initial_guess;
 
-  // ISVD: PRIMME options
+  // PRIMME options
+  std::filesystem::path primme_outputFile;
   double primme_eps;
-  double isvd_convtest_eps;
-  int isvd_convtest_skip;
+
   int primme_initSize;
   int primme_maxBasisSize;
   int primme_minRestartSize;
@@ -46,6 +46,10 @@ struct AlgParams {
   bool primme_locking;
   std::string primme_method;
   std::string primme_methodStage2;
+
+  // ISVD: PRIMME options
+  double isvd_convtest_eps;
+  int isvd_convtest_skip;
 
   // ISVD: Sampling options
   Skema::Sampler_Type::type isvd_sampler;
