@@ -58,7 +58,8 @@ void Skema::error(std::string s) {
 void Skema::AlgParams::print(std::ostream& out) const {
   out << "  rank = " << rank << std::endl;
   out << "  history file = "
-      << (!history_filename.empty() ? history_filename : "stdout") << std::endl;
+      << (!history_filename.empty() ? history_filename.string() : "stdout")
+      << std::endl;
   if (window > 0) {
     out << "  window = " << window << std::endl;
   }

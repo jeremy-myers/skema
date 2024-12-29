@@ -866,7 +866,7 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      if (algParams.hist) {
+      if (!algParams.history_filename.empty()) {
         sketch.save_history(algParams.history_filename);
       }
     } else {
@@ -898,7 +898,7 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      if (algParams.hist) {
+      if (!algParams.history_filename.empty()) {
         sketch.save_history(algParams.history_filename);
       }
     }
@@ -931,7 +931,7 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      if (algParams.hist) {
+      if (!algParams.history_filename.empty()) {
         sketch.save_history(algParams.history_filename);
       }
     } else {
@@ -963,7 +963,7 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      if (algParams.hist) {
+      if (!algParams.history_filename.empty()) {
         sketch.save_history(algParams.history_filename);
       }
     }
@@ -1021,7 +1021,7 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      if (algParams.hist) {
+      if (!algParams.history_filename.empty()) {
         sketch.save_history(algParams.history_filename);
       }
     } else {
@@ -1053,7 +1053,7 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      if (algParams.hist) {
+      if (!algParams.history_filename.empty()) {
         sketch.save_history(algParams.history_filename);
       }
     }

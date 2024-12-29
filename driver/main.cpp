@@ -169,7 +169,7 @@ int main(int argc, char* argv[]) {
         std::cout << "\n==================== Skema ====================";
         std::cout << "\n===============================================";
         std::cout << "\nOptions: ";
-        std::cout << "\n  input = " << inputfilename << std::endl;
+        std::cout << "\n  input = " << inputfilename.string() << std::endl;
         algParams.print(std::cout);
         std::cout << "==============================================="
                   << std::endl;

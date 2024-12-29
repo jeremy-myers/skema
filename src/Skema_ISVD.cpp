@@ -210,6 +210,10 @@ void isvd(const matrix_type& A, const AlgParams& algParams) {
   sketch.solve(A);
   sketch.compute_residuals(A);
 
+  if (!algParams.history_filename.empty()) {
+    sketch.save_history(algParams.history_filename);
+  }
+
   if (!algParams.debug_filename.empty()) {
     std::string fname;
 
@@ -234,7 +238,7 @@ void isvd(const crs_matrix_type& A, const AlgParams& algParams) {
   sketch.solve(A);
   sketch.compute_residuals(A);
 
-  if (algParams.hist) {
+  if (!algParams.history_filename.empty()) {
     sketch.save_history(algParams.history_filename);
   }
 
