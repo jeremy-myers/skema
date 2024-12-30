@@ -41,8 +41,8 @@ SketchySVD<MatrixType, DimReduxT>::SketchySVD(const AlgParams& algParams_)
                     "Phi",
                     algParams.debug,
                     algParams.debug_filename)),
-      Psi(DimReduxT(core,
-                    ncol,
+      Psi(DimReduxT(ncol,
+                    core,
                     algParams.seeds[3],
                     "Psi",
                     algParams.debug,
@@ -122,7 +122,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
 
   timer.reset();
   try {
-    U2 = Psi.lmap(&one, P, &zero, 'N', 'N');
+    U2 = Psi.lmap(&one, P, &zero, 'T', 'N');
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchysvd::low_rank_approx::lmap encountered an "
                  "exception: "
@@ -375,7 +375,7 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     X = Upsilon.lmap(&eta, H, &nu, 'N', 'N');
     Y = Omega.rmap(&eta, H, &nu, 'N', 'T');
     auto w = Phi.lmap(&eta, H, &nu, 'N', 'N');
-    Z = Psi.rmap(&eta, w, &nu, 'N', 'T');
+    Z = Psi.rmap(&eta, w, &nu, 'N', 'N');
 
     timings["update"]["upsilon"] += Upsilon.stats.map;
     timings["update"]["omega"] += Omega.stats.map;
@@ -416,7 +416,7 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     timings["update"]["phi"] += timer.seconds();
 
     timer.reset();
-    auto z = Psi.rmap(&eta, w, &nu, 'N', 'T');
+    auto z = Psi.rmap(&eta, w, &nu, 'N', 'N');
     timings["update"]["psi"] += timer.seconds();
 
     timer.reset();
