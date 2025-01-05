@@ -57,6 +57,33 @@ inline void mm(const char* mode,
   KokkosSparse::spmv(mode, *alpha, A, B, *beta, C);
 }
 
+inline void mm(const char* mode,
+               const scalar_type* alpha,
+               const crs_matrix_type& A,
+               const crs_matrix_type& B,
+               const scalar_type* beta,
+               crs_matrix_type& C) {
+  typedef typename crs_matrix_type::size_type size_type;
+  typedef typename crs_matrix_type::ordinal_type lno_t;
+  typedef typename crs_matrix_type::value_type scalar_t;
+  typedef typename crs_matrix_type::values_type::non_const_type scalar_view_t;
+
+  typedef KokkosKernels::Experimental::KokkosKernelsHandle<
+      size_type, lno_t, scalar_t, execution_space, memory_space, memory_space>
+      KernelHandle;
+
+  KernelHandle kh;
+  kh.set_team_work_size(16);
+  kh.set_dynamic_scheduling(true);
+
+  kh.create_spgemm_handle(KokkosSparse::SPGEMM_KK);
+  {
+    KokkosSparse::spgemm_symbolic(kh, A, false, B, false, C);
+    KokkosSparse::spgemm_numeric(kh, A, false, B, false, C);
+  }
+  kh.destroy_spgemm_handle();
+}
+
 inline matrix_type transpose(const matrix_type& input) {
   const size_type input_nrow{static_cast<size_type>(input.extent(0))};
   const size_type input_ncol{static_cast<size_type>(input.extent(1))};

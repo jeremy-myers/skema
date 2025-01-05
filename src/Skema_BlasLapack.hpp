@@ -260,7 +260,7 @@ inline void chol(matrix_type& A) {
     msg +=
         " is not positive definite, and the factorization could not "
         "be completed.";
-    throw std::runtime_error("linalg::chol: " + msg);
+    throw std::runtime_error(msg);    
   }
 
   for (auto j = 0; j < n; ++j) {

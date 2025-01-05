@@ -98,9 +98,7 @@ class SketchySPD {
             const matrix_type&,
             const range_type = std::make_pair<size_type>(0, 0)) -> void;
 
-  auto update(const MatrixType&,
-              const range_type idx = std::make_pair<size_type>(0, 0))
-      -> matrix_type;
+  auto update(const MatrixType&) -> matrix_type;
 };
 
 // Driver

@@ -22,9 +22,9 @@ SketchySVD<MatrixType, DimReduxT>::SketchySVD(const AlgParams& algParams_)
                                                     : algParams_.sketch_core),
       /* Later on we need to specialize the ops for DimRedux maps depending on
          the type of both the input matrix and the DimRedux maps. In the cases
-         where the input is sparse and the DimRedux is dense, we need to
-         initialize the DimRedux maps to be transposed. When the ops are called,
-         they check for this in update()*/
+         where the input is sparse we may need to
+         initialize some or all DimRedux maps to be transposed. When the ops are
+         called, they check for this in update()*/
       Upsilon(DimReduxT(
           (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
               ? nrow
@@ -39,20 +39,25 @@ SketchySVD<MatrixType, DimReduxT>::SketchySVD(const AlgParams& algParams_)
           (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
               ? true
               : false)),
-      Omega(DimReduxT(
-          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
-              ? ncol
-              : range,
-          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
-              ? range
-              : ncol,
-          algParams_.seeds[1],
-          "Omega",
-          algParams_.debug,
-          algParams_.debug_filename,
-          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
-              ? true
-              : false)),
+      Omega(DimReduxT((algParams_.issparse &&
+                       (algParams_.dim_redux == DimRedux_Map::GAUSS ||
+                        algParams_.dim_redux == DimRedux_Map::SPARSE_SIGN))
+                          ? ncol
+                          : range,
+                      (algParams_.issparse &&
+                       (algParams_.dim_redux == DimRedux_Map::GAUSS ||
+                        algParams_.dim_redux == DimRedux_Map::SPARSE_SIGN))
+                          ? range
+                          : ncol,
+                      algParams_.seeds[1],
+                      "Omega",
+                      algParams_.debug,
+                      algParams_.debug_filename,
+                      (algParams_.issparse &&
+                       (algParams_.dim_redux == DimRedux_Map::GAUSS ||
+                        algParams_.dim_redux == DimRedux_Map::SPARSE_SIGN))
+                          ? true
+                          : false)),
       Phi(DimReduxT(
           (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
               ? nrow
@@ -67,20 +72,25 @@ SketchySVD<MatrixType, DimReduxT>::SketchySVD(const AlgParams& algParams_)
           (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
               ? true
               : false)),
-      Psi(DimReduxT(
-          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
-              ? ncol
-              : core,
-          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
-              ? core
-              : ncol,
-          algParams_.seeds[3],
-          "Psi",
-          algParams_.debug,
-          algParams_.debug_filename,
-          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
-              ? true
-              : false)),
+      Psi(DimReduxT((algParams_.issparse &&
+                     (algParams_.dim_redux == DimRedux_Map::GAUSS ||
+                      algParams_.dim_redux == DimRedux_Map::SPARSE_SIGN))
+                        ? ncol
+                        : core,
+                    (algParams_.issparse &&
+                     (algParams_.dim_redux == DimRedux_Map::GAUSS ||
+                      algParams_.dim_redux == DimRedux_Map::SPARSE_SIGN))
+                        ? core
+                        : ncol,
+                    algParams_.seeds[3],
+                    "Psi",
+                    algParams_.debug,
+                    algParams_.debug_filename,
+                    (algParams_.issparse &&
+                     (algParams_.dim_redux == DimRedux_Map::GAUSS ||
+                      algParams_.dim_redux == DimRedux_Map::SPARSE_SIGN))
+                        ? true
+                        : false)),
       /* Done specializing the DimRedux maps*/
       eta(algParams_.sketch_eta),
       nu(algParams_.sketch_nu),
@@ -241,7 +251,6 @@ auto SketchySVD<matrix_type, SparseSignDimRedux>::update(
   auto wt = Impl::transpose(w);
   auto zt = Psi.lmap(&one, wt, &zero, 'N', 'N');
   auto z = Impl::transpose(zt);
-
   return std::tuple(x, y, z);
 }
 
@@ -273,10 +282,18 @@ auto SketchySVD<crs_matrix_type, SparseSignDimRedux>::update(
     const crs_matrix_type& A,
     const range_type row_idxs)
     -> std::tuple<matrix_type, matrix_type, matrix_type> {
+  // Here, we initialized Omega & Psi DimRedux maps to be transposed
+  // X = Upsilon(:, row_idxs) * H
+  // Y = H * OmegaT
+  // W = Phi(:, row_idxs) * H
+  // Z = W * PsiT
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  std::cout << "Not implemented yet." << std::endl;
-  exit(1);
+  auto x = Upsilon.lmap(&one, A, &zero, 'N', 'N', row_idxs);
+  auto y = Omega.rmap(&one, A, &zero, 'N', 'N');
+  auto w = Phi.lmap(&one, A, &zero, 'N', 'N', row_idxs);
+  auto z = Psi.rmap(&one, w, &zero, 'N', 'N');
+  return std::tuple(x, y, z);
 }
 
 template <typename MatrixType, typename DimReduxT>
@@ -707,48 +724,42 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     2. Sparse-Sparse operations do not support either operand to be transposed
 */
 template <>
-auto SketchySPD<matrix_type, GaussDimRedux>::update(const matrix_type& A,
-                                                    const range_type row_idxs)
+auto SketchySPD<matrix_type, GaussDimRedux>::update(const matrix_type& A)
     -> matrix_type {
   // Dense-Dense operations, no constraints on operator order or transpose mode,
   // do Y update as desired.
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  return Omega.rmap<matrix_type>(&one, A, &zero, 'N', 'N', row_idxs);
+  return Omega.rmap(&one, A, &zero, 'N', 'N');
 }
 
 template <>
-auto SketchySPD<matrix_type, SparseSignDimRedux>::update(
-    const matrix_type& A,
-    const range_type row_idxs) -> matrix_type {
+auto SketchySPD<matrix_type, SparseSignDimRedux>::update(const matrix_type& A)
+    -> matrix_type {
   // Y = H * Omega^T = (Omega * H^T)^T
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
   auto At = Impl::transpose(A);
-  auto ret = Omega.lmap<matrix_type>(&one, At, &zero, 'T', 'N', row_idxs);
+  auto ret = Omega.lmap(&one, At, &zero, 'T', 'N');
   return Impl::transpose(ret);
 }
 
 template <>
 auto SketchySPD<crs_matrix_type, GaussDimRedux>::update(
-    const crs_matrix_type& A,
-    const range_type row_idxs) -> matrix_type {
+    const crs_matrix_type& A) -> matrix_type {
   // Sparse-Dense operation, DimRedux is in Normal mode ("N") no constraints on
   // operator order or transpose mode, do Y update as desired.
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  return Omega.rmap<crs_matrix_type>(&one, A, &zero, 'N', 'N', row_idxs);
+  return Omega.rmap(&one, A, &zero, 'N', 'N');
 }
 
 template <>
 auto SketchySPD<crs_matrix_type, SparseSignDimRedux>::update(
-    const crs_matrix_type& A,
-    const range_type row_idxs) -> matrix_type {
+    const crs_matrix_type& A) -> matrix_type {
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  std::cout << "Not implemented yet." << std::endl;
-  exit(1);
-  //   return Omega.rmap<crs_matrix_type>(&one, A, &zero, 'N', 'N', row_idxs);
+  return Omega.rmap(&one, A, &zero, 'N', 'N');
 }
 
 template <typename MatrixType, typename DimReduxT>
@@ -846,12 +857,15 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx()
   timings["approx"]["update"] += timer.seconds();
 
   // C = chol( (B + B^T) / 2)
+  std::cout << "C = " << std::endl;
+  Impl::print(C);
   try {
     linalg::chol(C);
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::chol encountered an "
                  "exception: "
               << e.what() << std::endl;
+    exit(EXIT_FAILURE);
   }
   Kokkos::fence();
   timings["approx"]["dpotrf"] = timer.seconds();
@@ -1220,10 +1234,66 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
       }
     }
   } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
-    std::cout << "DimRedux: Sparse Sign maps with sparse input is not "
-                 "supported. Make another selection."
-              << std::endl;
-    exit(1);
+    if ((algParams.issymmetric) && (!algParams.force_three_sketch)) {
+      SketchySPD<crs_matrix_type, SparseSignDimRedux> sketch(algParams);
+      try {
+        sketch.linear_update(matrix);
+      } catch (const std::exception& e) {
+        std::cout << "Skema::sketchyspd::linear_update encountered an "
+                     "exception: "
+                  << e.what() << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      try {
+        std::tie<matrix_type, vector_type>(U, S) = sketch.low_rank_approx();
+      } catch (const std::exception& e) {
+        std::cout << "Skema::sketchyspd::low_rank_approx encountered an "
+                     "exception: "
+                  << e.what() << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      try {
+        sketch.compute_residuals(matrix);
+      } catch (const std::exception& e) {
+        std::cout << "Skema::sketchyspd::compute_residuals encountered an "
+                     "exception: "
+                  << e.what() << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      if (!algParams.history_filename.empty()) {
+        sketch.save_history(algParams.history_filename);
+      }
+    } else {
+      SketchySVD<crs_matrix_type, SparseSignDimRedux> sketch(algParams);
+      try {
+        sketch.linear_update(matrix);
+      } catch (const std::exception& e) {
+        std::cout << "Skema::sketchysvd::linear_update encountered an "
+                     "exception: "
+                  << e.what() << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      try {
+        std::tie<matrix_type, vector_type, matrix_type>(U, S, V) =
+            sketch.low_rank_approx();
+      } catch (const std::exception& e) {
+        std::cout << "Skema::sketchysvd::low_rank_approx encountered an "
+                     "exception: "
+                  << e.what() << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      try {
+        sketch.compute_residuals(matrix);
+      } catch (const std::exception& e) {
+        std::cout << "Skema::sketchysvd::compute_residuals encountered an "
+                     "exception: "
+                  << e.what() << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      if (!algParams.history_filename.empty()) {
+        sketch.save_history(algParams.history_filename);
+      }
+    }
   } else {
     std::cout << "DimRedux: Invalid option. Make another selection."
               << std::endl;
