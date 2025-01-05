@@ -20,33 +20,71 @@ SketchySVD<MatrixType, DimReduxT>::SketchySVD(const AlgParams& algParams_)
                 : algParams_.sketch_range),
       core(algParams_.sketch_core < algParams_.rank ? 2 * range + 1
                                                     : algParams_.sketch_core),
+      /* Later on we need to specialize the ops for DimRedux maps depending on
+         the type of both the input matrix and the DimRedux maps. In the cases
+         where the input is sparse and the DimRedux is dense, we need to
+         initialize the DimRedux maps to be transposed. When the ops are called,
+         they check for this in update()*/
+      Upsilon(DimReduxT(
+          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
+              ? nrow
+              : range,
+          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
+              ? range
+              : nrow,
+          algParams_.seeds[0],
+          "Upsilon",
+          algParams_.debug,
+          algParams_.debug_filename,
+          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
+              ? true
+              : false)),
+      Omega(DimReduxT(
+          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
+              ? ncol
+              : range,
+          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
+              ? range
+              : ncol,
+          algParams_.seeds[1],
+          "Omega",
+          algParams_.debug,
+          algParams_.debug_filename,
+          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
+              ? true
+              : false)),
+      Phi(DimReduxT(
+          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
+              ? nrow
+              : core,
+          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
+              ? core
+              : nrow,
+          algParams_.seeds[2],
+          "Phi",
+          algParams_.debug,
+          algParams_.debug_filename,
+          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
+              ? true
+              : false)),
+      Psi(DimReduxT(
+          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
+              ? ncol
+              : core,
+          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
+              ? core
+              : ncol,
+          algParams_.seeds[3],
+          "Psi",
+          algParams_.debug,
+          algParams_.debug_filename,
+          (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
+              ? true
+              : false)),
+      /* Done specializing the DimRedux maps*/
       eta(algParams_.sketch_eta),
       nu(algParams_.sketch_nu),
       algParams(algParams_),
-      Upsilon(DimReduxT(range,
-                        nrow,
-                        algParams.seeds[0],
-                        "Upsilon",
-                        algParams.debug,
-                        algParams.debug_filename)),
-      Omega(DimReduxT(range,
-                      ncol,
-                      algParams.seeds[1],
-                      "Omega",
-                      algParams.debug,
-                      algParams.debug_filename)),
-      Phi(DimReduxT(core,
-                    nrow,
-                    algParams.seeds[2],
-                    "Phi",
-                    algParams.debug,
-                    algParams.debug_filename)),
-      Psi(DimReduxT(ncol,
-                    core,
-                    algParams.seeds[3],
-                    "Psi",
-                    algParams.debug,
-                    algParams.debug_filename)),
       window(getWindow<MatrixType>(algParams)) {
   timings["init"]["upsilon"] = 0.0;
   timings["init"]["omega"] = 0.0;
@@ -67,7 +105,182 @@ SketchySVD<MatrixType, DimReduxT>::SketchySVD(const AlgParams& algParams_)
 };
 
 template <typename MatrixType, typename DimReduxT>
-auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
+auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
+    -> void {
+  Kokkos::Timer timer;
+  size_type wsize{algParams.window};
+  range_type idx;
+
+  timings["init"]["upsilon"] += Upsilon.stats.initialize;
+  timings["init"]["omega"] += Omega.stats.initialize;
+  timings["init"]["phi"] += Phi.stats.initialize;
+  timings["init"]["psi"] += Psi.stats.initialize;
+
+  if (wsize == nrow) {
+    idx = std::make_pair(0, nrow);
+
+    timer.reset();
+    auto H = window->get(A, idx);
+    timings["update"]["window"] += timer.seconds();
+
+    std::tie(X, Y, Z) = update(H);
+
+    timings["update"]["upsilon"] += Upsilon.stats.map;
+    timings["update"]["omega"] += Omega.stats.map;
+    timings["update"]["phi"] += Phi.stats.map;
+    timings["update"]["psi"] += Psi.stats.map;
+
+    return;
+  }
+
+  X = matrix_type("X", range, ncol);
+  Y = matrix_type("Y", nrow, range);
+  Z = matrix_type("Z", core, core);
+
+  /* Main loop */
+  matrix_type x;
+  matrix_type y;
+  matrix_type z;
+  ordinal_type ucnt{0};  // window count
+  for (auto irow = 0; irow < nrow; irow += wsize) {
+    if (irow + wsize < nrow) {
+      idx = std::make_pair(irow, irow + wsize);
+    } else {
+      idx = std::make_pair(irow, nrow);
+      wsize = idx.second - idx.first;
+    }
+
+    timer.reset();
+    auto H = window->get(A, idx);
+    timings["update"]["window"] += timer.seconds();
+
+    std::tie(x, y, z) = update(H, idx);
+
+    timings["update"]["upsilon"] += Upsilon.stats.map;
+    timings["update"]["omega"] += Omega.stats.map;
+    timings["update"]["phi"] += Phi.stats.map;
+    timings["update"]["psi"] += Psi.stats.map;
+
+    timer.reset();
+    axpy(nu, X, eta, x);
+    axpy(nu, Z, eta, z);
+    axpy(nu, Y, eta, y, idx);
+    timings["update"]["daxpy"] += timer.seconds();
+
+    ++ucnt;
+
+    if (algParams.debug) {
+      std::cout << "H = \n";
+      Impl::print(H);
+
+      std::cout << "X = \n";
+      Impl::print(X);
+
+      std::cout << "Y = \n";
+      Impl::print(Y);
+
+      std::cout << "Z = \n";
+      Impl::print(Z);
+    }
+  }
+
+  if (!algParams.debug_filename.empty()) {
+    std::string fname;
+    fname = algParams.debug_filename.filename().stem().string() + "_X.txt";
+    Impl::write(X, fname.c_str());
+
+    fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
+    Impl::write(Y, fname.c_str());
+
+    fname = algParams.debug_filename.filename().stem().string() + "_Z.txt";
+    Impl::write(Z, fname.c_str());
+  }
+};
+
+/*
+  Here, we specialize the linear update for dense/sparse inputs and dense/sparse
+  DimRedux maps. We do this is because of the following constraints:
+    1. Dense-Sparse operations require the sparse operand on the LHS, dense RHS
+       transpose not supported
+    2. Sparse-Sparse operations do not support either operand to be transposed
+*/
+template <>
+auto SketchySVD<matrix_type, GaussDimRedux>::update(const matrix_type& A,
+                                                    const range_type row_idxs)
+    -> std::tuple<matrix_type, matrix_type, matrix_type> {
+  // Dense-Dense operations, no constraints on operator order or transpose mode,
+  // do X,Y,W,Z update as desired.
+  constexpr scalar_type one{1.0};
+  constexpr scalar_type zero{0.0};
+  auto x = Upsilon.lmap(&one, A, &zero, 'N', 'N', row_idxs);
+  auto y = Omega.rmap(&one, A, &zero, 'N', 'T', row_idxs);
+  auto w = Phi.lmap(&one, A, &zero, 'N', 'N', row_idxs);
+  auto z = Psi.rmap(&one, w, &zero, 'N', 'T');
+  return std::tuple(x, y, z);
+}
+
+template <>
+auto SketchySVD<matrix_type, SparseSignDimRedux>::update(
+    const matrix_type& A,
+    const range_type row_idxs)
+    -> std::tuple<matrix_type, matrix_type, matrix_type> {
+  // X = Upsilon(:,row_idxs) * H
+  // Y = H * Omega^T = (Omega * H^T)^T
+  // W = Phi(:,row_idxs) * H
+  // Z = W * Psi^T = (Psi*W^T)^T
+
+  // Deviate from X,Y,W,Z order so that the temporaries will fall out of scope &
+  // free up space
+  constexpr scalar_type one{1.0};
+  constexpr scalar_type zero{0.0};
+  auto At = Impl::transpose(A);
+  auto yt = Omega.lmap(&one, At, &zero, 'N', 'N');
+  auto y = Impl::transpose(yt);
+  auto x = Upsilon.lmap(&one, A, &zero, 'N', 'N', row_idxs);
+  auto w = Phi.lmap(&one, A, &zero, 'N', 'N', row_idxs);
+  auto wt = Impl::transpose(w);
+  auto zt = Psi.lmap(&one, wt, &zero, 'N', 'N');
+  auto z = Impl::transpose(zt);
+
+  return std::tuple(x, y, z);
+}
+
+template <>
+auto SketchySVD<crs_matrix_type, GaussDimRedux>::update(
+    const crs_matrix_type& A,
+    const range_type row_idxs)
+    -> std::tuple<matrix_type, matrix_type, matrix_type> {
+  // Here, we initialized all DimRedux maps to be transposed
+  // X = (H^T * UpsilonT(:,row_idxs))^T, where UpsilonT is Upsilon &&
+  // init_transposed is true
+  // Y = H * OmegaT
+  // W^T = H^T * PhiT(:,row_idxs)
+  // Z = W * PsiT
+  // Deviate from X,Y,W,Z order so that the temporaries will fall out of scope &
+  // free up space
+  constexpr scalar_type one{1.0};
+  constexpr scalar_type zero{0.0};
+  auto xt = Upsilon.rmap(&one, A, &zero, 'T', 'N', row_idxs);
+  auto x = Impl::transpose(xt);
+  auto y = Omega.rmap(&one, A, &zero, 'N', 'N');
+  auto wt = Phi.rmap(&one, A, &zero, 'T', 'N', row_idxs);
+  auto z = Psi.rmap(&one, wt, &zero, 'T', 'N');
+  return std::tuple(x, y, z);
+}
+
+template <>
+auto SketchySVD<crs_matrix_type, SparseSignDimRedux>::update(
+    const crs_matrix_type& A,
+    const range_type row_idxs)
+    -> std::tuple<matrix_type, matrix_type, matrix_type> {
+  constexpr scalar_type one{1.0};
+  constexpr scalar_type zero{0.0};
+  std::cout << "Not implemented yet." << std::endl;
+  exit(1);
+}
+
+template <typename MatrixType, typename DimReduxT>
+auto SketchySVD<MatrixType, DimReduxT>::initial_approx() -> void {
   char N{'N'};
   char T{'T'};
   const scalar_type one{1.0};
@@ -84,7 +297,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   try {
     linalg::qr(P, ncol, range);
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::low_rank_approx::qr encountered an "
+    std::cout << "Skema::sketchysvd::initial_approx::qr encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
@@ -97,7 +310,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   try {
     linalg::qr(Y, nrow, range);
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::low_rank_approx::qr encountered an "
+    std::cout << "Skema::sketchysvd::initial_approx::qr encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
@@ -113,7 +326,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   try {
     U1 = Phi.lmap(&one, Y, &zero, 'N', 'N');
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::low_rank_approx::lmap encountered an "
+    std::cout << "Skema::sketchysvd::initial_approx::lmap encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
@@ -122,9 +335,9 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
 
   timer.reset();
   try {
-    U2 = Psi.lmap(&one, P, &zero, 'T', 'N');
+    U2 = Psi.lmap(&one, P, &zero, 'N', 'N');
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::low_rank_approx::lmap encountered an "
+    std::cout << "Skema::sketchysvd::initial_approx::lmap encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
@@ -136,7 +349,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   try {
     linalg::qr(U1, T1, core, range);
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::low_rank_approx::qr encountered an "
+    std::cout << "Skema::sketchysvd::initial_approx::qr encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
@@ -148,7 +361,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   try {
     linalg::qr(U2, T2, core, range);
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::low_rank_approx::qr encountered an "
+    std::cout << "Skema::sketchysvd::initial_approx::qr encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
@@ -162,7 +375,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   try {
     Impl::mm(&T, &N, &one, U1, Z, &zero, Z1);
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::low_rank_approx::dgemm encountered an "
+    std::cout << "Skema::sketchysvd::initial_approx::dgemm encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
@@ -175,7 +388,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   try {
     Impl::mm(&N, &N, &one, Z1, U2, &zero, Z2);
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::low_rank_approx::dgemm encountered an "
+    std::cout << "Skema::sketchysvd::initial_approx::dgemm encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
@@ -187,7 +400,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   try {
     linalg::ls(&N, T1, Z2, range, range, range);
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::low_rank_approx::ls encountered an "
+    std::cout << "Skema::sketchysvd::initial_approx::ls encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
@@ -201,7 +414,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
   try {
     linalg::ls(&N, T2, Z2t, range, range, range);
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::low_rank_approx::ls encountered an "
+    std::cout << "Skema::sketchysvd::initial_approx::ls encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
@@ -215,8 +428,9 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx() -> void {
 };
 
 template <typename MatrixType, typename DimReduxT>
-void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx() {
-  // [Q,C,P] = low_rank_approx();
+auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx()
+    -> std::tuple<matrix_type, vector_type, matrix_type> {
+  // [Q,C,P] = initial_approx();
   // [U,S,V] = svd(C);
   // S = S(1:r,1:r);
   // U = U(:,1:r);
@@ -238,8 +452,8 @@ void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx() {
 
   Kokkos::Timer timer;
 
-  // [Y,Z,X] = low_rank_approx(U,S,V)
-  low_rank_approx();
+  // [Y,Z,X] = initial_approx(U,S,V)
+  initial_approx();
 
   // [uu,ss,vv] = svd(Z)
   timer.reset();
@@ -249,7 +463,7 @@ void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx() {
   try {
     linalg::svd(Z, range, range, Uc, sc, Vc);
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::fixed_rank_approx::svd encountered an "
+    std::cout << "Skema::sketchysvd::low_rank_approx::svd encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
@@ -262,7 +476,7 @@ void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx() {
   try {
     Impl::mm(&N, &N, &one, Y, Uc, &zero, QUc);
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::fixed_rank_approx::dgemm encountered an "
+    std::cout << "Skema::sketchysvd::low_rank_approx::dgemm encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
@@ -275,7 +489,7 @@ void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx() {
   try {
     Impl::mm(&N, &T, &one, X, Vc, &zero, PVc);
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::fixed_rank_approx::dgemm encountered an "
+    std::cout << "Skema::sketchysvd::low_rank_approx::dgemm encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
@@ -288,6 +502,8 @@ void SketchySVD<MatrixType, DimReduxT>::fixed_rank_approx() {
   svals = Kokkos::subview(sc, rlargest);
   vvecs = Kokkos::subview(PVc, Kokkos::ALL(), rlargest);
   Kokkos::fence();
+
+  return std::tuple<matrix_type, vector_type, matrix_type>(uvecs, svals, vvecs);
 };
 
 template <typename MatrixT, typename DimReduxT>
@@ -354,108 +570,6 @@ auto SketchySVD<MatrixType, DimReduxT>::compute_residuals(const MatrixType& A)
 }
 
 template <typename MatrixType, typename DimReduxT>
-auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
-    -> void {
-  Kokkos::Timer timer;
-  size_type wsize{algParams.window};
-  range_type idx;
-
-  timings["init"]["upsilon"] += Upsilon.stats.initialize;
-  timings["init"]["omega"] += Omega.stats.initialize;
-  timings["init"]["phi"] += Phi.stats.initialize;
-  timings["init"]["psi"] += Psi.stats.initialize;
-
-  if (wsize == nrow) {
-    idx = std::make_pair(0, nrow);
-
-    timer.reset();
-    auto H = window->get(A, idx);
-    timings["update"]["window"] += timer.seconds();
-
-    X = Upsilon.lmap(&eta, H, &nu, 'N', 'N');
-    Y = Omega.rmap(&eta, H, &nu, 'N', 'T');
-    auto w = Phi.lmap(&eta, H, &nu, 'N', 'N');
-    Z = Psi.rmap(&eta, w, &nu, 'N', 'N');
-
-    timings["update"]["upsilon"] += Upsilon.stats.map;
-    timings["update"]["omega"] += Omega.stats.map;
-    timings["update"]["phi"] += Phi.stats.map;
-    timings["update"]["psi"] += Psi.stats.map;
-
-    return;
-  }
-
-  X = matrix_type("X", range, ncol);
-  Y = matrix_type("Y", nrow, range);
-  Z = matrix_type("Z", core, core);
-
-  /* Main loop */
-  ordinal_type ucnt{0};  // window count
-  for (auto irow = 0; irow < nrow; irow += wsize) {
-    if (irow + wsize < nrow) {
-      idx = std::make_pair(irow, irow + wsize);
-    } else {
-      idx = std::make_pair(irow, nrow);
-      wsize = idx.second - idx.first;
-    }
-
-    timer.reset();
-    auto H = window->get(A, idx);
-    timings["update"]["window"] += timer.seconds();
-
-    timer.reset();
-    auto x = Upsilon.lmap(&eta, H, &nu, 'N', 'N', idx);
-    timings["update"]["upsilon"] += timer.seconds();
-
-    timer.reset();
-    auto y = Omega.rmap(&eta, H, &nu, 'N', 'T', idx);
-    timings["update"]["omega"] += timer.seconds();
-
-    timer.reset();
-    auto w = Phi.lmap(&eta, H, &nu, 'N', 'N', idx);
-    timings["update"]["phi"] += timer.seconds();
-
-    timer.reset();
-    auto z = Psi.rmap(&eta, w, &nu, 'N', 'N');
-    timings["update"]["psi"] += timer.seconds();
-
-    timer.reset();
-    axpy(nu, X, eta, x);
-    axpy(nu, Z, eta, z);
-    axpy(nu, Y, eta, y, idx);
-    timings["update"]["daxpy"] += timer.seconds();
-
-    ++ucnt;
-
-    if (algParams.debug) {
-      std::cout << "H = \n";
-      Impl::print(H);
-
-      std::cout << "X = \n";
-      Impl::print(X);
-
-      std::cout << "Y = \n";
-      Impl::print(Y);
-
-      std::cout << "Z = \n";
-      Impl::print(Z);
-    }
-  }
-
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-    fname = algParams.debug_filename.filename().stem().string() + "_X.txt";
-    Impl::write(X, fname.c_str());
-
-    fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
-    Impl::write(Y, fname.c_str());
-
-    fname = algParams.debug_filename.filename().stem().string() + "_Z.txt";
-    Impl::write(Z, fname.c_str());
-  }
-};
-
-template <typename MatrixType, typename DimReduxT>
 auto SketchySVD<MatrixType, DimReduxT>::save_history(
     std::filesystem::path fname) -> void {
   // Write the final history to file or stdout
@@ -515,202 +629,8 @@ SketchySPD<MatrixType, DimReduxT>::SketchySPD(const AlgParams& algParams_)
 };
 
 template <typename MatrixType, typename DimReduxT>
-auto SketchySPD<MatrixType, DimReduxT>::save_history(
-    std::filesystem::path fname) -> void {
-  // Write the final history to file or stdout
-  nlohmann::json hist(timings);
-
-  // containers of non-integral types need special treatement
-  std::vector<scalar_type> s(rank);
-  std::vector<scalar_type> r(rank);
-  for (auto i = 0; i < rank; ++i) {
-    s[i] = svals(i);
-    r[i] = rnrms(i);
-  }
-  nlohmann::json j_svals(s);
-  nlohmann::json j_rnrms(r);
-  hist["svals"] = j_svals;
-  hist["rnrms"] = j_rnrms;
-
-  if (!fname.filename().empty()) {
-    std::ofstream f;
-    f.open(fname.filename());
-    f << std::setw(4) << hist << std::endl;
-  } else {
-    std::cout << std::setw(4) << hist << std::endl;
-  }
-}
-
-template <typename MatrixType, typename DimReduxT>
-void SketchySPD<MatrixType, DimReduxT>::fixed_rank_psd_approx() {
-  // Numerically stable Fixed-Rank Nyström Approximation. Instead of
-  // approximating the psd matrix A directly, we approximate the shifted matrix
-  // Aν = A + νI and then remove the shift.
-  if (algParams.print_level > 0)
-    std::cout << "\nComputing fixed-rank PSD approximation" << std::endl;
-
-  Kokkos::Timer timer;
-  scalar_type time{0.0};
-  scalar_type total_time{0.0};
-
-  const char N{'N'};
-  const char T{'T'};
-  const scalar_type one{1.0};
-  const scalar_type zero{0.0};
-  const int print_level{algParams.print_level};
-  const bool debug{algParams.debug};
-
-  // Construct the shifted sketch Yν = Y + νΩ.
-  // Compute nu = machine_eps * norm(Y)
-  // Here copy Y because nrm2 overwrites
-  timer.reset();
-  matrix_type Y_copy("Y_copy", nrow, range);
-  Kokkos::deep_copy(Y_copy, Y);
-  scalar_type nu;
-  try {
-    nu = std::numeric_limits<scalar_type>::epsilon() * linalg::nrm2(Y_copy);
-  } catch (const std::exception& e) {
-    std::cout
-        << "Skema::sketchyspd::fixed_rank_psd_approx::norm2 encountered an "
-           "exception: "
-        << e.what() << std::endl;
-  }
-  Kokkos::fence();
-  timings["approx"]["norm2"] += timer.seconds();
-  if (debug) {
-    std::cout << std::setprecision(16) << "norm(Y) = " << nu << ", eta = " << nu
-              << std::endl;
-  }
-
-  // Construct shifted sketch
-  timer.reset();
-  try {
-    Omega.axpy(nu, Y);
-  } catch (const std::exception& e) {
-    std::cout
-        << "Skema::sketchyspd::fixed_rank_psd_approx::axpy encountered an "
-           "exception: "
-        << e.what() << std::endl;
-  }
-  Kokkos::fence();
-  timings["approx"]["daxpy"] += timer.seconds();
-  if (debug) {
-    std::cout << "Y = Y + eta Omega" << std::endl;
-    Impl::print(Y);
-  }
-
-  // Form the matrix B = Ω∗Yν
-  timer.reset();
-  auto Yt = Impl::transpose(Y);
-  matrix_type B;
-  try {
-    B = Omega.lmap(&one, Y, &zero, 'T', 'N');
-  } catch (const std::exception& e) {
-    std::cout
-        << "Skema::sketchyspd::fixed_rank_psd_approx::lmap encountered an "
-           "exception: "
-        << e.what() << std::endl;
-  }
-  Kokkos::fence();
-  timings["approx"]["omega"] += timer.seconds();
-  if (debug) {
-    std::cout << "B = Omega^T * Y = " << std::endl;
-    Impl::print(B);
-  }
-
-  // Compute a Cholesky decomposition B = CC^*
-  timer.reset();
-  auto Bt = Impl::transpose(B);
-  matrix_type C("BpBt", range, range);
-  // Force symmetry
-  try {
-    KokkosBlas::update(0.5, B, 0.5, Bt, 0.0, C);
-  } catch (const std::exception& e) {
-    std::cout
-        << "Skema::sketchyspd::fixed_rank_psd_approx::update encountered an "
-           "exception: "
-        << e.what() << std::endl;
-  }
-  Kokkos::fence();
-  timings["approx"]["update"] += timer.seconds();
-
-  // C = chol( (B + B^T) / 2)
-  try {
-    linalg::chol(C);
-  } catch (const std::exception& e) {
-    std::cout
-        << "Skema::sketchyspd::fixed_rank_psd_approx::chol encountered an "
-           "exception: "
-        << e.what() << std::endl;
-  }
-  Kokkos::fence();
-  timings["approx"]["dpotrf"] = timer.seconds();
-  if (debug)
-    Impl::print(C);
-
-  // Compute E = YνC^{−1} by back-substitution
-  // Least squares problem Y / C
-  // W = Y/C; MATLAB: (C'\Y')'; / is MATLAB mldivide(C',Y')'
-  timer.reset();
-  try {
-    linalg::ls(&T, C, Yt, range, range, Yt.extent(1));
-  } catch (const std::exception& e) {
-    std::cout << "Skema::sketchyspd::fixed_rank_psd_approx::ls encountered an "
-                 "exception: "
-              << e.what() << std::endl;
-  }
-  Kokkos::fence();
-  timings["approx"]["dgels"] += timer.seconds();
-  Y = Impl::transpose(Yt);
-  time = timer.seconds();
-
-  // Compute the (thin) singular value decomposition E = U ΣV^*
-  const size_type mw{Y.extent(0)};
-  const size_type nw{Y.extent(1)};
-  const size_type min_mnw{std::min(mw, nw)};
-
-  matrix_type Uwy("Uwy", mw, min_mnw);
-  vector_type Swy("Swy", min_mnw);
-  matrix_type Vwy("Vwy", min_mnw, nw);  // transpose
-  timer.reset();
-  try {
-    linalg::svd(Y, mw, nw, Uwy, Swy, Vwy);
-  } catch (const std::exception& e) {
-    std::cout << "Skema::sketchyspd::fixed_rank_psd_approx::svd encountered an "
-                 "exception: "
-              << e.what() << std::endl;
-  }
-  timings["approx"]["dgesvd"] += timer.seconds();
-  total_time += time;
-
-  // Truncate to rank r
-  timer.reset();
-  range_type rlargest = std::make_pair<size_type>(0, rank);
-  uvecs = Kokkos::subview(Uwy, Kokkos::ALL(), rlargest);
-
-  // Sr = S(1:r, 1:r);
-  svals = Kokkos::subview(Swy, rlargest);
-
-  // Square to get eigenvalues; remove shift
-  for (auto rr = 0; rr < rank; ++rr) {
-    scalar_type remove_shift = svals(rr) * svals(rr) - nu;
-    svals(rr) = std::max(0.0, remove_shift);
-  }
-};
-
-template <typename MatrixType, typename DimReduxT>
-auto SketchySPD<MatrixType, DimReduxT>::compute_residuals(const MatrixType& A)
-    -> void {  // Compute final residuals
-  double time{0.0};
-  Kokkos::Timer timer;
-  rnrms = residuals(A, uvecs, svals, rank, algParams, window);
-  time = timer.seconds();
-  std::cout << "\nCompute residuals: " << time << std::endl;
-}
-
-template <typename MatrixType, typename DimReduxT>
-auto SketchySPD<MatrixType, DimReduxT>::nystrom_linear_update(
-    const MatrixType& A) -> void {
+auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
+    -> void {
   double time{0.0};
   Kokkos::Timer timer;
   size_type wsize{algParams.window};
@@ -726,7 +646,7 @@ auto SketchySPD<MatrixType, DimReduxT>::nystrom_linear_update(
     timings["update"]["window"] += timer.seconds();
 
     timer.reset();
-    Y = Omega.rmap(&eta, H, &nu);
+    Y = update(H);
     timings["update"]["omega"] += Omega.stats.map;
 
     if (algParams.debug) {
@@ -754,7 +674,7 @@ auto SketchySPD<MatrixType, DimReduxT>::nystrom_linear_update(
     timings["update"]["window"] += timer.seconds();
 
     timer.reset();
-    auto y = Omega.rmap(&eta, H, &nu, 'N', 'N', idx);
+    auto y = update(H);
     timings["update"]["omega"] += timer.seconds();
 
     timer.reset();
@@ -777,6 +697,217 @@ auto SketchySPD<MatrixType, DimReduxT>::nystrom_linear_update(
     fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
     Impl::write(Y, fname.c_str());
   }
+};
+
+/*
+  Here, we specialize the linear update for dense/sparse inputs and dense/sparse
+  DimRedux maps. We do this is because of the following constraints:
+    1. Dense-Sparse operations require the sparse operand on the LHS, dense RHS
+       transpose not supported
+    2. Sparse-Sparse operations do not support either operand to be transposed
+*/
+template <>
+auto SketchySPD<matrix_type, GaussDimRedux>::update(const matrix_type& A,
+                                                    const range_type row_idxs)
+    -> matrix_type {
+  // Dense-Dense operations, no constraints on operator order or transpose mode,
+  // do Y update as desired.
+  constexpr scalar_type one{1.0};
+  constexpr scalar_type zero{0.0};
+  return Omega.rmap<matrix_type>(&one, A, &zero, 'N', 'N', row_idxs);
+}
+
+template <>
+auto SketchySPD<matrix_type, SparseSignDimRedux>::update(
+    const matrix_type& A,
+    const range_type row_idxs) -> matrix_type {
+  // Y = H * Omega^T = (Omega * H^T)^T
+  constexpr scalar_type one{1.0};
+  constexpr scalar_type zero{0.0};
+  auto At = Impl::transpose(A);
+  auto ret = Omega.lmap<matrix_type>(&one, At, &zero, 'T', 'N', row_idxs);
+  return Impl::transpose(ret);
+}
+
+template <>
+auto SketchySPD<crs_matrix_type, GaussDimRedux>::update(
+    const crs_matrix_type& A,
+    const range_type row_idxs) -> matrix_type {
+  // Sparse-Dense operation, DimRedux is in Normal mode ("N") no constraints on
+  // operator order or transpose mode, do Y update as desired.
+  constexpr scalar_type one{1.0};
+  constexpr scalar_type zero{0.0};
+  return Omega.rmap<crs_matrix_type>(&one, A, &zero, 'N', 'N', row_idxs);
+}
+
+template <>
+auto SketchySPD<crs_matrix_type, SparseSignDimRedux>::update(
+    const crs_matrix_type& A,
+    const range_type row_idxs) -> matrix_type {
+  constexpr scalar_type one{1.0};
+  constexpr scalar_type zero{0.0};
+  std::cout << "Not implemented yet." << std::endl;
+  exit(1);
+  //   return Omega.rmap<crs_matrix_type>(&one, A, &zero, 'N', 'N', row_idxs);
+}
+
+template <typename MatrixType, typename DimReduxT>
+auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx()
+    -> std::tuple<matrix_type, vector_type> {
+  // Numerically stable Fixed-Rank Nyström Approximation. Instead of
+  // approximating the psd matrix A directly, we approximate the shifted matrix
+  // Aν = A + νI and then remove the shift.
+  if (algParams.print_level > 0)
+    std::cout << "\nComputing fixed-rank PSD approximation" << std::endl;
+
+  Kokkos::Timer timer;
+  scalar_type time{0.0};
+  scalar_type total_time{0.0};
+
+  const char N{'N'};
+  const char T{'T'};
+  const scalar_type one{1.0};
+  const scalar_type zero{0.0};
+  const int print_level{algParams.print_level};
+  const bool debug{algParams.debug};
+
+  // Construct the shifted sketch Yν = Y + νΩ.
+  // Compute nu = machine_eps * norm(Y)
+  // Here copy Y because nrm2 overwrites
+  timer.reset();
+  matrix_type Y_copy("Y_copy", nrow, range);
+  Kokkos::deep_copy(Y_copy, Y);
+  scalar_type nu;
+  try {
+    nu = std::numeric_limits<scalar_type>::epsilon() * linalg::nrm2(Y_copy);
+  } catch (const std::exception& e) {
+    std::cout << "Skema::sketchyspd::low_rank_approx::norm2 encountered an "
+                 "exception: "
+              << e.what() << std::endl;
+  }
+  Kokkos::fence();
+  timings["approx"]["norm2"] += timer.seconds();
+  if (debug) {
+    std::cout << std::setprecision(16) << "norm(Y) = " << nu << ", eta = " << nu
+              << std::endl;
+  }
+
+  // Construct shifted sketch
+  timer.reset();
+  try {
+    Omega.axpy(nu, Y);
+  } catch (const std::exception& e) {
+    std::cout << "Skema::sketchyspd::low_rank_approx::axpy encountered an "
+                 "exception: "
+              << e.what() << std::endl;
+  }
+  Kokkos::fence();
+  timings["approx"]["daxpy"] += timer.seconds();
+  if (debug) {
+    std::cout << "Y = Y + eta Omega" << std::endl;
+    Impl::print(Y);
+  }
+
+  // Form the matrix B = Ω∗Yν
+  timer.reset();
+  auto Yt = Impl::transpose(Y);
+  matrix_type B;
+  try {
+    B = Omega.lmap(&one, Y, &zero, 'T', 'N');
+  } catch (const std::exception& e) {
+    std::cout << "Skema::sketchyspd::low_rank_approx::lmap encountered an "
+                 "exception: "
+              << e.what() << std::endl;
+  }
+  Kokkos::fence();
+  timings["approx"]["omega"] += timer.seconds();
+  if (debug) {
+    std::cout << "B = Omega^T * Y = " << std::endl;
+    Impl::print(B);
+  }
+
+  // Compute a Cholesky decomposition B = CC^*
+  timer.reset();
+  auto Bt = Impl::transpose(B);
+  assert((B.extent(0) == Bt.extent(1)) &&
+         "Axis 0 of B and axis 1 of B^T must match");
+  assert((B.extent(1) == Bt.extent(0)) &&
+         "Axis 1 of B and axis 0 of B^T must match");
+  matrix_type C("BpBt", range, range);
+  // Force symmetry
+  try {
+    KokkosBlas::update(0.5, B, 0.5, Bt, 0.0, C);
+  } catch (const std::exception& e) {
+    std::cout << "Skema::sketchyspd::low_rank_approx::update encountered an "
+                 "exception: "
+              << e.what() << std::endl;
+  }
+  Kokkos::fence();
+  timings["approx"]["update"] += timer.seconds();
+
+  // C = chol( (B + B^T) / 2)
+  try {
+    linalg::chol(C);
+  } catch (const std::exception& e) {
+    std::cout << "Skema::sketchyspd::low_rank_approx::chol encountered an "
+                 "exception: "
+              << e.what() << std::endl;
+  }
+  Kokkos::fence();
+  timings["approx"]["dpotrf"] = timer.seconds();
+  if (debug)
+    Impl::print(C);
+
+  // Compute E = YνC^{−1} by back-substitution
+  // Least squares problem Y / C
+  // W = Y/C; MATLAB: (C'\Y')'; / is MATLAB mldivide(C',Y')'
+  timer.reset();
+  try {
+    linalg::ls(&T, C, Yt, range, range, Yt.extent(1));
+  } catch (const std::exception& e) {
+    std::cout << "Skema::sketchyspd::low_rank_approx::ls encountered an "
+                 "exception: "
+              << e.what() << std::endl;
+  }
+  Kokkos::fence();
+  timings["approx"]["dgels"] += timer.seconds();
+  Y = Impl::transpose(Yt);
+  time = timer.seconds();
+
+  // Compute the (thin) singular value decomposition E = U ΣV^*
+  const size_type mw{Y.extent(0)};
+  const size_type nw{Y.extent(1)};
+  const size_type min_mnw{std::min(mw, nw)};
+
+  matrix_type Uwy("Uwy", mw, min_mnw);
+  vector_type Swy("Swy", min_mnw);
+  matrix_type Vwy("Vwy", min_mnw, nw);  // transpose
+  timer.reset();
+  try {
+    linalg::svd(Y, mw, nw, Uwy, Swy, Vwy);
+  } catch (const std::exception& e) {
+    std::cout << "Skema::sketchyspd::low_rank_approx::svd encountered an "
+                 "exception: "
+              << e.what() << std::endl;
+  }
+  timings["approx"]["dgesvd"] += timer.seconds();
+  total_time += time;
+
+  // Truncate to rank r
+  timer.reset();
+  range_type rlargest = std::make_pair<size_type>(0, rank);
+  uvecs = Kokkos::subview(Uwy, Kokkos::ALL(), rlargest);
+
+  // Sr = S(1:r, 1:r);
+  svals = Kokkos::subview(Swy, rlargest);
+
+  // Square to get eigenvalues; remove shift
+  for (auto rr = 0; rr < rank; ++rr) {
+    scalar_type remove_shift = svals(rr) * svals(rr) - nu;
+    svals(rr) = std::max(0.0, remove_shift);
+  }
+
+  return std::tuple<matrix_type, vector_type>(uvecs, svals);
 };
 
 template <typename MatrixT, typename DimReduxT>
@@ -831,6 +962,43 @@ auto SketchySPD<MatrixT, DimReduxT>::axpy(const double eta,
   Kokkos::fence();
 }
 
+template <typename MatrixType, typename DimReduxT>
+auto SketchySPD<MatrixType, DimReduxT>::compute_residuals(const MatrixType& A)
+    -> void {  // Compute final residuals
+  double time{0.0};
+  Kokkos::Timer timer;
+  rnrms = residuals(A, uvecs, svals, rank, algParams, window);
+  time = timer.seconds();
+  std::cout << "\nCompute residuals: " << time << std::endl;
+}
+
+template <typename MatrixType, typename DimReduxT>
+auto SketchySPD<MatrixType, DimReduxT>::save_history(
+    std::filesystem::path fname) -> void {
+  // Write the final history to file or stdout
+  nlohmann::json hist(timings);
+
+  // containers of non-integral types need special treatement
+  std::vector<scalar_type> s(rank);
+  std::vector<scalar_type> r(rank);
+  for (auto i = 0; i < rank; ++i) {
+    s[i] = svals(i);
+    r[i] = rnrms(i);
+  }
+  nlohmann::json j_svals(s);
+  nlohmann::json j_rnrms(r);
+  hist["svals"] = j_svals;
+  hist["rnrms"] = j_rnrms;
+
+  if (!fname.filename().empty()) {
+    std::ofstream f;
+    f.open(fname.filename());
+    f << std::setw(4) << hist << std::endl;
+  } else {
+    std::cout << std::setw(4) << hist << std::endl;
+  }
+}
+
 // Drivers
 template <>
 auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
@@ -841,27 +1009,25 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
     if ((algParams.issymmetric) && (!algParams.force_three_sketch)) {
       SketchySPD<matrix_type, GaussDimRedux> sketch(algParams);
       try {
-        sketch.nystrom_linear_update(matrix);
+        sketch.linear_update(matrix);
       } catch (const std::exception& e) {
-        std::cout << "Skema::sketchysvd::nystrom_linear_update encountered an "
+        std::cout << "Skema::sketchyspd::linear_update encountered an "
                      "exception: "
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
       try {
-        sketch.fixed_rank_psd_approx();
+        std::tie<matrix_type, vector_type>(U, S) = sketch.low_rank_approx();
       } catch (const std::exception& e) {
-        std::cout << "Skema::sketchysvd::fixed_rank_psd_approx encountered an "
+        std::cout << "Skema::sketchyspd::low_rank_approx encountered an "
                      "exception: "
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      U = sketch.U();
-      S = sketch.S();
       try {
         sketch.compute_residuals(matrix);
       } catch (const std::exception& e) {
-        std::cout << "Skema::sketchysvd::compute_residuals encountered an "
+        std::cout << "Skema::sketchyspd::compute_residuals encountered an "
                      "exception: "
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
@@ -880,16 +1046,14 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
         exit(EXIT_FAILURE);
       }
       try {
-        sketch.fixed_rank_approx();
+        std::tie<matrix_type, vector_type, matrix_type>(U, S, V) =
+            sketch.low_rank_approx();
       } catch (const std::exception& e) {
-        std::cout << "Skema::sketchysvd::fixed_rank_approx encountered an "
+        std::cout << "Skema::sketchysvd::low_rank_approx encountered an "
                      "exception: "
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      U = sketch.U();
-      S = sketch.S();
-      V = sketch.V();
       try {
         sketch.compute_residuals(matrix);
       } catch (const std::exception& e) {
@@ -906,27 +1070,25 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
     if ((algParams.issymmetric) && (!algParams.force_three_sketch)) {
       SketchySPD<matrix_type, SparseSignDimRedux> sketch(algParams);
       try {
-        sketch.nystrom_linear_update(matrix);
+        sketch.linear_update(matrix);
       } catch (const std::exception& e) {
-        std::cout << "Skema::sketchysvd::nystrom_linear_update encountered an "
+        std::cout << "Skema::sketchyspd::linear_update encountered an "
                      "exception: "
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
       try {
-        sketch.fixed_rank_psd_approx();
+        std::tie<matrix_type, vector_type>(U, S) = sketch.low_rank_approx();
       } catch (const std::exception& e) {
-        std::cout << "Skema::sketchysvd::fixed_rank_psd_approx encountered an "
+        std::cout << "Skema::sketchyspd::low_rank_approx encountered an "
                      "exception: "
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      U = sketch.U();
-      S = sketch.S();
       try {
         sketch.compute_residuals(matrix);
       } catch (const std::exception& e) {
-        std::cout << "Skema::sketchysvd::compute_residuals encountered an "
+        std::cout << "Skema::sketchyspd::compute_residuals encountered an "
                      "exception: "
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
@@ -945,16 +1107,14 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
         exit(EXIT_FAILURE);
       }
       try {
-        sketch.fixed_rank_approx();
+        std::tie<matrix_type, vector_type, matrix_type>(U, S, V) =
+            sketch.low_rank_approx();
       } catch (const std::exception& e) {
-        std::cout << "Skema::sketchysvd::fixed_rank_approx encountered an "
+        std::cout << "Skema::sketchysvd::low_rank_approx encountered an "
                      "exception: "
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      U = sketch.U();
-      S = sketch.S();
-      V = sketch.V();
       try {
         sketch.compute_residuals(matrix);
       } catch (const std::exception& e) {
@@ -975,14 +1135,20 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
   if (!algParams.debug_filename.empty()) {
     std::string fname;
 
-    fname = algParams.debug_filename.filename().stem().string() + "_U.txt";
-    Impl::write(U, fname.c_str());
+    if (U.extent(0) > 0 && U.extent(1) > 0) {
+      fname = algParams.debug_filename.filename().stem().string() + "_U.txt";
+      Impl::write(U, fname.c_str());
+    }
 
-    fname = algParams.debug_filename.filename().stem().string() + "_S.txt";
-    Impl::write(S, fname.c_str());
+    if (S.extent(0) > 0) {
+      fname = algParams.debug_filename.filename().stem().string() + "_S.txt";
+      Impl::write(S, fname.c_str());
+    }
 
-    fname = algParams.debug_filename.filename().stem().string() + "_V.txt";
-    Impl::write(V, fname.c_str());
+    if (V.extent(0) > 0 && V.extent(1) > 0) {
+      fname = algParams.debug_filename.filename().stem().string() + "_V.txt";
+      Impl::write(V, fname.c_str());
+    }
   }
 };
 
@@ -996,27 +1162,25 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
     if ((algParams.issymmetric) && (!algParams.force_three_sketch)) {
       SketchySPD<crs_matrix_type, GaussDimRedux> sketch(algParams);
       try {
-        sketch.nystrom_linear_update(matrix);
+        sketch.linear_update(matrix);
       } catch (const std::exception& e) {
-        std::cout << "Skema::sketchysvd::nystrom_linear_update encountered an "
+        std::cout << "Skema::sketchyspd::linear_update encountered an "
                      "exception: "
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
       try {
-        sketch.fixed_rank_psd_approx();
+        std::tie<matrix_type, vector_type>(U, S) = sketch.low_rank_approx();
       } catch (const std::exception& e) {
-        std::cout << "Skema::sketchysvd::fixed_rank_psd_approx encountered an "
+        std::cout << "Skema::sketchyspd::low_rank_approx encountered an "
                      "exception: "
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      U = sketch.U();
-      S = sketch.S();
       try {
         sketch.compute_residuals(matrix);
       } catch (const std::exception& e) {
-        std::cout << "Skema::sketchysvd::compute_residuals encountered an "
+        std::cout << "Skema::sketchyspd::compute_residuals encountered an "
                      "exception: "
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
@@ -1035,16 +1199,14 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
         exit(EXIT_FAILURE);
       }
       try {
-        sketch.fixed_rank_approx();
+        std::tie<matrix_type, vector_type, matrix_type>(U, S, V) =
+            sketch.low_rank_approx();
       } catch (const std::exception& e) {
-        std::cout << "Skema::sketchysvd::fixed_rank_approx encountered an "
+        std::cout << "Skema::sketchysvd::low_rank_approx encountered an "
                      "exception: "
                   << e.what() << std::endl;
         exit(EXIT_FAILURE);
       }
-      U = sketch.U();
-      S = sketch.S();
-      V = sketch.V();
       try {
         sketch.compute_residuals(matrix);
       } catch (const std::exception& e) {
@@ -1071,14 +1233,20 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
   if (!algParams.debug_filename.empty()) {
     std::string fname;
 
-    fname = algParams.debug_filename.filename().stem().string() + "_U.txt";
-    Impl::write(U, fname.c_str());
+    if (U.extent(0) > 0 && U.extent(1) > 0) {
+      fname = algParams.debug_filename.filename().stem().string() + "_U.txt";
+      Impl::write(U, fname.c_str());
+    }
 
-    fname = algParams.debug_filename.filename().stem().string() + "_S.txt";
-    Impl::write(S, fname.c_str());
+    if (S.extent(0) > 0) {
+      fname = algParams.debug_filename.filename().stem().string() + "_S.txt";
+      Impl::write(S, fname.c_str());
+    }
 
-    fname = algParams.debug_filename.filename().stem().string() + "_V.txt";
-    Impl::write(V, fname.c_str());
+    if (V.extent(0) > 0 && V.extent(1) > 0) {
+      fname = algParams.debug_filename.filename().stem().string() + "_V.txt";
+      Impl::write(V, fname.c_str());
+    }
   }
 };
 

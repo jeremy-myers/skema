@@ -157,20 +157,5 @@ inline void write(const matrix_type& input, const char* filename) {
 inline void write(const crs_matrix_type& A, const char* filename) {
   KokkosSparse::Impl::write_kokkos_crst_matrix(A, filename);
 }
-
-// inline void write(const crs_matrix_type& A, const char* filename) {
-//   FILE* fp;
-//   fp = fopen(filename, "w");
-//   for (auto irow = 0; irow < A.numRows(); ++irow) {
-//     auto arow = A.row(irow);
-//     for (auto jcol = 0; jcol < arow.length; ++jcol) {
-//       fprintf(fp, "%d %d %.16f\n", irow, arow.colidx(jcol),
-//       arow.value(jcol));
-//     }
-//   }
-//   fclose(fp);
-//   std::string fname = "kk.mtx";
-//   KokkosSparse::Impl::write_kokkos_crst_matrix(A, fname.c_str());
-// }
 }  // namespace Impl
 }  // namespace Skema

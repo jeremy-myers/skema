@@ -31,14 +31,17 @@ class DimRedux {
   const std::string label;
   const bool debug;
   const std::filesystem::path debug_filename;
+  const bool init_transposed;
 
  public:
+  DimRedux();
   DimRedux(const size_type nrow_,
            const size_type ncol_,
            const ordinal_type seed_,
            const std::string label_,
            const bool debug_,
-           const std::filesystem::path debug_filename_)
+           const std::filesystem::path debug_filename_,
+           const bool init_transposed_ = false)
       : nrow(nrow_),
         ncol(ncol_),
         seed(seed_),
@@ -46,11 +49,12 @@ class DimRedux {
         initialized(false),
         label(label_),
         debug(debug_),
-        debug_filename(debug_filename_) {};
+        debug_filename(debug_filename_),
+        init_transposed(init_transposed_) {};
   DimRedux(const DimRedux&) = default;
   DimRedux(DimRedux&&) = default;
-  DimRedux& operator=(const DimRedux&);
-  DimRedux& operator=(DimRedux&&);
+  DimRedux& operator=(const DimRedux&) = default;
+  DimRedux& operator=(DimRedux&&) = default;
   ~DimRedux() = default;
 
   template <typename InputMatrixT>
@@ -96,13 +100,15 @@ class GaussDimRedux : public DimRedux<GaussDimRedux> {
                 const ordinal_type seed_,
                 const std::string label_ = "GaussDimRedux",
                 const bool debug_ = false,
-                const std::filesystem::path debug_filename_ = "")
+                const std::filesystem::path debug_filename_ = "",
+                const bool init_transposed_ = false)
       : DimRedux<GaussDimRedux>(nrow_,
                                 ncol_,
                                 seed_,
                                 label_,
                                 debug_,
-                                debug_filename_),
+                                debug_filename_,
+                                init_transposed_),
         maxval(std::sqrt(2 * std::log(nrow_ * ncol_))) {
     Kokkos::Timer timer;
     data = matrix_type(label, nrow, ncol);
@@ -123,7 +129,6 @@ class GaussDimRedux : public DimRedux<GaussDimRedux> {
   GaussDimRedux(GaussDimRedux&&) = default;
   GaussDimRedux& operator=(const GaussDimRedux&);
   GaussDimRedux& operator=(GaussDimRedux&&);
-  ~GaussDimRedux() = default;
 
   template <typename InputMatrixT>
   auto lmap(const scalar_type* alpha,
@@ -186,13 +191,15 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
                      const ordinal_type seed_,
                      const std::string label_ = "SparseSignDimRedux",
                      const bool debug_ = false,
-                     const std::filesystem::path debug_filename_ = "")
+                     const std::filesystem::path debug_filename_ = "",
+                     const bool init_transposed_ = false)
       : DimRedux<SparseSignDimRedux>(nrow_,
                                      ncol_,
                                      seed_,
                                      label_,
                                      debug_,
-                                     debug_filename_),
+                                     debug_filename_,
+                                     init_transposed_),
         zeta(std::max<size_type>(2, std::min<size_type>(ncol_, 8))) {
     // Create a CRS row map with zeta entries per row.
     namespace KE = Kokkos::Experimental;

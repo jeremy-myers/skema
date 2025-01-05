@@ -15,13 +15,8 @@ class SketchySVD {
 
   auto compute_residuals(const MatrixType&) -> void;
   auto linear_update(const MatrixType&) -> void;
-  auto fixed_rank_approx() -> void;
+  auto low_rank_approx() -> std::tuple<matrix_type, vector_type, matrix_type>;
   auto save_history(std::filesystem::path) -> void;
-
-  /* Public accessors */
-  inline auto U() -> matrix_type { return uvecs; };
-  inline auto S() -> vector_type { return svals; };
-  inline auto V() -> matrix_type { return vvecs; };
 
  private:
   matrix_type uvecs;
@@ -57,7 +52,11 @@ class SketchySVD {
             const matrix_type&,
             const range_type = std::make_pair<size_type>(0, 0)) -> void;
 
-  auto low_rank_approx() -> void;
+  auto initial_approx() -> void;
+
+  auto update(const MatrixType&,
+              const range_type idx = std::make_pair<size_type>(0, 0))
+      -> std::tuple<matrix_type, matrix_type, matrix_type>;
 };
 
 // SketchySVD variant for symmetric positive definite matrices
@@ -68,13 +67,9 @@ class SketchySPD {
   ~SketchySPD() {};
 
   auto compute_residuals(const MatrixType&) -> void;
-  auto nystrom_linear_update(const MatrixType&) -> void;
-  auto fixed_rank_psd_approx() -> void;
+  auto linear_update(const MatrixType&) -> void;
+  auto low_rank_approx() -> std::tuple<matrix_type, vector_type>;
   auto save_history(std::filesystem::path) -> void;
-
-  /* Public accessors */
-  inline auto U() -> matrix_type { return uvecs; };
-  inline auto S() -> vector_type { return svals; };
 
  private:
   matrix_type uvecs;
@@ -102,6 +97,10 @@ class SketchySPD {
             const double,
             const matrix_type&,
             const range_type = std::make_pair<size_type>(0, 0)) -> void;
+
+  auto update(const MatrixType&,
+              const range_type idx = std::make_pair<size_type>(0, 0))
+      -> matrix_type;
 };
 
 // Driver

@@ -79,7 +79,7 @@ else()
     set(HAVE_PRIMME ON)
 endif()
 
-# Nlohmann jons
+# Nlohmann json
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 add_subdirectory(tpls/json)
 

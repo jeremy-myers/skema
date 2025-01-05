@@ -15,7 +15,7 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha,
                               const range_type idx) -> matrix_type {
   Kokkos::Timer timer;
   const auto m{(transA == 'N') ? nrow : ncol};
-  const auto n{B.extent(1)};
+  const auto n{(transB == 'N') ? B.extent(1) : B.extent(0)};
   matrix_type C("SparseSignDimRedux::return", m, n);
 
   // transA = 'N';
