@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdlib>
+#include <stdexcept>
 #include "Skema_Utils.hpp"
 
 #if defined(LAPACK_FOUND)
@@ -88,7 +89,7 @@ inline void svd(const matrix_type& A,
   lapack_int lwork{
       std::max(std::max((lapack_int)1, 3 * min_mn + max_mn), 5 * min_mn)};
   std::vector<double> superb(lwork);
-  lapack_int info;
+  lapack_int info{0};
 
   ::dgesvd(&jobu, &jobv, &m, &n, A.data(), &lda, S.data(), U.data(), &ldu,
            V.data(), &ldv, superb.data(), &lwork, &info);
@@ -117,7 +118,7 @@ inline void svd(const matrix_type& A,
   lapack_int lwork{
       std::max(std::max((lapack_int)1, 3 * min_mn + max_mn), 5 * min_mn)};
   std::vector<double> superb(lwork);
-  lapack_int info;
+  lapack_int info{0};
 
   std::vector<double> V(min_mn * ncol);
   ::dgesvd(&jobu, &jobu, &m, &n, A.data(), &lda, S.data(), U.data(), &ldu,
@@ -145,7 +146,7 @@ inline void svd(const matrix_type& A,
   lapack_int lwork{
       std::max(std::max((lapack_int)1, 3 * min_mn + max_mn), 5 * min_mn)};
   std::vector<double> superb(lwork);
-  lapack_int info;
+  lapack_int info{0};
 
   std::vector<double> U(nrow * min_mn);
   std::vector<double> V(ncol * min_mn);
@@ -176,7 +177,7 @@ inline void qr(matrix_type& Q, const size_type nrow, const size_type ncol) {
   lapack_int rank{std::min<lapack_int>(m, n)};
   std::vector<double> tau(ltau);
   std::vector<double> work(lwork);
-  lapack_int info;
+  lapack_int info{0};
 
   ::dgeqrf(&m, &n, Q.data(), &lda, tau.data(), work.data(), &lwork, &info);
   ::dorgqr(&m, &n, &rank, Q.data(), &lda, tau.data(), work.data(), &lwork,
@@ -199,7 +200,7 @@ inline void qr(matrix_type& Q,
   lapack_int rank{std::min<lapack_int>(m, n)};
   std::vector<double> tau(ltau);
   std::vector<double> work(lwork);
-  lapack_int info;
+  lapack_int info{0};
 
   ::dgeqrf(&m, &n, Q.data(), &lda, tau.data(), work.data(), &lwork, &info);
 
@@ -234,7 +235,7 @@ inline void ls(const char* trans,
   lapack_int lwork{std::max<lapack_int>(
       (lapack_int)1, m * n + std::max<lapack_int>(m * n, p))};
   std::vector<double> work(lwork);
-  lapack_int info;
+  lapack_int info{0};
 
   ::dgels(transp, &m, &n, &p, A.data(), &lda, B.data(), &ldb, work.data(),
           &lwork, &info);
@@ -249,16 +250,17 @@ inline void chol(matrix_type& A) {
   lapack_int m{static_cast<lapack_int>(A.extent(0))};
   lapack_int n{static_cast<lapack_int>(A.extent(1))};
   lapack_int lda{static_cast<lapack_int>(A.extent(0))};
-  lapack_int info;
+  lapack_int info{0};
 
   ::dpotrf(&uplo, &m, A.data(), &lda, &info);
 
   if (info > 0) {
-    std::cout << "dpotrf: the leading minor of order " << info
-              << " is not positive definite, and the factorization could not "
-                 "be completed."
-              << std::endl;
-    // exit(info);
+    std::string msg = "dpotrf: the leading minor of order ";
+    msg += static_cast<int>(info);
+    msg +=
+        " is not positive definite, and the factorization could not "
+        "be completed.";
+    throw std::runtime_error("linalg::chol: " + msg);
   }
 
   for (auto j = 0; j < n; ++j) {
