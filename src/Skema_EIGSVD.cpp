@@ -130,6 +130,7 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   params.n = nrow;
   params.numEvals = rank;
   params.eps = algParams.primme_eps;
+  params.target = primme_largest;
   params.matrixMatvec = eigs_default_sparse_matvec;
   params.monitorFun = eigs_monitorFun;
   for (auto i = 0; i < 4; ++i) {
@@ -186,6 +187,7 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType& matrix,
   params.n = ncol;
   params.numSvals = rank;
   params.eps = algParams.primme_eps;
+  params.target = primme_svds_largest;
   for (auto i = 0; i < 4; ++i) {
     params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
   }

@@ -768,8 +768,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx()
   // Numerically stable Fixed-Rank Nyström Approximation. Instead of
   // approximating the psd matrix A directly, we approximate the shifted matrix
   // Aν = A + νI and then remove the shift.
-  if (algParams.print_level > 0)
-    std::cout << "\nComputing fixed-rank PSD approximation" << std::endl;
+  std::cout << "\nComputing fixed-rank PSD approximation" << std::endl;
 
   Kokkos::Timer timer;
   scalar_type time{0.0};
@@ -781,16 +780,18 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx()
   const scalar_type zero{0.0};
   const int print_level{algParams.print_level};
   const bool debug{algParams.debug};
+  constexpr scalar_type mu{std::numeric_limits<scalar_type>::epsilon()};
 
   // Construct the shifted sketch Yν = Y + νΩ.
   // Compute nu = machine_eps * norm(Y)
   // Here copy Y because nrm2 overwrites
+  std::cout << "\nComputing norm(Y)" << std::endl;
   timer.reset();
   matrix_type Y_copy("Y_copy", nrow, range);
   Kokkos::deep_copy(Y_copy, Y);
   scalar_type nu;
   try {
-    nu = std::numeric_limits<scalar_type>::epsilon() * linalg::nrm2(Y_copy);
+    nu = mu * linalg::nrm2(Y_copy);
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::norm2 encountered an "
                  "exception: "
@@ -804,6 +805,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx()
   }
 
   // Construct shifted sketch
+  std::cout << "\nComputing norm(Y)*Omega" << std::endl;
   timer.reset();
   try {
     Omega.axpy(nu, Y);
@@ -820,8 +822,8 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx()
   }
 
   // Form the matrix B = Ω∗Yν
+  std::cout << "\nComputing B = norm(Y)*Omega^T * Y" << std::endl;
   timer.reset();
-  auto Yt = Impl::transpose(Y);
   matrix_type B;
   try {
     B = Omega.lmap(&one, Y, &zero, 'T', 'N');
@@ -838,6 +840,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx()
   }
 
   // Compute a Cholesky decomposition B = CC^*
+  std::cout << "\nComputing C = (B+B^T)/2" << std::endl;
   timer.reset();
   auto Bt = Impl::transpose(B);
   assert((B.extent(0) == Bt.extent(1)) &&
@@ -857,8 +860,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx()
   timings["approx"]["update"] += timer.seconds();
 
   // C = chol( (B + B^T) / 2)
-  std::cout << "C = " << std::endl;
-  Impl::print(C);
+  std::cout << "\nComputing LL^T = chol(C)" << std::endl;
   try {
     linalg::chol(C);
   } catch (const std::exception& e) {
@@ -875,7 +877,9 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx()
   // Compute E = YνC^{−1} by back-substitution
   // Least squares problem Y / C
   // W = Y/C; MATLAB: (C'\Y')'; / is MATLAB mldivide(C',Y')'
+  std::cout << "\nComputing E = Y_eta * C^-1" << std::endl;
   timer.reset();
+  auto Yt = Impl::transpose(Y);
   try {
     linalg::ls(&T, C, Yt, range, range, Yt.extent(1));
   } catch (const std::exception& e) {
@@ -889,6 +893,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx()
   time = timer.seconds();
 
   // Compute the (thin) singular value decomposition E = U ΣV^*
+  std::cout << "\nComputing E = USV^T" << std::endl;
   const size_type mw{Y.extent(0)};
   const size_type nw{Y.extent(1)};
   const size_type min_mnw{std::min(mw, nw)};
@@ -908,6 +913,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx()
   total_time += time;
 
   // Truncate to rank r
+  std::cout << "\nTruncate to rank r" << std::endl;
   timer.reset();
   range_type rlargest = std::make_pair<size_type>(0, rank);
   uvecs = Kokkos::subview(Uwy, Kokkos::ALL(), rlargest);
@@ -916,6 +922,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx()
   svals = Kokkos::subview(Swy, rlargest);
 
   // Square to get eigenvalues; remove shift
+  std::cout << "\nRemove shift" << std::endl;
   for (auto rr = 0; rr < rank; ++rr) {
     scalar_type remove_shift = svals(rr) * svals(rr) - nu;
     svals(rr) = std::max(0.0, remove_shift);
