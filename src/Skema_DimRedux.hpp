@@ -114,7 +114,7 @@ class GaussDimRedux : public DimRedux<GaussDimRedux> {
     data = matrix_type(label, nrow, ncol);
     Kokkos::fill_random(data, rand_pool, -maxval, maxval);
     Kokkos::fence();
-    
+
     stats.initialize = timer.seconds();
 
     if (debug) {
@@ -218,22 +218,22 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
           }
           partial_sum += zeta;
         });
-    Kokkos::fence();
 
     // There are zeta entries per row for n rows.
     // Here, we iterate n times in blocks of size zeta.
     // At each step, compute a random permutation of 0,...,k-1, take the
     // first zeta numbers, and assign them to the ii-th block.
     crs_matrix_type::index_type::non_const_type entries("entries", zeta * nrow);
-    for (auto ii = 0; ii < nrow; ++ii) {
-      range_type idx = std::make_pair(ii * zeta, (ii + 1) * zeta);
-      auto e =
-          Kokkos::subview(entries, Kokkos::make_pair(idx.first, idx.second));
-      index_type pi("rand indices", zeta);
-      Kokkos::fill_random(pi, rand_pool, ncol);
-      Kokkos::sort(pi);
-      Kokkos::deep_copy(e, pi);
-    }
+    Kokkos::parallel_for(
+        nrow, KOKKOS_LAMBDA(const int ii) {
+          range_type idx = Kokkos::make_pair(ii * zeta, (ii + 1) * zeta);
+          auto e = Kokkos::subview(entries,
+                                   Kokkos::make_pair(idx.first, idx.second));
+          index_type pi("rand indices", zeta);
+          Kokkos::fill_random(pi, rand_pool, ncol);
+          Kokkos::sort(pi);
+          Kokkos::deep_copy(e, pi);
+        });
 
     // The random values are taken from the Rademacher distribution (in the
     // real case only, which is what we do here).
@@ -247,8 +247,6 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
 
     KE::replace_if(exec_space, KE::begin(values), KE::end(values),
                    IsPositive<crs_matrix_type::const_value_type>(), 1.0);
-    Kokkos::fence();
-
     KE::replace_if(exec_space, KE::begin(values), KE::end(values),
                    IsNegative<crs_matrix_type::const_value_type>(), -1.0);
     Kokkos::fence();
