@@ -224,16 +224,15 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
     // At each step, compute a random permutation of 0,...,k-1, take the
     // first zeta numbers, and assign them to the ii-th block.
     crs_matrix_type::index_type::non_const_type entries("entries", zeta * nrow);
-    Kokkos::parallel_for(
-        nrow, KOKKOS_LAMBDA(const int ii) {
-          range_type idx = Kokkos::make_pair(ii * zeta, (ii + 1) * zeta);
-          auto e = Kokkos::subview(entries,
-                                   Kokkos::make_pair(idx.first, idx.second));
-          index_type pi("rand indices", zeta);
-          Kokkos::fill_random(pi, rand_pool, ncol);
-          Kokkos::sort(pi);
-          Kokkos::deep_copy(e, pi);
-        });
+    for (auto ii = 0; ii < nrow; ++ii) {
+      range_type idx = std::make_pair(ii * zeta, (ii + 1) * zeta);
+      auto e =
+          Kokkos::subview(entries, Kokkos::make_pair(idx.first, idx.second));
+      index_type pi("rand indices", zeta);
+      Kokkos::fill_random(pi, rand_pool, ncol);
+      Kokkos::sort(pi);
+      Kokkos::deep_copy(e, pi);
+    }
 
     // The random values are taken from the Rademacher distribution (in the
     // real case only, which is what we do here).
@@ -307,5 +306,4 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
   auto col_subview(const crs_matrix_type&,
                    const Kokkos::pair<size_type, size_type>) -> crs_matrix_type;
 };
-
 }  // namespace Skema
