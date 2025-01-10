@@ -26,6 +26,8 @@ auto GaussDimRedux::lmap(const scalar_type* alpha,
     data_ = Kokkos::subview(data, Kokkos::ALL(), idx);
   }
   Impl::mm(&transA, &transB, alpha, data_, B, beta, C);
+
+  Kokkos::fence();
   stats.map = timer.seconds();
   return C;
 }
@@ -43,6 +45,8 @@ auto GaussDimRedux::rmap(const scalar_type* alpha,
   matrix_type C("GaussDimRedux::rmap::C", m, n);
 
   Impl::mm(&transA, &transB, alpha, A, data, beta, C);
+
+  Kokkos::fence();
   stats.map = timer.seconds();
   return C;
 }
@@ -65,6 +69,8 @@ auto GaussDimRedux::lmap(const scalar_type* alpha,
     data_ = Kokkos::subview(data, Kokkos::ALL(), idx);
   }
   Impl::mm(&transB, &transA, alpha, B, data_, beta, C);
+
+  Kokkos::fence();
   stats.map = timer.seconds();
   return Impl::transpose(C);
 }
@@ -86,6 +92,8 @@ auto GaussDimRedux::rmap(const scalar_type* alpha,
     data_ = Kokkos::subview(data, idx, Kokkos::ALL());
   }
   Impl::mm(&transA, &transB, alpha, A, data_, beta, C);
+
+  Kokkos::fence();
   stats.map = timer.seconds();
   return C;
 }
@@ -118,6 +126,7 @@ auto GaussDimRedux::axpy(const scalar_type val, matrix_type& A) -> void {
                 << e.what() << std::endl;
     }
   }
+  Kokkos::fence();
 }
 
 template <>

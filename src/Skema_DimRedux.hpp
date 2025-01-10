@@ -113,6 +113,8 @@ class GaussDimRedux : public DimRedux<GaussDimRedux> {
     Kokkos::Timer timer;
     data = matrix_type(label, nrow, ncol);
     Kokkos::fill_random(data, rand_pool, -maxval, maxval);
+    Kokkos::fence();
+    
     stats.initialize = timer.seconds();
 
     if (debug) {
@@ -255,6 +257,7 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
     auto nnz = entries.extent(0);
     data = crs_matrix_type(label, nrow, ncol, nnz, values, row_map, entries);
 
+    Kokkos::fence();
     stats.initialize = timer.seconds();
 
     if (debug) {

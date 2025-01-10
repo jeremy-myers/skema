@@ -24,7 +24,9 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha,
   if (idx.first != idx.second)
     data_ = col_subview(data, idx);
   Impl::mm(&transA, &transB, alpha, data_, B, beta, C);
-  stats.map += timer.seconds();
+
+  Kokkos::fence();
+  stats.map = timer.seconds();
   return C;
 }
 
@@ -42,7 +44,9 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha,
   auto At = Impl::transpose(A);
   matrix_type C("SparseSignDimRedux::rmap::C", m, n);
   Impl::mm(&transB, &transA, alpha, data, At, beta, C);
-  stats.map += timer.seconds();
+
+  Kokkos::fence();
+  stats.map = timer.seconds();
   return Impl::transpose(C);
 }
 
@@ -59,7 +63,9 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha,
   if (idx.first != idx.second)
     data_ = col_subview(data, idx);
   Impl::mm(&transA, alpha, data_, B, beta, C);
-  stats.map += timer.seconds();
+
+  Kokkos::fence();
+  stats.map = timer.seconds();
 
   // Output dense matrix
   matrix_type C_full("SparseSignDimRedux::lmap::C_full", C.numRows(),
@@ -86,7 +92,9 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha,
 
   crs_matrix_type C;
   Impl::mm(&transA, alpha, A, data, beta, C);
-  stats.map += timer.seconds();
+
+  Kokkos::fence();
+  stats.map = timer.seconds();
 
   // Dense output
   matrix_type C_full("SparseSignDimRedux::rmap::C_full", C.numRows(),

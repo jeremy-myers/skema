@@ -653,7 +653,7 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
   size_type wsize{algParams.window};
   range_type idx;
 
-  timings["initialize"]["omega"] += Omega.stats.initialize;
+  timings["init"]["omega"] += Omega.stats.initialize;
 
   if (wsize == nrow) {
     idx = std::make_pair<size_type>(0, nrow);
@@ -786,10 +786,10 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx()
   // Compute nu = machine_eps * norm(Y)
   // Here copy Y because nrm2 overwrites
   std::cout << "\nComputing norm(Y)" << std::endl;
-  timer.reset();
   matrix_type Y_copy("Y_copy", nrow, range);
   Kokkos::deep_copy(Y_copy, Y);
   scalar_type nu;
+  timer.reset();
   try {
     nu = mu * linalg::nrm2(Y_copy);
   } catch (const std::exception& e) {
