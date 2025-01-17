@@ -3,6 +3,7 @@
 #include "Skema_BlasLapack.hpp"
 #include "Skema_Common.hpp"
 #include "Skema_DimRedux.hpp"
+#include "Skema_EIGSVD.hpp"
 #include "Skema_Residuals.hpp"
 #include "Skema_Utils.hpp"
 #include "Skema_Window.hpp"
@@ -1117,6 +1118,11 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
       if (!algParams.history_filename.empty()) {
         sketch.save_history(algParams.history_filename);
       }
+      if (algParams.rayleigh_ritz_pass) {
+        AlgParams params(algParams);
+        params.primme_maxIter = 2;
+        primme_eigs(matrix, U, S, params);
+      }
     } else {
       SketchySVD<matrix_type, SparseSignDimRedux> sketch(algParams);
       try {
@@ -1146,6 +1152,11 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
       }
       if (!algParams.history_filename.empty()) {
         sketch.save_history(algParams.history_filename);
+      }
+      if (algParams.rayleigh_ritz_pass) {
+        AlgParams params(algParams);
+        params.primme_maxIter = 2;
+        primme_svds(matrix, U, S, V, params);
       }
     }
   } else {
@@ -1209,6 +1220,11 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
       if (!algParams.history_filename.empty()) {
         sketch.save_history(algParams.history_filename);
       }
+      if (algParams.rayleigh_ritz_pass) {
+        AlgParams params(algParams);
+        params.primme_maxIter = 2;
+        primme_eigs(matrix, U, S, params);
+      }
     } else {
       SketchySVD<crs_matrix_type, GaussDimRedux> sketch(algParams);
       try {
@@ -1238,6 +1254,11 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
       }
       if (!algParams.history_filename.empty()) {
         sketch.save_history(algParams.history_filename);
+      }
+      if (algParams.rayleigh_ritz_pass) {
+        AlgParams params(algParams);
+        params.primme_maxIter = 2;
+        primme_svds(matrix, U, S, V, params);
       }
     }
   } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
@@ -1269,6 +1290,11 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
       }
       if (!algParams.history_filename.empty()) {
         sketch.save_history(algParams.history_filename);
+      }
+      if (algParams.rayleigh_ritz_pass) {
+        AlgParams params(algParams);
+        params.primme_maxIter = 2;
+        primme_eigs(matrix, U, S, params);
       }
     } else {
       SketchySVD<crs_matrix_type, SparseSignDimRedux> sketch(algParams);

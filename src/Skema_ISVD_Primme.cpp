@@ -46,14 +46,18 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
     primme_svds::params.matrixMatvec = isvd_default_dense_matvec;
   }
 
-  if (algParams.primme_initSize > 0)
+  if (algParams.primme_initSize > 0) {
     primme_svds::params.initSize = algParams.primme_initSize;
-  if (algParams.primme_maxBasisSize > 0)
+  }
+  if (algParams.primme_maxBasisSize > 0) {
     primme_svds::params.maxBasisSize = algParams.primme_maxBasisSize;
-  if (algParams.primme_minRestartSize > 0)
+  }
+  if (algParams.primme_minRestartSize > 0) {
     primme_svds::params.primme.minRestartSize = algParams.primme_minRestartSize;
-  if (algParams.primme_maxBlockSize > 0)
+  }
+  if (algParams.primme_maxBlockSize > 0) {
     primme_svds::params.maxBlockSize = algParams.primme_maxBlockSize;
+  }
 
   if (algParams.isvd_initial_guess && count > 0) {
     Kokkos::parallel_for(

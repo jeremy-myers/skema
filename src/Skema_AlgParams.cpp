@@ -24,6 +24,7 @@ Skema::AlgParams::AlgParams()
       debug(false),
       window(1),
       hist(true),
+      rayleigh_ritz_pass(false),
       isvd_dense_solver(false),
       isvd_compute_residual_iters(false),
       isvd_sampler(Skema::Sampler_Type::default_type),
@@ -162,6 +163,8 @@ void Skema::AlgParams::print(std::ostream& out) const {
     out << "  kernel = " << Skema::Kernel_Map::names[kernel_func] << std::endl;
     out << "  gamma = " << kernel_gamma << std::endl;
   }
+  out << "  Rayleigh-Ritz = " << std::boolalpha << rayleigh_ritz_pass
+      << std::endl;
 }
 
 void Skema::AlgParams::print_help(std::ostream& out) {
@@ -243,6 +246,7 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
                       Skema::Solver_Method::types, Skema::Solver_Method::names);
   print_level = parse_int(args, "--print-level", print_level, 0, 5);
   debug = parse_bool(args, "--debug", "--debug-off", false);
+  rayleigh_ritz_pass = parse_bool(args, "--rr", "--rr-off", false);
 
   // Streaming options
   window = parse_int(args, "--window", window, 1, INT_MAX);

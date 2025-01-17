@@ -27,6 +27,7 @@ struct AlgParams {
   bool debug;
   size_t window;
   bool hist;
+  bool rayleigh_ritz_pass;  // whether to refine soln with RR
 
   /* ISVD options */
   bool isvd_dense_solver;

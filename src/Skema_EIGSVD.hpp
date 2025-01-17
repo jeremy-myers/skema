@@ -292,6 +292,19 @@ template <typename MatrixType>
 void primme_eigs(const MatrixType&, const AlgParams&);
 
 template <typename MatrixType>
+void primme_eigs(const MatrixType&,
+                 matrix_type&,
+                 vector_type&,
+                 const AlgParams&);
+
+template <typename MatrixType>
 void primme_svds(const MatrixType&, const AlgParams&);
+
+template <typename MatrixType>
+void primme_svds(const MatrixType&,
+                 matrix_type&,
+                 vector_type&,
+                 matrix_type&,
+                 const AlgParams&);
 
 }  // namespace Skema
