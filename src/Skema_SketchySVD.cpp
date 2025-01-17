@@ -1121,6 +1121,7 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
       if (algParams.rayleigh_ritz_pass) {
         AlgParams params(algParams);
         params.primme_maxIter = 2;
+        params.primme_maxBlockSize = algParams.rank;
         primme_eigs(matrix, U, S, params);
       }
     } else {
@@ -1156,6 +1157,7 @@ auto sketchysvd(const matrix_type& matrix, const AlgParams& algParams) -> void {
       if (algParams.rayleigh_ritz_pass) {
         AlgParams params(algParams);
         params.primme_maxIter = 2;
+        params.primme_maxBlockSize = algParams.rank;
         primme_svds(matrix, U, S, V, params);
       }
     }
@@ -1223,6 +1225,7 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
       if (algParams.rayleigh_ritz_pass) {
         AlgParams params(algParams);
         params.primme_maxIter = 2;
+        params.primme_maxBlockSize = algParams.rank;
         primme_eigs(matrix, U, S, params);
       }
     } else {
@@ -1258,6 +1261,7 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
       if (algParams.rayleigh_ritz_pass) {
         AlgParams params(algParams);
         params.primme_maxIter = 2;
+        params.primme_maxBlockSize = algParams.rank;
         primme_svds(matrix, U, S, V, params);
       }
     }
@@ -1294,6 +1298,7 @@ auto sketchysvd(const crs_matrix_type& matrix, const AlgParams& algParams)
       if (algParams.rayleigh_ritz_pass) {
         AlgParams params(algParams);
         params.primme_maxIter = 2;
+        params.primme_maxBlockSize = algParams.rank;
         primme_eigs(matrix, U, S, params);
       }
     } else {

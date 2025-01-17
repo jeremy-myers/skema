@@ -238,9 +238,10 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType& matrix,
     params.initSize = rank;
   }
 
-  if (algParams.primme_maxIter > 0) {
-    params.primme.maxOuterIterations = algParams.primme_maxIter;
-  }
+  params.primme.maxOuterIterations =
+      algParams.primme_maxIter > 0 ? algParams.primme_maxIter : 0;
+  params.primme.maxBlockSize =
+      algParams.primme_maxBlockSize > 0 ? algParams.primme_maxBlockSize : 0;
 
   std::string filename = !algParams.primme_outputFile.empty()
                              ? algParams.primme_outputFile.filename().string()
@@ -261,13 +262,6 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType& matrix,
   ret = dprimme_svds(svals.data(), svecs.data(), rnrms.data(), &params);
   Kokkos::fence();
   scalar_type time = timer.seconds();
-
-  // If ret != 0, then svals are actually eigenvalues.
-  if (ret != 0) {
-    for (auto ii = 0; ii < rank; ++ii) {
-      svals(ii) = std::sqrt(svals(ii));
-    }
-  }
 
   std::filesystem::path json_file =
       (!algParams.primme_outputFile.empty()
