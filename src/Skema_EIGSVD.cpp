@@ -251,7 +251,7 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType& matrix,
   if (fp == NULL)
     perror("PRIMME output file failed to open: ");
 
-  primme_svds_set_method(primme_svds_normalequations, PRIMME_LOBPCG_OrthoBasis,
+  primme_svds_set_method(primme_svds_normalequations, PRIMME_DEFAULT_METHOD,
                          PRIMME_DEFAULT_METHOD, &params);
   primme_svds_display_params(params);
 
