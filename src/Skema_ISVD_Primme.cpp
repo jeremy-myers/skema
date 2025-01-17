@@ -55,7 +55,7 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
   if (algParams.primme_maxBlockSize > 0)
     primme_svds::params.maxBlockSize = algParams.primme_maxBlockSize;
 
-  if (algParams.isvd_initial_guess) {
+  if (algParams.isvd_initial_guess && count > 0) {
     Kokkos::parallel_for(
         nrow * rank,
         KOKKOS_LAMBDA(const int i) { svecs.data()[i] = U.data()[i]; });
