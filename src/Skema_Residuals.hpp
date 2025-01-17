@@ -40,8 +40,8 @@ inline auto map_A_by_window(const MatrixType& A,
       wsize = idx.second - idx.first;
     }
 
-    // Get window
-    auto A_sub = window->get(A, idx);
+    // Get window but don't update counters
+    auto A_sub = window->get(A, idx, false);
 
     // Entries in AV are computed once for each slice
     matrix_type av("av", wsize, rank);
@@ -88,8 +88,8 @@ inline auto map_A_by_window(const MatrixType& A,
       wsize = idx.second - idx.first;
     }
 
-    // Get window
-    auto A_sub = window->get(A, idx);
+    // Get window but don't update counters
+    auto A_sub = window->get(A, idx, false);
 
     // Entries in AtU are updated after each slice
     auto Ur = Kokkos::subview(U, idx, rlargest);

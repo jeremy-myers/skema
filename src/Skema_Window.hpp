@@ -17,7 +17,9 @@ class WindowBase {
   WindowBase(const AlgParams& algParams_)
       : stats_(std::make_shared<Window_stats>()) {}
   virtual ~WindowBase() {};
-  virtual MatrixType get(const MatrixType&, const range_type) = 0;
+  virtual MatrixType get(const MatrixType&,
+                         const range_type,
+                         const bool update_counters = true) = 0;
   inline std::shared_ptr<Window_stats> stats() { return stats_; }
 
  protected:
@@ -30,19 +32,23 @@ class Window : public WindowBase<MatrixType> {
   Window(const AlgParams& algParams_) : WindowBase<MatrixType>(algParams_) {}
   ~Window() {};
 
-  inline auto get(const matrix_type& input, const range_type idx)
-      -> matrix_type {
+  inline auto get(const matrix_type& input,
+                  const range_type idx,
+                  const bool update_counters = true) -> matrix_type {
     Kokkos::Timer timer;
     auto window = Kokkos::subview(input, idx, Kokkos::ALL());
     scalar_type time = timer.seconds();
-    WindowBase<MatrixType>::stats_->count++;
-    WindowBase<MatrixType>::stats_->time = time;
-    WindowBase<MatrixType>::stats_->elapsed_time += time;
+    if (update_counters) {
+      WindowBase<MatrixType>::stats_->count++;
+      WindowBase<MatrixType>::stats_->time = time;
+      WindowBase<MatrixType>::stats_->elapsed_time += time;
+    }
     return window;
   }
 
-  inline auto get(const crs_matrix_type& input, const range_type idx)
-      -> crs_matrix_type {
+  inline auto get(const crs_matrix_type& input,
+                  const range_type idx,
+                  const bool update_counters = true) -> crs_matrix_type {
     Kokkos::Timer timer;
     crs_matrix_type::row_map_type::non_const_type window_row_map(
         "A_sub_row_map", idx.second - idx.first + 1);
@@ -62,9 +68,11 @@ class Window : public WindowBase<MatrixType> {
     crs_matrix_type window("window", idx.second - idx.first, input.numCols(),
                            nnz, window_values, window_row_map, window_entries);
     scalar_type time = timer.seconds();
-    WindowBase<MatrixType>::stats_->count++;
-    WindowBase<MatrixType>::stats_->time = time;
-    WindowBase<MatrixType>::stats_->elapsed_time += time;
+    if (update_counters) {
+      WindowBase<MatrixType>::stats_->count++;
+      WindowBase<MatrixType>::stats_->time = time;
+      WindowBase<MatrixType>::stats_->elapsed_time += time;
+    }
     return window;
   }
 };
@@ -78,23 +86,27 @@ class GaussRBFWindow : public WindowBase<MatrixType> {
         helper(Window<MatrixType>(algParams_)) {}
   ~GaussRBFWindow() {};
 
-  inline auto get(const matrix_type& input, const range_type idx)
-      -> matrix_type {
+  inline auto get(const matrix_type& input,
+                  const range_type idx,
+                  const bool update_counters = true) -> matrix_type {
     // Timers are incremented internally
     auto slice = helper.get(input, idx);
     auto window =
         map.compute(slice, slice.extent(0), slice.extent(1), input,
                     input.extent(0), input.extent(1), input.extent(1), idx);
     // Update window timers from kernel
-    auto kstats = map.stats();
-    WindowBase<MatrixType>::stats_->count++;
-    WindowBase<MatrixType>::stats_->time += kstats->time;
-    WindowBase<MatrixType>::stats_->elapsed_time += kstats->elapsed_time;
+    if (update_counters) {
+      auto kstats = map.stats();
+      WindowBase<MatrixType>::stats_->count++;
+      WindowBase<MatrixType>::stats_->time += kstats->time;
+      WindowBase<MatrixType>::stats_->elapsed_time += kstats->elapsed_time;
+    }
     return window;
   }
 
-  inline auto get(const crs_matrix_type& input, const range_type idx)
-      -> crs_matrix_type {
+  inline auto get(const crs_matrix_type& input,
+                  const range_type idx,
+                  const bool update_counters = true) -> crs_matrix_type {
     std::cout << "get_window for kernel function on sparse matrix not available"
               << std::endl;
     exit(1);

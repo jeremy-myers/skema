@@ -25,6 +25,7 @@ Skema::AlgParams::AlgParams()
       window(1),
       hist(true),
       isvd_dense_solver(false),
+      isvd_compute_residual_iters(false),
       isvd_sampler(Skema::Sampler_Type::default_type),
       isvd_num_samples(0),
       isvd_sampling(false),
@@ -263,6 +264,9 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
 
   // iSVD solver options
   isvd_dense_solver = parse_bool(args, "--svd", "--svds", false);
+  isvd_compute_residual_iters =
+      parse_bool(args, "--isvd-compute-residual-iters",
+                 "--isvd-compute-residual-iters-off", false);
   isvd_sampler =
       parse_enum(args, "--isvd-sampler", Skema::Sampler_Type::default_type,
                  Skema::Sampler_Type::num_types, Skema::Sampler_Type::types,

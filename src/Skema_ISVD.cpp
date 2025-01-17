@@ -23,6 +23,7 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   const size_type rank{algParams.rank};
   const bool sampling{algParams.isvd_sampling};
   size_type wsize{algParams.window};
+  const bool residual_iters{algParams.isvd_compute_residual_iters};
 
   // Temporary array for local computations
   matrix_type uvecs("uvecs", rank + wsize, rank);
@@ -48,7 +49,12 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
 
   // Compute initial decomposition
   solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex,
-                 rnrms);
+                 solver_rnrms);
+
+  // Compute residuals for the window if desired
+  if (residual_iters) {
+    compute_residuals(A);
+  }
 
   // Update vvecs with svals
   distribute(svals, vtvex);
@@ -76,7 +82,11 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
 
     // Compute decomposition with optional sampler
     solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex,
-                   rnrms, sampler);
+                   solver_rnrms, sampler);
+
+    if (residual_iters) {
+      compute_residuals(A);
+    }
 
     // Update vvecs with svals
     distribute(svals, vtvex);
@@ -96,7 +106,6 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
 
 template <typename MatrixType>
 auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> void {
-  // Compute final residuals
   double time{0.0};
   Kokkos::Timer timer;
 
@@ -109,7 +118,7 @@ auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> void {
     rnrms = residuals(A, u, svals, v, rank, algParams, window);
   }
   time = timer.seconds();
-  // std::cout << "\nCompute residuals: " << time << std::endl;
+  std::cout << "Compute residuals: " << time << std::endl;
 }
 
 /* Compute U = A*V*Sigma^{-1} */
@@ -134,7 +143,8 @@ auto ISVD<MatrixType>::compute_U(const MatrixType& A) -> void {
       wsize = idx.second - idx.first;
     }
 
-    auto A_window = window->get(A, idx);
+    auto A_window =
+        window->get(A, idx, false);  // Don't update counters for window
     auto v = Impl::transpose(vtvex);
     utmp = Kokkos::subview(u, idx, Kokkos::ALL());
     Impl::mm(&N, &N, &one, A_window, v, &zero, utmp);
@@ -150,7 +160,7 @@ auto ISVD<MatrixType>::compute_U(const MatrixType& A) -> void {
       });
 
   time = timer.seconds();
-  // std::cout << "Compute U: " << time << std::endl;
+  std::cout << "Compute U: " << time << std::endl;
 }
 
 template <typename MatrixType>
@@ -184,16 +194,24 @@ auto ISVD<MatrixType>::save_window_history(
   auto count = std::to_string(window_stats->count);
 
   // containers of non-integral types need special treatement
-  std::vector<scalar_type> s(rank);
-  std::vector<scalar_type> r(rank);
+  std::vector<scalar_type> s_window(rank);
+  std::vector<scalar_type> r_solver(rank);
   for (auto i = 0; i < rank; ++i) {
-    s[i] = svals(i);
-    r[i] = rnrms(i);
+    s_window[i] = svals(i);
+    r_solver[i] = solver_rnrms(i);
   }
-  nlohmann::json j_svals(s);
-  nlohmann::json j_rnrms(r);
-  hist[count]["svals"] = j_svals;
-  hist[count]["rnrms"] = j_rnrms;
+  nlohmann::json j_s_window(s_window);
+  nlohmann::json j_r_solver(r_solver);
+  hist[count]["svals"] = j_s_window;
+
+  if (algParams.isvd_compute_residual_iters) {
+    std::vector<scalar_type> r_window(rank);
+    for (auto i = 0; i < rank; ++i) {
+      r_window[i] = rnrms(i);
+    }
+    nlohmann::json j_r_window(r_window);
+    hist[count]["rnrms"] = j_r_window;
+  }
 
   hist[count]["update"]["window"] = window_stats->time;
   hist[count]["primme_svds"]["numOuterIterations"] =
@@ -202,6 +220,7 @@ auto ISVD<MatrixType>::save_window_history(
   hist[count]["primme_svds"]["elapsedTime"] = solver_stats->elapsedTime;
   hist[count]["primme_svds"]["timeMatvec"] = solver_stats->timeMatvec;
   hist[count]["primme_svds"]["timeOrtho"] = solver_stats->timeOrtho;
+  hist[count]["primme_svds"]["rnrms"] = j_r_solver;
 }
 
 template <>

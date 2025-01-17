@@ -31,6 +31,7 @@ struct AlgParams {
   /* ISVD options */
   bool isvd_dense_solver;
   bool isvd_initial_guess;
+  bool isvd_compute_residual_iters;
 
   // PRIMME options
   std::filesystem::path primme_outputFile;

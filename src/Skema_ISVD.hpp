@@ -25,6 +25,7 @@ class ISVD {
         svals(vector_type("svals", rank)),
         vtvex(matrix_type("vtvex", rank, ncol)),
         rnrms(vector_type("rnrms", rank)),
+        solver_rnrms(vector_type("rnrms", rank)),
         window(getWindow<MatrixType>(algParams)),
         wsize0(algParams.window) {}
 
@@ -48,6 +49,7 @@ class ISVD {
   vector_type svals;
   matrix_type vtvex;
   vector_type rnrms;
+  vector_type solver_rnrms;
   const AlgParams algParams;
   const size_type wsize0;
   std::unique_ptr<WindowBase<MatrixType>> window;
