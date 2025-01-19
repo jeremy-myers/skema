@@ -3,6 +3,7 @@
 #include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
 #include "primme.h"
+#include "primme_eigs.h"
 
 namespace Skema {
 
@@ -61,6 +62,13 @@ auto save_primme_stats(const std::filesystem::path,
                        const VectorT&,
                        const VectorT&,
                        const PrimmeStats*);
+
+inline auto parse_primme_method(const std::string& s) -> primme_preset_method {
+  if (s == "PRIMME_LOBPCG_OrthoBasis") {
+    return PRIMME_LOBPCG_OrthoBasis;
+  }
+  return PRIMME_DEFAULT_METHOD;
+}
 
 template <typename MatrixType>
 class XVDS {

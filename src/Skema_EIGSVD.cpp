@@ -63,6 +63,9 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
   params.target = primme_largest;
   params.matrixMatvec = eigs_default_dense_matvec;
   params.monitorFun = eigs_monitorFun;
+
+  primme_preset_method method = parse_primme_method(algParams.primme_method);
+
   for (auto i = 0; i < 4; ++i) {
     params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
   }
@@ -95,7 +98,7 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
     perror("PRIMME output file failed to open: ");
   }
 
-  primme_set_method(PRIMME_DEFAULT_MIN_MATVECS, &params);
+  primme_set_method(method, &params);
   primme_display_params(params);
 
   /* Call primme_svds  */
@@ -145,6 +148,9 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   params.target = primme_largest;
   params.matrixMatvec = eigs_default_sparse_matvec;
   params.monitorFun = eigs_monitorFun;
+
+  primme_preset_method method = parse_primme_method(algParams.primme_method);
+
   for (auto i = 0; i < 4; ++i) {
     params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
   }
@@ -169,7 +175,7 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   if (fp == NULL)
     perror("PRIMME output file failed to open: ");
 
-  primme_set_method(PRIMME_DEFAULT_MIN_MATVECS, &params);
+  primme_set_method(method, &params);
   primme_display_params(params);
 
   /* Call primme_svds  */
@@ -211,8 +217,15 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType& matrix,
   params.numSvals = rank;
   params.eps = algParams.primme_eps;
   params.target = primme_svds_largest;
+
+  primme_preset_method methodStage1 =
+      parse_primme_method(algParams.primme_method);
+  primme_preset_method methodStage2 =
+      parse_primme_method(algParams.primme_method);
+
   for (auto i = 0; i < 4; ++i) {
     params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
+    params.primme.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
   }
 
   if (algParams.issparse) {
@@ -252,8 +265,8 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType& matrix,
   if (fp == NULL)
     perror("PRIMME output file failed to open: ");
 
-  primme_svds_set_method(primme_svds_normalequations, PRIMME_DEFAULT_METHOD,
-                         PRIMME_DEFAULT_METHOD, &params);
+  primme_svds_set_method(primme_svds_normalequations, methodStage1,
+                         methodStage1, &params);
   primme_svds_display_params(params);
 
   /* Call primme_svds  */
