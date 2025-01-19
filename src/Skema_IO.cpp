@@ -74,6 +74,13 @@ auto read_bin<crs_matrix_type>(const std::filesystem::path& filename)
 }
 
 template <>
+auto write_mtx<vector_type>(const vector_type A,
+                            const std::filesystem::path& filename) -> void {
+  std::cout << "Skema write_matrix() not implemented yet for vectors"
+            << std::endl;
+}
+
+template <>
 auto write_mtx<matrix_type>(const matrix_type A,
                             const std::filesystem::path& filename) -> void {
   std::cout << "Skema write_matrix() not implemented yet for dense matrices"
@@ -84,6 +91,13 @@ template <>
 auto write_mtx<crs_matrix_type>(const crs_matrix_type A,
                                 const std::filesystem::path& filename) -> void {
   KokkosSparse::Impl::write_kokkos_crst_matrix(A, filename.c_str());
+}
+
+template <>
+auto write_bin<vector_type>(const vector_type A,
+                            const std::filesystem::path& filename) -> void {
+  std::cout << "Skema write_matrix() not implemented yet for vectors"
+            << std::endl;
 }
 
 template <>
