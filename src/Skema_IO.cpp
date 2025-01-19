@@ -6,13 +6,6 @@
 namespace Skema {
 
 template <>
-auto read_mtx<crs_matrix_type>(const std::filesystem::path& filename)
-    -> crs_matrix_type {
-  return KokkosSparse::Impl::read_kokkos_crst_matrix<crs_matrix_type>(
-      filename.c_str());
-}
-
-template <>
 auto read_mtx<matrix_type>(const std::filesystem::path& filename)
     -> matrix_type {
   std::ifstream mmfile(filename, std::ifstream::in);
@@ -60,6 +53,20 @@ auto read_mtx<matrix_type>(const std::filesystem::path& filename)
 };
 
 template <>
+auto read_bin<matrix_type>(const std::filesystem::path& filename)
+    -> matrix_type {
+  throw std::runtime_error(
+      "Only sparse binary inputs are supported by Skema read_matrix()");
+}
+
+template <>
+auto read_mtx<crs_matrix_type>(const std::filesystem::path& filename)
+    -> crs_matrix_type {
+  return KokkosSparse::Impl::read_kokkos_crst_matrix<crs_matrix_type>(
+      filename.c_str());
+}
+
+template <>
 auto read_bin<crs_matrix_type>(const std::filesystem::path& filename)
     -> crs_matrix_type {
   return KokkosSparse::Impl::read_kokkos_crst_matrix<crs_matrix_type>(
@@ -67,10 +74,29 @@ auto read_bin<crs_matrix_type>(const std::filesystem::path& filename)
 }
 
 template <>
-auto read_bin<matrix_type>(const std::filesystem::path& filename)
-    -> matrix_type {
-  throw std::runtime_error(
-      "Only sparse binary inputs are supported by Skema read_matrix()");
+auto write_mtx<matrix_type>(const matrix_type A,
+                            const std::filesystem::path& filename) -> void {
+  std::cout << "Skema write_matrix() not implemented yet for dense matrices"
+            << std::endl;
+}
+
+template <>
+auto write_mtx<crs_matrix_type>(const crs_matrix_type A,
+                                const std::filesystem::path& filename) -> void {
+  KokkosSparse::Impl::write_kokkos_crst_matrix(A, filename.c_str());
+}
+
+template <>
+auto write_bin<matrix_type>(const matrix_type A,
+                            const std::filesystem::path& filename) -> void {
+  std::cout << "Skema write_matrix() not implemented yet for dense matrices"
+            << std::endl;
+}
+
+template <>
+auto write_bin<crs_matrix_type>(const crs_matrix_type A,
+                                const std::filesystem::path& filename) -> void {
+  KokkosSparse::Impl::write_kokkos_crst_matrix(A, filename.c_str());
 }
 
 }  // namespace Skema
