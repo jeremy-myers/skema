@@ -97,6 +97,7 @@ include_directories(
 add_executable(${PROJECT_NAME}
     ${CMAKE_SOURCE_DIR}/driver/main.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_AlgParams.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_IO.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_EIGSVD.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_EIGSVD_MatrixMatvec.cpp
     ${CMAKE_SOURCE_DIR}/src/Skema_Kernel.cpp

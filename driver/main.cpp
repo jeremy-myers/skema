@@ -9,6 +9,7 @@
 #include <string>
 #include "Skema_AlgParams.hpp"
 #include "Skema_EIGSVD.hpp"
+#include "Skema_IO.hpp"
 #include "Skema_ISVD.hpp"
 #include "Skema_SketchySVD.hpp"
 #include "Skema_Utils.hpp"
@@ -17,20 +18,21 @@ void usage(char** argv) {
   std::cout << "Usage: " << argv[0] << " [options]" << std::endl;
   std::cout << "General options:" << std::endl;
   std::cout << "  --input\tpath to input matrix. Supported filetypes: "
-               "txt, mtx (Matrix Market), bin"
+               "mtx (Matrix Market), bin"
             << std::endl;
   std::cout << "  --history-file\tpath to history file (stored as json)."
             << std::endl;
   std::cout << "  --sparse\tspecify whether matrix is dense or sparse"
             << std::endl;
   std::cout << "  --symmetric\twhether matrix is symmetric" << std::endl;
-  std::cout
-      << "  --m\t\tnumber of matrix rows (required if dense or filetype is txt)"
-      << std::endl;
-  std::cout
-      << "  --n\t\tnumber of matrix columns (required if dense or filetype "
-         "is txt)"
-      << std::endl;
+  // std::cout
+  //     << "  --m\t\tnumber of matrix rows (required if dense or filetype is
+  //     txt)"
+  //     << std::endl;
+  // std::cout
+  //     << "  --n\t\tnumber of matrix columns (required if dense or filetype "
+  //        "is txt)"
+  // << std::endl;
   std::cout << "  --rank\tdesired rank of decomposition" << std::endl;
   std::cout << "  --window\tsize of window in streaming setting" << std::endl;
   std::cout << std::endl;
@@ -76,18 +78,22 @@ int main_driver(const MatrixType& matrix, const Skema::AlgParams& algParams) {
 
 int dense_driver(const std::filesystem::path inputfilename,
                  Skema::AlgParams& algParams) {
-  if (algParams.matrix_m == 0 || algParams.matrix_n == 0) {
-    std::cout << "Must specify both matrix dimensions." << std::endl;
-    exit(1);
-  }
+  // if (algParams.matrix_m == 0 || algParams.matrix_n == 0) {
+  //   std::cout << "Must specify both matrix dimensions." << std::endl;
+  //   exit(1);
+  // }
   std::cout << "Reading " << inputfilename << "... " << std::endl;
   Kokkos::Timer timer;
-  matrix_type matrix("Input matrix", algParams.matrix_m, algParams.matrix_n);
-  KokkosKernels::Impl::kk_read_2Dview_from_file<matrix_type>(
-      matrix, inputfilename.c_str());
+  // matrix_type matrix("Input matrix", algParams.matrix_m, algParams.matrix_n);
+  // KokkosKernels::Impl::kk_read_2Dview_from_file<matrix_type>(
+  //     matrix, inputfilename.c_str());
+  matrix_type matrix = Skema::read_matrix<matrix_type>(inputfilename);
   double time = timer.seconds();
 
   std::cout << "Done: " << time << " s" << std::endl;
+
+  algParams.matrix_m = matrix.extent(0);
+  algParams.matrix_n = matrix.extent(1);
 
   // Kernel
   if (algParams.kernel_func != Skema::Kernel_Map::NONE) {
@@ -110,9 +116,10 @@ int sparse_driver(const std::filesystem::path inputfilename,
                   Skema::AlgParams& algParams) {
   std::cout << "Reading " << inputfilename << "... " << std::flush;
   Kokkos::Timer timer;
-  crs_matrix_type matrix;
-  matrix = KokkosSparse::Impl::read_kokkos_crst_matrix<crs_matrix_type>(
-      inputfilename.c_str());
+  // crs_matrix_type matrix;
+  // matrix = KokkosSparse::Impl::read_kokkos_crst_matrix<crs_matrix_type>(
+  //     inputfilename.c_str());
+  crs_matrix_type matrix = Skema::read_matrix<crs_matrix_type>(inputfilename);
   double time = timer.seconds();
   std::cout << "Done: " << time << " s" << std::endl;
 
