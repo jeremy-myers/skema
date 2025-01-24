@@ -2,6 +2,7 @@
 #pragma once
 #include <map>
 #include "Skema_AlgParams.hpp"
+#include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
 #include "Skema_Window.hpp"
 
@@ -15,7 +16,8 @@ class SketchySVD {
 
   auto compute_residuals(const MatrixType&) -> void;
   auto linear_update(const MatrixType&) -> void;
-  auto low_rank_approx() -> std::tuple<matrix_type, vector_type, matrix_type>;
+  auto low_rank_approx(bool update_timers = true)
+      -> std::tuple<matrix_type, vector_type, matrix_type>;
   auto save_history(std::filesystem::path) -> void;
 
  private:
@@ -44,7 +46,8 @@ class SketchySVD {
   DimReduxT Phi;
   DimReduxT Psi;
 
-  std::map<std::string, std::map<std::string, double>> timings;
+  std::map<std::string, std::map<std::string, scalar_type>> timings;
+  std::map<std::string, std::map<std::string, std::vector<scalar_type>>> traces;
 
   auto axpy(const double,
             matrix_type&,
@@ -52,7 +55,8 @@ class SketchySVD {
             const matrix_type&,
             const range_type = std::make_pair<size_type>(0, 0)) -> void;
 
-  auto initial_approx() -> void;
+  auto initial_approx(bool update_timers = true)
+      -> std::tuple<matrix_type, matrix_type, matrix_type>;
 
   auto update(const MatrixType&,
               const range_type idx = std::make_pair<size_type>(0, 0))
@@ -68,7 +72,8 @@ class SketchySPD {
 
   auto compute_residuals(const MatrixType&) -> void;
   auto linear_update(const MatrixType&) -> void;
-  auto low_rank_approx() -> std::tuple<matrix_type, vector_type>;
+  auto low_rank_approx(bool update_timers = true)
+      -> std::tuple<matrix_type, vector_type>;
   auto save_history(std::filesystem::path) -> void;
 
  private:
@@ -91,6 +96,7 @@ class SketchySPD {
   DimReduxT Omega;
 
   std::map<std::string, std::map<std::string, double>> timings;
+  std::map<std::string, std::map<std::string, std::vector<scalar_type>>> traces;
 
   auto axpy(const double,
             matrix_type&,

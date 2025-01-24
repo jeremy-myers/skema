@@ -47,6 +47,7 @@ Skema::AlgParams::AlgParams()
       sketch_range(1),
       sketch_core(1),
       force_three_sketch(false),
+      sketch_compute_svals_iters(false),
       dim_redux(Skema::DimRedux_Map::default_type),
       seeds({0, 1, 2, 3}),
       kernel_func(Skema::Kernel_Map::default_type),
@@ -265,6 +266,9 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
       parse_real(args, "--nu", 1.0, 0.0, std::numeric_limits<double>::max());
   force_three_sketch = parse_bool(args, "--force-three-sketch",
                                   "--force-three-sketch-off", false);
+  sketch_compute_svals_iters =
+      parse_bool(args, "--sketch-compute-svals-iters",
+                 "--sketch-compute-svals-iters-off", false);
 
   // iSVD solver options
   isvd_dense_solver = parse_bool(args, "--svd", "--svds", false);
