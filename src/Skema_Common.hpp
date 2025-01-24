@@ -2,6 +2,7 @@
 #include <KokkosSparse.hpp>
 #include <cstddef>
 #include <cstdio>
+#include <iomanip>
 #include <ostream>
 #include "KokkosSparse_IOUtils.hpp"
 #include "Skema_Utils.hpp"
@@ -135,14 +136,16 @@ inline crs_matrix_type row_subview(
 
 inline void print(const vector_type& a) {
   for (auto i = 0; i < a.extent(0); ++i)
-    std::cout << std::setprecision(16) << " " << a(i) << "\n";
+    std::cout << std::scientific << std::setprecision(16) << " " << a(i)
+              << "\n";
   std::cout << std::flush;
 }
 
 inline void print(const matrix_type& A) {
   for (auto row = 0; row < A.extent(0); ++row) {
     for (auto col = 0; col < A.extent(1); ++col) {
-      std::cout << std::setprecision(16) << " " << A(row, col);
+      std::cout << std::scientific << std::setprecision(17) << " "
+                << A(row, col);
     }
     std::cout << std::endl;
   }
@@ -153,7 +156,8 @@ inline void print(const crs_matrix_type& A) {
     auto arow = A.row(irow);
     for (auto jcol = 0; jcol < arow.length; ++jcol) {
       std::cout << "(" << irow << ", " << arow.colidx(jcol)
-                << ") = " << arow.value(jcol) << std::endl;
+                << ") = " << std::scientific << std::setprecision(17)
+                << arow.value(jcol) << std::endl;
     }
   }
 }
