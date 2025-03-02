@@ -2,6 +2,7 @@
 #include "Skema_AlgParams.hpp"
 #include "Skema_Kernel.hpp"
 #include "Skema_Utils.hpp"
+#include <iostream>
 
 namespace Skema {
 
@@ -91,6 +92,7 @@ class GaussRBFWindow : public WindowBase<MatrixType> {
                   const bool update_counters = true) -> matrix_type {
     // Timers are incremented internally
     auto slice = helper.get(input, idx);
+    std::cout << "Computing Gauss RBF kernel of size " << slice.extent(0) << " x " << input.extent(0) << std::endl;
     auto window =
         map.compute(slice, slice.extent(0), slice.extent(1), input,
                     input.extent(0), input.extent(1), input.extent(1), idx);
