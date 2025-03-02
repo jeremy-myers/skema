@@ -23,6 +23,7 @@ struct AlgParams {
   size_t matrix_n;
   size_t matrix_nnz;
   size_t rank;
+  int num_passes;
   int print_level;
   bool debug;
   size_t window;
