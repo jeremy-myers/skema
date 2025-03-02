@@ -130,6 +130,9 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
   timings["init"]["phi"] += Phi.stats.initialize;
   timings["init"]["psi"] += Psi.stats.initialize;
 
+  X = matrix_type("X", range, ncol);
+  Y = matrix_type("Y", nrow, range);
+  Z = matrix_type("Z", core, core);
   matrix_type x;
   matrix_type y;
   matrix_type z;
@@ -159,10 +162,6 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
 
     return;
   }
-
-  X = matrix_type("X", range, ncol);
-  Y = matrix_type("Y", nrow, range);
-  Z = matrix_type("Z", core, core);
 
   /* Main loop */
   // window count
@@ -715,10 +714,14 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
   double time{0.0};
   Kokkos::Timer timer;
   size_type wsize{algParams.window};
+  ordinal_type num_passes{algParams.num_passes};
+  ordinal_type pass{0};
   range_type idx;
 
   timings["init"]["omega"] += Omega.stats.initialize;
 
+  Y = matrix_type("Y", nrow, range);
+  matrix_type y;
   if (wsize == nrow) {
     idx = std::make_pair<size_type>(0, nrow);
 
@@ -726,9 +729,17 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     auto H = window->get(A, idx);
     timings["update"]["window"] += timer.seconds();
 
-    timer.reset();
-    Y = update(H);
-    timings["update"]["omega"] += Omega.stats.map;
+    while (pass < num_passes) {
+      timer.reset();
+      y = update(H);
+      timings["update"]["omega"] += timer.seconds();
+
+      timer.reset();
+      axpy(nu, Y, eta, y);
+      timings["update"]["daxpy"] += timer.seconds();
+
+      ++pass;
+    }
 
     if (algParams.debug) {
       std::cout << "H = \n";
@@ -741,7 +752,6 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
   }
 
   /* Main loop */
-  Y = matrix_type("Y", nrow, range);
   ordinal_type ucnt{0};  // window count
 
   // Compute svals after every window
@@ -757,13 +767,17 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     auto H = window->get(A, idx);
     timings["update"]["window"] += timer.seconds();
 
-    timer.reset();
-    auto y = update(H);
-    timings["update"]["omega"] += timer.seconds();
+    while (pass < num_passes) {
+      timer.reset();
+      y = update(H);
+      timings["update"]["omega"] += timer.seconds();
 
-    timer.reset();
-    axpy(nu, Y, eta, y, idx);
-    timings["update"]["daxpy"] += timer.seconds();
+      timer.reset();
+      axpy(nu, Y, eta, y, idx);
+      timings["update"]["daxpy"] += timer.seconds();
+
+      ++pass;
+    }
 
     if (algParams.debug) {
       std::cout << "H = \n";
