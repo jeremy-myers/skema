@@ -121,6 +121,8 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     -> void {
   Kokkos::Timer timer;
   size_type wsize{algParams.window};
+  ordinal_type num_passes{algParams.num_passes};
+  ordinal_type pass{0};
   range_type idx;
 
   timings["init"]["upsilon"] += Upsilon.stats.initialize;
@@ -128,6 +130,12 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
   timings["init"]["phi"] += Phi.stats.initialize;
   timings["init"]["psi"] += Psi.stats.initialize;
 
+  X = matrix_type("X", range, ncol);
+  Y = matrix_type("Y", nrow, range);
+  Z = matrix_type("Z", core, core);
+  matrix_type x;
+  matrix_type y;
+  matrix_type z;
   if (wsize == nrow) {
     idx = std::make_pair(0, nrow);
 
@@ -135,25 +143,27 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     auto H = window->get(A, idx);
     timings["update"]["window"] += timer.seconds();
 
-    std::tie(X, Y, Z) = update(H);
+    while (pass < num_passes) {
+      std::tie(x, y, z) = update(H);
 
-    timings["update"]["upsilon"] += Upsilon.stats.map;
-    timings["update"]["omega"] += Omega.stats.map;
-    timings["update"]["phi"] += Phi.stats.map;
-    timings["update"]["psi"] += Psi.stats.map;
+      timings["update"]["upsilon"] += Upsilon.stats.map;
+      timings["update"]["omega"] += Omega.stats.map;
+      timings["update"]["phi"] += Phi.stats.map;
+      timings["update"]["psi"] += Psi.stats.map;
+
+      timer.reset();
+      axpy(nu, X, eta, x);
+      axpy(nu, Z, eta, z);
+      axpy(nu, Y, eta, y);
+      timings["update"]["daxpy"] += timer.seconds();
+
+      ++pass;
+    }
 
     return;
   }
 
-  X = matrix_type("X", range, ncol);
-  Y = matrix_type("Y", nrow, range);
-  Z = matrix_type("Z", core, core);
-
   /* Main loop */
-  matrix_type x;
-  matrix_type y;
-  matrix_type z;
-
   // window count
   ordinal_type ucnt{0};
 
@@ -172,18 +182,22 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     auto H = window->get(A, idx);
     timings["update"]["window"] += timer.seconds();
 
-    std::tie(x, y, z) = update(H, idx);
+    while (pass < num_passes) {
+      std::tie(x, y, z) = update(H, idx);
 
-    timings["update"]["upsilon"] += Upsilon.stats.map;
-    timings["update"]["omega"] += Omega.stats.map;
-    timings["update"]["phi"] += Phi.stats.map;
-    timings["update"]["psi"] += Psi.stats.map;
+      timings["update"]["upsilon"] += Upsilon.stats.map;
+      timings["update"]["omega"] += Omega.stats.map;
+      timings["update"]["phi"] += Phi.stats.map;
+      timings["update"]["psi"] += Psi.stats.map;
 
-    timer.reset();
-    axpy(nu, X, eta, x);
-    axpy(nu, Z, eta, z);
-    axpy(nu, Y, eta, y, idx);
-    timings["update"]["daxpy"] += timer.seconds();
+      timer.reset();
+      axpy(nu, X, eta, x);
+      axpy(nu, Z, eta, z);
+      axpy(nu, Y, eta, y, idx);
+      timings["update"]["daxpy"] += timer.seconds();
+
+      ++pass;
+    }
 
     if (compute_svals_iters) {
       low_rank_approx(false);
@@ -700,10 +714,14 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
   double time{0.0};
   Kokkos::Timer timer;
   size_type wsize{algParams.window};
+  ordinal_type num_passes{algParams.num_passes};
+  ordinal_type pass{0};
   range_type idx;
 
   timings["init"]["omega"] += Omega.stats.initialize;
 
+  Y = matrix_type("Y", nrow, range);
+  matrix_type y;
   if (wsize == nrow) {
     idx = std::make_pair<size_type>(0, nrow);
 
@@ -711,9 +729,17 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     auto H = window->get(A, idx);
     timings["update"]["window"] += timer.seconds();
 
-    timer.reset();
-    Y = update(H);
-    timings["update"]["omega"] += Omega.stats.map;
+    while (pass < num_passes) {
+      timer.reset();
+      y = update(H);
+      timings["update"]["omega"] += timer.seconds();
+
+      timer.reset();
+      axpy(nu, Y, eta, y);
+      timings["update"]["daxpy"] += timer.seconds();
+
+      ++pass;
+    }
 
     if (algParams.debug) {
       std::cout << "H = \n";
@@ -726,7 +752,6 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
   }
 
   /* Main loop */
-  Y = matrix_type("Y", nrow, range);
   ordinal_type ucnt{0};  // window count
 
   // Compute svals after every window
@@ -742,13 +767,17 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     auto H = window->get(A, idx);
     timings["update"]["window"] += timer.seconds();
 
-    timer.reset();
-    auto y = update(H);
-    timings["update"]["omega"] += timer.seconds();
+    while (pass < num_passes) {
+      timer.reset();
+      y = update(H);
+      timings["update"]["omega"] += timer.seconds();
 
-    timer.reset();
-    axpy(nu, Y, eta, y, idx);
-    timings["update"]["daxpy"] += timer.seconds();
+      timer.reset();
+      axpy(nu, Y, eta, y, idx);
+      timings["update"]["daxpy"] += timer.seconds();
+
+      ++pass;
+    }
 
     if (algParams.debug) {
       std::cout << "H = \n";

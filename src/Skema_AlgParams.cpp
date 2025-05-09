@@ -20,6 +20,7 @@ Skema::AlgParams::AlgParams()
       matrix_m(0),
       matrix_n(0),
       rank(1),
+      num_passes(1),
       print_level(0),
       debug(false),
       window(1),
@@ -62,6 +63,7 @@ void Skema::error(std::string s) {
 
 void Skema::AlgParams::print(std::ostream& out) const {
   out << "  rank = " << rank << std::endl;
+  out << "  num passes = " << num_passes << std::endl;
   out << "  history file = "
       << (!history_filename.empty() ? history_filename.string() : "stdout")
       << std::endl;
@@ -250,6 +252,7 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
   matrix_m = parse_int(args, "--m", matrix_m, 0, INT_MAX);
   matrix_n = parse_int(args, "--n", matrix_n, 0, INT_MAX);
   rank = parse_int(args, "--rank", rank, 1, INT_MAX);
+  num_passes = parse_int(args, "--num-passes", num_passes, 1, INT_MAX);
   solver = parse_enum(args, "--solver", Skema::Solver_Method::default_type,
                       Skema::Solver_Method::num_types,
                       Skema::Solver_Method::types, Skema::Solver_Method::names);
