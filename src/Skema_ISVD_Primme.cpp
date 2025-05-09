@@ -74,18 +74,19 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
 
     typedef Kokkos::Random_XorShift64_Pool<> pool_type;
     const pool_type rand_pool(algParams.seeds[0]);
-    matrix_type rand_data("isvd_rank_add_factor_rand_data", nrow,
+    matrix_type rand_data("isvd_rank_add_factor_rand_data", nrow, // nrow = rank + window size
                           algParams.isvd_rank_add_factor);
     Kokkos::fill_random(rand_data, rand_pool, -1.0, 1.0);
     Kokkos::fence();
 
-    k = rank;
+    k = rank * nrow;
     for (auto row = 0; row < nrow; ++row) {
       for (auto col = 0; col < algParams.isvd_rank_add_factor; ++col) {
         svecs(k++) = rand_data(row, col);
       }
       k += rank;
     }
+
     primme_svds::params.initSize = rank + algParams.isvd_rank_add_factor;
   }
 
