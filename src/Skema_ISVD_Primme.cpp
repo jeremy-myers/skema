@@ -1,15 +1,18 @@
 #include "Skema_ISVD_Primme.hpp"
 #include <KokkosSparse_IOUtils.hpp>
 #include <Kokkos_Bitset.hpp>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <utility>
+#include "Kokkos_Core_fwd.hpp"
 #include "Skema_AlgParams.hpp"
 #include "Skema_Common.hpp"
 #include "Skema_EIGSVD.hpp"
 #include "Skema_ISVD_MatrixMatvec.hpp"
 #include "Skema_Sampler.hpp"
 #include "Skema_Utils.hpp"
+#include "std_algorithms/Kokkos_Fill.hpp"
 
 namespace Skema {
 
@@ -22,12 +25,11 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
                                     vector_type& S,
                                     matrix_type& Vt,
                                     vector_type& R) {
-
   const size_type rank_add_factor{algParams.isvd_rank_add_factor};
   ISVD_Matrix<MatrixType> matrix(Vt, X, nrow, ncol, rank, nrow - rank);
-  vector_type svals("svals", rank+rank_add_factor);
-  vector_type svecs("svecs", (nrow + ncol) * (rank+rank_add_factor));
-  vector_type rnrms("rnrms", rank+rank_add_factor);
+  vector_type svals("svals", rank + rank_add_factor);
+  vector_type svecs("svecs", (nrow + ncol) * (rank + rank_add_factor));
+  vector_type rnrms("rnrms", rank + rank_add_factor);
 
   /* Set primme_svds parameters */
   using primme_svds = PRIMME_SVDS<MatrixType>;
@@ -61,31 +63,30 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
     primme_svds::params.maxBlockSize = algParams.primme_maxBlockSize;
   }
 
-  std::cout << "\nisvd_initial_guess before setting:" << std::endl;
-  Skema::Impl::print(svecs);
   if (algParams.isvd_initial_guess && count > 0) {
-    Kokkos::parallel_for(
-        nrow * rank,
-        KOKKOS_LAMBDA(const int i) { svecs.data()[i] = U.data()[i]; });
-    primme_svds::params.initSize = rank;
-    Kokkos::fence();
-    std::cout << "\nisvd_initial_guess after setting:" << std::endl;
-    Skema::Impl::print(svecs);
+    uint64_t k{0};
+    for (uint64_t row = 0; row < nrow; ++row) {
+      for (uint64_t col = 0; col < rank; ++col) {
+        svecs(k++) = U(row, col);
+      }
+      k += algParams.isvd_rank_add_factor;
+    }
 
     typedef Kokkos::Random_XorShift64_Pool<> pool_type;
-    const pool_type rand_pool(0);
-    Kokkos::parallel_for(nrow*(rank+algParams.isvd_rank_add_factor), KOKKOS_LAMBDA(const int i) {
-        if (i > nrow * rank) {
-        auto generator = rand_pool.get_state();
-        double v = generator.drand(0., 1.);
-        rand_pool.free_state(generator);
-        svecs(i) = v;
-        }
-    primme_svds::params.initSize = rank + algParams.isvd_rank_add_factor;
-    });
+    const pool_type rand_pool(algParams.seeds[0]);
+    matrix_type rand_data("isvd_rank_add_factor_rand_data", nrow,
+                          algParams.isvd_rank_add_factor);
+    Kokkos::fill_random(rand_data, rand_pool, -1.0, 1.0);
     Kokkos::fence();
-    std::cout << "\nisvd_initial_guess after random junk:" << std::endl;
-    Skema::Impl::print(svecs);
+
+    k = rank;
+    for (auto row = 0; row < nrow; ++row) {
+      for (auto col = 0; col < algParams.isvd_rank_add_factor; ++col) {
+        svecs(k++) = rand_data(row, col);
+      }
+      k += rank;
+    }
+    primme_svds::params.initSize = rank + algParams.isvd_rank_add_factor;
   }
 
   primme_svds_set_method(primme_svds_normalequations, PRIMME_LOBPCG_OrthoBasis,
@@ -152,6 +153,9 @@ void ISVD_SVDS<MatrixT>::set_u0(const MatrixT& A,
   Impl::mm(&N, &N, &one, A, vsinv, &zero, u0);
 
   // U = [eye(r); u0]
+  // Clear out U
+  Kokkos::parallel_for(
+      nrow * rank, KOKKOS_LAMBDA(const int ii) { U.data()[ii] = 0.0; });
   for (auto ii = 0; ii < rank; ++ii) {
     U(ii, ii) = 1.0;
   }
