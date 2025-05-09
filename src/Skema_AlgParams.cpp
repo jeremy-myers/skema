@@ -25,6 +25,7 @@ Skema::AlgParams::AlgParams()
       window(1),
       hist(true),
       rayleigh_ritz_pass(false),
+      normalize_matrix(0.0),
       isvd_dense_solver(false),
       isvd_compute_residual_iters(false),
       isvd_sampler(Skema::Sampler_Type::default_type),
@@ -33,6 +34,7 @@ Skema::AlgParams::AlgParams()
       isvd_convtest_eps(1e-4),
       isvd_convtest_skip(0),
       isvd_initial_guess(false),
+      isvd_rank_add_factor(0),
       primme_eps(1e-4),
       primme_initSize(0),
       primme_maxBasisSize(0),
@@ -65,6 +67,9 @@ void Skema::AlgParams::print(std::ostream& out) const {
       << std::endl;
   if (window > 0) {
     out << "  window = " << window << std::endl;
+  }
+  if (normalize_matrix > 0.0) {
+    out << "  normalize matrix = " << normalize_matrix << std::endl;
   }
 
   switch (Skema::Solver_Method::types[solver]) {
@@ -113,6 +118,9 @@ void Skema::AlgParams::print(std::ostream& out) const {
           out << "  PRIMME minRestartSize = " << primme_minRestartSize
               << std::endl;
           ;
+        }
+        if (isvd_rank_add_factor > 0) {
+          out << " iSVD rank add factor = " << isvd_rank_add_factor << std::endl;
         }
       }
 
@@ -248,6 +256,7 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
   print_level = parse_int(args, "--print-level", print_level, 0, 5);
   debug = parse_bool(args, "--debug", "--debug-off", false);
   rayleigh_ritz_pass = parse_bool(args, "--rr", "--rr-off", false);
+  normalize_matrix = parse_real(args, "--normalize-matrix", 0.0, 0.0, std::numeric_limits<double>::max());
 
   // Streaming options
   window = parse_int(args, "--window", window, 1, INT_MAX);
@@ -285,6 +294,7 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
   isvd_convtest_skip = parse_int(args, "--isvd-convtest-skip", 0, 0, INT_MAX);
   isvd_initial_guess = parse_bool(args, "--isvd-initial-guess",
                                   "--isvd-initial-guess-off", false);
+  isvd_rank_add_factor = parse_int(args, "--isvd-rank-add-factor", 0, 0, INT_MAX);
 
   // PRIMME solver options
   primme_outputFile = parse_filepath(args, "--primme_outputFile", "");

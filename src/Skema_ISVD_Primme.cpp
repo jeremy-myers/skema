@@ -22,17 +22,19 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
                                     vector_type& S,
                                     matrix_type& Vt,
                                     vector_type& R) {
+
+  const size_type rank_add_factor{algParams.isvd_rank_add_factor};
   ISVD_Matrix<MatrixType> matrix(Vt, X, nrow, ncol, rank, nrow - rank);
-  vector_type svals("svals", rank);
-  vector_type svecs("svecs", (nrow + ncol) * rank);
-  vector_type rnrms("rnrms", rank);
+  vector_type svals("svals", rank+rank_add_factor);
+  vector_type svecs("svecs", (nrow + ncol) * (rank+rank_add_factor));
+  vector_type rnrms("rnrms", rank+rank_add_factor);
 
   /* Set primme_svds parameters */
   using primme_svds = PRIMME_SVDS<MatrixType>;
   primme_svds::params.matrix = &matrix;
   primme_svds::params.m = nrow;
   primme_svds::params.n = ncol;
-  primme_svds::params.numSvals = rank;
+  primme_svds::params.numSvals = rank + rank_add_factor;
   primme_svds::params.outputFile = fp_output_filename;
   primme_svds::params.eps = algParams.primme_eps;
   primme_svds::params.printLevel = algParams.primme_printLevel;
@@ -59,11 +61,31 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
     primme_svds::params.maxBlockSize = algParams.primme_maxBlockSize;
   }
 
+  std::cout << "\nisvd_initial_guess before setting:" << std::endl;
+  Skema::Impl::print(svecs);
   if (algParams.isvd_initial_guess && count > 0) {
     Kokkos::parallel_for(
         nrow * rank,
         KOKKOS_LAMBDA(const int i) { svecs.data()[i] = U.data()[i]; });
     primme_svds::params.initSize = rank;
+    Kokkos::fence();
+    std::cout << "\nisvd_initial_guess after setting:" << std::endl;
+    Skema::Impl::print(svecs);
+
+    typedef Kokkos::Random_XorShift64_Pool<> pool_type;
+    const pool_type rand_pool(0);
+    Kokkos::parallel_for(nrow*(rank+algParams.isvd_rank_add_factor), KOKKOS_LAMBDA(const int i) {
+        if (i > nrow * rank) {
+        auto generator = rand_pool.get_state();
+        double v = generator.drand(0., 1.);
+        rand_pool.free_state(generator);
+        svecs(i) = v;
+        }
+    primme_svds::params.initSize = rank + algParams.isvd_rank_add_factor;
+    });
+    Kokkos::fence();
+    std::cout << "\nisvd_initial_guess after random junk:" << std::endl;
+    Skema::Impl::print(svecs);
   }
 
   primme_svds_set_method(primme_svds_normalequations, PRIMME_LOBPCG_OrthoBasis,
