@@ -6,15 +6,53 @@
 #include <cstdio>
 #include <utility>
 #include "Kokkos_Core_fwd.hpp"
+#include "Kokkos_Macros.hpp"
 #include "Skema_AlgParams.hpp"
 #include "Skema_Common.hpp"
 #include "Skema_EIGSVD.hpp"
 #include "Skema_ISVD_MatrixMatvec.hpp"
 #include "Skema_Sampler.hpp"
 #include "Skema_Utils.hpp"
-#include "std_algorithms/Kokkos_Fill.hpp"
 
 namespace Skema {
+
+template <typename VectorType, typename MatrixType>
+struct ISVD_SVDS_initial_guess {
+  typedef Kokkos::Random_XorShift64_Pool<> pool_type;
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const size_type i) const {
+    if (i > nrow * (rank + rank_add_factor)) {
+      return;
+    }
+    if (i < nrow * rank) {
+      u.data()[i] = U.data()[i];
+    } else {
+      auto generator = rand_pool.get_state();
+      u.data()[i] = generator.drand(-1.0, 1.0);
+      rand_pool.free_state(generator);
+    }
+  }
+
+  ISVD_SVDS_initial_guess(VectorType& u_,
+                          const MatrixType& U_,
+                          const size_type nrow_,
+                          const size_type rank_,
+                          const size_type rank_add_factor_,
+                          const int seed_)
+      : u(u_),
+        U(U_),
+        nrow(nrow_),
+        rank(rank_),
+        rank_add_factor(rank_add_factor_),
+        rand_pool(pool_type(seed_)) {};
+  VectorType u;
+  MatrixType U;
+  const size_type nrow;
+  const size_type rank;
+  const size_type rank_add_factor;
+  const pool_type rand_pool;
+};
 
 template <typename MatrixType>
 void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
@@ -64,28 +102,33 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
   }
 
   if (algParams.isvd_initial_guess && count > 0) {
-    uint64_t k{0};
-    for (uint64_t row = 0; row < nrow; ++row) {
-      for (uint64_t col = 0; col < rank; ++col) {
-        svecs(k++) = U(row, col);
-      }
-      k += algParams.isvd_rank_add_factor;
-    }
+    // std::cout << "U before: " << std::endl;
+    // Skema::Impl::print(U);
 
-    typedef Kokkos::Random_XorShift64_Pool<> pool_type;
-    const pool_type rand_pool(algParams.seeds[0]);
-    matrix_type rand_data("isvd_rank_add_factor_rand_data", nrow, // nrow = rank + window size
-                          algParams.isvd_rank_add_factor);
-    Kokkos::fill_random(rand_data, rand_pool, -1.0, 1.0);
-    Kokkos::fence();
+    Kokkos::parallel_for(
+        nrow * (rank + algParams.isvd_rank_add_factor),
+        ISVD_SVDS_initial_guess(svecs, U, nrow, rank,
+                                algParams.isvd_rank_add_factor, 12345));
 
-    k = rank * nrow;
-    for (auto row = 0; row < nrow; ++row) {
-      for (auto col = 0; col < algParams.isvd_rank_add_factor; ++col) {
-        svecs(k++) = rand_data(row, col);
-      }
-      k += rank;
-    }
+    // std::cout << "u0 = " << std::endl;
+    // for (uint64_t row = 0; row < nrow; ++row) {
+    //   for (auto k = 0; k < rank + algParams.isvd_rank_add_factor; ++k) {
+    //     std::cout << " " << svecs.data()[k * nrow + row];
+    //   }
+    //   std::cout << std::endl;
+    // }
+
+    // std::cout << "v = " << std::endl;
+    // for (uint64_t col = 0; col < ncol; ++col) {
+    //   for (auto k = 0; k < rank + algParams.isvd_rank_add_factor; ++k) {
+    //     std::cout
+    //         << " "
+    //         << svecs.data()[k * ncol + col +
+    //                         (nrow * (rank +
+    //                         algParams.isvd_rank_add_factor))];
+    //   }
+    //   std::cout << std::endl;
+    // }
 
     primme_svds::params.initSize = rank + algParams.isvd_rank_add_factor;
   }
@@ -101,16 +144,21 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
   Kokkos::fence();
 
   // Save this window
-  for (int64_t i = 0; i < rank; ++i) {
-    S(i) = svals(i);
-    R(i) = rnrms(i);
-  }
+  // for (int64_t i = 0; i < rank; ++i) {
+  //   S(i) = svals(i);
+  //   R(i) = rnrms(i);
+  // }
+  Kokkos::deep_copy(S, svals);
+  Kokkos::deep_copy(R, rnrms);
 
-  for (int64_t i = 0; i < nrow * rank; ++i) {
-    U.data()[i] = svecs.data()[i];
-  }
+  // for (int64_t i = 0; i < nrow * rank; ++i) {
+  //   U.data()[i] = svecs.data()[i];
+  // }
+  Kokkos::parallel_for(
+      nrow * rank,
+      KOKKOS_LAMBDA(const int i) { U.data()[i] = svecs.data()[i]; });
 
-  int64_t k{static_cast<int64_t>(nrow * rank)};
+  uint64_t k{nrow * rank};
   for (auto i = 0; i < rank; ++i) {
     for (auto j = 0; j < ncol; ++j) {
       Vt(i, j) = svecs.data()[k++];
@@ -125,6 +173,7 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
   ++count;
 }
 
+// TODO Move to functor above to skip several copies.
 template <typename MatrixT>
 void ISVD_SVDS<MatrixT>::set_u0(const MatrixT& A,
                                 const size_type nrow,
@@ -155,8 +204,9 @@ void ISVD_SVDS<MatrixT>::set_u0(const MatrixT& A,
 
   // U = [eye(r); u0]
   // Clear out U
-  Kokkos::parallel_for(
-      nrow * rank, KOKKOS_LAMBDA(const int ii) { U.data()[ii] = 0.0; });
+  // Kokkos::parallel_for(
+  //     nrow * rank, KOKKOS_LAMBDA(const int ii) { U.data()[ii] = 0.0; });
+  Kokkos::deep_copy(U, 0.0);
   for (auto ii = 0; ii < rank; ++ii) {
     U(ii, ii) = 1.0;
   }
