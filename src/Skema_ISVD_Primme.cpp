@@ -16,8 +16,32 @@
 
 namespace Skema {
 
+template <typename VectorType>
+struct ISVD_SVDS_random_initial_guess {
+  typedef Kokkos::Random_XorShift64_Pool<> pool_type;
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const size_type i) const {
+    if (i < nrow * rank) {
+      auto generator = rand_pool.get_state();
+      u.data()[i] = generator.normal();
+      rand_pool.free_state(generator);
+    }
+  }
+
+  ISVD_SVDS_random_initial_guess(VectorType& u_,
+                                 const size_type nrow_,
+                                 const size_type rank_,
+                                 const int seed_)
+      : u(u_), nrow(nrow_), rank(rank_), rand_pool(pool_type(seed_)) {};
+  VectorType u;
+  const size_type nrow;
+  const size_type rank;
+  const pool_type rand_pool;
+};
+
 template <typename VectorType, typename MatrixType>
-struct ISVD_SVDS_initial_guess {
+struct ISVD_SVDS_custom_initial_guess {
   typedef Kokkos::Random_XorShift64_Pool<> pool_type;
 
   KOKKOS_INLINE_FUNCTION
@@ -29,17 +53,17 @@ struct ISVD_SVDS_initial_guess {
       u.data()[i] = U.data()[i];
     } else {
       auto generator = rand_pool.get_state();
-      u.data()[i] = generator.drand(-1.0, 1.0);
+      u.data()[i] = generator.normal();
       rand_pool.free_state(generator);
     }
   }
 
-  ISVD_SVDS_initial_guess(VectorType& u_,
-                          const MatrixType& U_,
-                          const size_type nrow_,
-                          const size_type rank_,
-                          const size_type rank_add_factor_,
-                          const int seed_)
+  ISVD_SVDS_custom_initial_guess(VectorType& u_,
+                                 const MatrixType& U_,
+                                 const size_type nrow_,
+                                 const size_type rank_,
+                                 const size_type rank_add_factor_,
+                                 const int seed_)
       : u(u_),
         U(U_),
         nrow(nrow_),
@@ -63,7 +87,9 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
                                     vector_type& S,
                                     matrix_type& Vt,
                                     vector_type& R) {
-  const size_type rank_add_factor{algParams.isvd_rank_add_factor};
+  const size_type rank_add_factor{(count > 0 && algParams.isvd_initial_guess)
+                                      ? algParams.isvd_rank_add_factor
+                                      : 0};
   ISVD_Matrix<MatrixType> matrix(Vt, X, nrow, ncol, rank, nrow - rank);
   vector_type svals("svals", rank + rank_add_factor);
   vector_type svecs("svecs", (nrow + ncol) * (rank + rank_add_factor));
@@ -101,36 +127,22 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
     primme_svds::params.maxBlockSize = algParams.primme_maxBlockSize;
   }
 
-  if (algParams.isvd_initial_guess && count > 0) {
-    // std::cout << "U before: " << std::endl;
-    // Skema::Impl::print(U);
+  if (algParams.isvd_initial_guess) {
+    if (count == 0) {
+      Kokkos::parallel_for(nrow * rank, ISVD_SVDS_random_initial_guess(
+                                            svecs, nrow, rank, 12345));
+    } else {
+      Kokkos::parallel_for(nrow * (rank + rank_add_factor),
+                           ISVD_SVDS_custom_initial_guess(
+                               svecs, U, nrow, rank, rank_add_factor, 12345));
+    }
+    // auto tmp = Kokkos::subview(
+    //     svecs, std::pair<size_type, size_type>(
+    //                0, static_cast<size_type>(nrow * (rank + rank_add_factor))));
 
-    Kokkos::parallel_for(
-        nrow * (rank + algParams.isvd_rank_add_factor),
-        ISVD_SVDS_initial_guess(svecs, U, nrow, rank,
-                                algParams.isvd_rank_add_factor, 12345));
-
-    // std::cout << "u0 = " << std::endl;
-    // for (uint64_t row = 0; row < nrow; ++row) {
-    //   for (auto k = 0; k < rank + algParams.isvd_rank_add_factor; ++k) {
-    //     std::cout << " " << svecs.data()[k * nrow + row];
-    //   }
-    //   std::cout << std::endl;
-    // }
-
-    // std::cout << "v = " << std::endl;
-    // for (uint64_t col = 0; col < ncol; ++col) {
-    //   for (auto k = 0; k < rank + algParams.isvd_rank_add_factor; ++k) {
-    //     std::cout
-    //         << " "
-    //         << svecs.data()[k * ncol + col +
-    //                         (nrow * (rank +
-    //                         algParams.isvd_rank_add_factor))];
-    //   }
-    //   std::cout << std::endl;
-    // }
-
-    primme_svds::params.initSize = rank + algParams.isvd_rank_add_factor;
+    // std::string tmp_filename = "queen_u0_" + std::to_string(count) + ".txt";
+    // Skema::Impl::write(tmp, tmp_filename.c_str());
+    primme_svds::params.initSize = rank + rank_add_factor;
   }
 
   primme_svds_set_method(primme_svds_normalequations, PRIMME_LOBPCG_OrthoBasis,
@@ -143,13 +155,23 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
                      &(primme_svds::params));
   Kokkos::fence();
 
+  // debug
+  // std::cout << "svals = " << std::endl;
+  // Skema::Impl::print(svals);
+  // std::cout << std::endl;
+
   // Save this window
   // for (int64_t i = 0; i < rank; ++i) {
   //   S(i) = svals(i);
   //   R(i) = rnrms(i);
   // }
-  Kokkos::deep_copy(S, svals);
-  Kokkos::deep_copy(R, rnrms);
+
+  auto ss = Kokkos::subview(svals, std::make_pair<size_type, size_type>(
+                                       0, static_cast<size_type>(rank)));
+  auto rr = Kokkos::subview(rnrms, std::make_pair<size_type, size_type>(
+                                       0, static_cast<size_type>(rank)));
+  Kokkos::deep_copy(S, ss);
+  Kokkos::deep_copy(R, rr);
 
   // for (int64_t i = 0; i < nrow * rank; ++i) {
   //   U.data()[i] = svecs.data()[i];
@@ -158,7 +180,7 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
       nrow * rank,
       KOKKOS_LAMBDA(const int i) { U.data()[i] = svecs.data()[i]; });
 
-  uint64_t k{nrow * rank};
+  uint64_t k{nrow * (rank + rank_add_factor)};
   for (auto i = 0; i < rank; ++i) {
     for (auto j = 0; j < ncol; ++j) {
       Vt(i, j) = svecs.data()[k++];

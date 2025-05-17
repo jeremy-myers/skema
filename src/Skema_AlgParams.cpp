@@ -122,7 +122,7 @@ void Skema::AlgParams::print(std::ostream& out) const {
           ;
         }
         if (isvd_rank_add_factor > 0) {
-          out << " iSVD rank add factor = " << isvd_rank_add_factor << std::endl;
+          out << "  iSVD rank add factor = " << isvd_rank_add_factor << std::endl;
         }
       }
 
