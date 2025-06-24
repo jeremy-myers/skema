@@ -11,3 +11,6 @@
 [submodule "tpls/json"]
 	path = tpls/json
 	url = https://github.com/nlohmann/json.git
+[submodule "src/matlab/SKETCH"]
+	path = src/matlab/SKETCH
+	url = git@github.com:jeremy-myers/SKETCH.git

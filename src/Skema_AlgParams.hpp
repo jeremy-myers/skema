@@ -29,11 +29,13 @@ struct AlgParams {
   size_t window;
   bool hist;
   bool rayleigh_ritz_pass;  // whether to refine soln with RR
+  double normalize_matrix;
 
   /* ISVD options */
   bool isvd_dense_solver;
   bool isvd_initial_guess;
   bool isvd_compute_residual_iters;
+  size_t isvd_rank_add_factor;
 
   // PRIMME options
   std::filesystem::path primme_outputFile;

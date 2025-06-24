@@ -107,6 +107,14 @@ int dense_driver(const std::filesystem::path inputfilename,
   algParams.matrix_nnz = algParams.matrix_m * algParams.matrix_n;
   algParams.issparse = false;
 
+  if (algParams.normalize_matrix > 0.0) {
+    Kokkos::parallel_for("normalize_by_column", algParams.matrix_n, KOKKOS_LAMBDA(const int col) {
+        for (auto row = 0; row < algParams.matrix_m; ++row) {
+          matrix(row, col) /= algParams.normalize_matrix;
+        }
+    });
+  }
+
   main_driver(matrix, algParams);
 
   return 0;
@@ -128,6 +136,11 @@ int sparse_driver(const std::filesystem::path inputfilename,
   algParams.matrix_nnz = matrix.nnz();
   algParams.issparse = true;
 
+  if (algParams.normalize_matrix > 0.0) {
+    for (auto v = 0; v < algParams.matrix_nnz; ++v) {
+      matrix.values(v) /= algParams.normalize_matrix;
+    }
+  }
   main_driver(matrix, algParams);
 
   return 0;

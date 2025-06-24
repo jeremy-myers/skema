@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <cassert>
 #include <cstddef>
+#include <cmath>
 #include <cstdlib>
 #include <iomanip>
 #include <string>
@@ -24,6 +25,7 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   const bool sampling{algParams.isvd_sampling};
   size_type wsize{algParams.window};
   const bool residual_iters{algParams.isvd_compute_residual_iters};
+  const size_type nwindows{static_cast<size_type>(std::ceil(nrow/wsize))};
 
   // Temporary array for local computations
   matrix_type uvecs("uvecs", rank + wsize, rank);
@@ -48,6 +50,7 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   sampler.sample(A_window);
 
   // Compute initial decomposition
+  std::cout << "Processing window " << ucnt+1 << " of " << nwindows << std::endl;
   solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex,
                  solver_rnrms);
 
@@ -81,6 +84,7 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
     sampler.sample(A_window);
 
     // Compute decomposition with optional sampler
+    std::cout << "Processing window " << ucnt+1 << " of " << nwindows << std::endl;
     solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex,
                    solver_rnrms, sampler);
 
