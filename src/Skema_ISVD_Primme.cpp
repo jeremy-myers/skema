@@ -87,9 +87,12 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
                                     vector_type& S,
                                     matrix_type& Vt,
                                     vector_type& R) {
+  // If providing an initial guess, we need to know up front.
   const size_type rank_add_factor{(count > 0 && algParams.isvd_initial_guess)
                                       ? algParams.isvd_rank_add_factor
                                       : 0};
+
+  // Set ISVD Matrix struct and allocate PRIMME data structures
   ISVD_Matrix<MatrixType> matrix(Vt, X, nrow, ncol, rank, nrow - rank);
   vector_type svals("svals", rank + rank_add_factor);
   vector_type svecs("svecs", (nrow + ncol) * (rank + rank_add_factor));
@@ -128,20 +131,14 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
   }
 
   if (algParams.isvd_initial_guess) {
-    if (count == 0) {
-      Kokkos::parallel_for(nrow * rank, ISVD_SVDS_random_initial_guess(
-                                            svecs, nrow, rank, 12345));
-    } else {
+    if (count > 0) {
       Kokkos::parallel_for(nrow * (rank + rank_add_factor),
                            ISVD_SVDS_custom_initial_guess(
                                svecs, U, nrow, rank, rank_add_factor, 12345));
+    } else {
+      Kokkos::parallel_for(nrow * rank, ISVD_SVDS_random_initial_guess(
+                                            svecs, nrow, rank, 12345));
     }
-    // auto tmp = Kokkos::subview(
-    //     svecs, std::pair<size_type, size_type>(
-    //                0, static_cast<size_type>(nrow * (rank + rank_add_factor))));
-
-    // std::string tmp_filename = "queen_u0_" + std::to_string(count) + ".txt";
-    // Skema::Impl::write(tmp, tmp_filename.c_str());
     primme_svds::params.initSize = rank + rank_add_factor;
   }
 
@@ -155,17 +152,7 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
                      &(primme_svds::params));
   Kokkos::fence();
 
-  // debug
-  // std::cout << "svals = " << std::endl;
-  // Skema::Impl::print(svals);
-  // std::cout << std::endl;
-
   // Save this window
-  // for (int64_t i = 0; i < rank; ++i) {
-  //   S(i) = svals(i);
-  //   R(i) = rnrms(i);
-  // }
-
   auto ss = Kokkos::subview(svals, std::make_pair<size_type, size_type>(
                                        0, static_cast<size_type>(rank)));
   auto rr = Kokkos::subview(rnrms, std::make_pair<size_type, size_type>(
@@ -173,9 +160,6 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
   Kokkos::deep_copy(S, ss);
   Kokkos::deep_copy(R, rr);
 
-  // for (int64_t i = 0; i < nrow * rank; ++i) {
-  //   U.data()[i] = svecs.data()[i];
-  // }
   Kokkos::parallel_for(
       nrow * rank,
       KOKKOS_LAMBDA(const int i) { U.data()[i] = svecs.data()[i]; });
