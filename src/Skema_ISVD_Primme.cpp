@@ -16,8 +16,37 @@
 
 namespace Skema {
 
+template <typename VectorType>
+struct ISVD_SVDS_random_initial_guess {
+  typedef Kokkos::Random_XorShift64_Pool<> pool_type;
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const size_type i) const {
+    if (i < nrow * rank) {
+      auto generator = rand_pool.get_state();
+      u.data()[i] = generator.drand(-maxval, maxval);
+      rand_pool.free_state(generator);
+    }
+  }
+
+  ISVD_SVDS_random_initial_guess(VectorType& u_,
+                                 const size_type nrow_,
+                                 const size_type rank_,
+                                 const int seed_)
+      : u(u_),
+        nrow(nrow_),
+        rank(rank_),
+        rand_pool(pool_type(seed_)),
+        maxval(std::sqrt(2 * std::log(nrow_ * rank_))) {};
+  VectorType u;
+  const size_type nrow;
+  const size_type rank;
+  const scalar_type maxval;
+  const pool_type rand_pool;
+};
+
 template <typename VectorType, typename MatrixType>
-struct ISVD_SVDS_initial_guess {
+struct ISVD_SVDS_custom_initial_guess {
   typedef Kokkos::Random_XorShift64_Pool<> pool_type;
 
   KOKKOS_INLINE_FUNCTION
@@ -34,12 +63,12 @@ struct ISVD_SVDS_initial_guess {
     }
   }
 
-  ISVD_SVDS_initial_guess(VectorType& u_,
-                          const MatrixType& U_,
-                          const size_type nrow_,
-                          const size_type rank_,
-                          const size_type rank_add_factor_,
-                          const int seed_)
+  ISVD_SVDS_custom_initial_guess(VectorType& u_,
+                                 const MatrixType& U_,
+                                 const size_type nrow_,
+                                 const size_type rank_,
+                                 const size_type rank_add_factor_,
+                                 const int seed_)
       : u(u_),
         U(U_),
         nrow(nrow_),
@@ -101,35 +130,39 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
     primme_svds::params.maxBlockSize = algParams.primme_maxBlockSize;
   }
 
-  if (algParams.isvd_initial_guess && count > 0) {
+  if (algParams.isvd_initial_guess) {
     // std::cout << "U before: " << std::endl;
     // Skema::Impl::print(U);
 
-    Kokkos::parallel_for(
-        nrow * (rank + algParams.isvd_rank_add_factor),
-        ISVD_SVDS_initial_guess(svecs, U, nrow, rank,
-                                algParams.isvd_rank_add_factor, 12345));
+    if (count == 0) {
+      Kokkos::parallel_for(nrow * rank, ISVD_SVDS_random_initial_guess(
+                                            svecs, nrow, rank, 12345));
+    } else {
+      Kokkos::parallel_for(
+          nrow * (rank + algParams.isvd_rank_add_factor),
+          ISVD_SVDS_custom_initial_guess(
+              svecs, U, nrow, rank, algParams.isvd_rank_add_factor, 12345));
 
-    // std::cout << "u0 = " << std::endl;
-    // for (uint64_t row = 0; row < nrow; ++row) {
-    //   for (auto k = 0; k < rank + algParams.isvd_rank_add_factor; ++k) {
-    //     std::cout << " " << svecs.data()[k * nrow + row];
-    //   }
-    //   std::cout << std::endl;
-    // }
+      // std::cout << "u0 = " << std::endl;
+      // for (uint64_t row = 0; row < nrow; ++row) {
+      //   for (auto k = 0; k < rank + algParams.isvd_rank_add_factor; ++k) {
+      //     std::cout << " " << svecs.data()[k * nrow + row];
+      //   }
+      //   std::cout << std::endl;
+      // }
 
-    // std::cout << "v = " << std::endl;
-    // for (uint64_t col = 0; col < ncol; ++col) {
-    //   for (auto k = 0; k < rank + algParams.isvd_rank_add_factor; ++k) {
-    //     std::cout
-    //         << " "
-    //         << svecs.data()[k * ncol + col +
-    //                         (nrow * (rank +
-    //                         algParams.isvd_rank_add_factor))];
-    //   }
-    //   std::cout << std::endl;
-    // }
-
+      // std::cout << "v = " << std::endl;
+      // for (uint64_t col = 0; col < ncol; ++col) {
+      //   for (auto k = 0; k < rank + algParams.isvd_rank_add_factor; ++k) {
+      //     std::cout
+      //         << " "
+      //         << svecs.data()[k * ncol + col +
+      //                         (nrow * (rank +
+      //                         algParams.isvd_rank_add_factor))];
+      //   }
+      //   std::cout << std::endl;
+      // }
+    }
     primme_svds::params.initSize = rank + algParams.isvd_rank_add_factor;
   }
 
@@ -142,6 +175,11 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
   ret = dprimme_svds(svals.data(), svecs.data(), rnrms.data(),
                      &(primme_svds::params));
   Kokkos::fence();
+
+  // debug
+  std::cout << "svals = " << std::endl;
+  Skema::Impl::print(svals);
+  std::cout << std::endl;
 
   // Save this window
   // for (int64_t i = 0; i < rank; ++i) {
