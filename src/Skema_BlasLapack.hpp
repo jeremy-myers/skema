@@ -1,7 +1,7 @@
 #pragma once
+#include "Skema_Utils.hpp"
 #include <cstdlib>
 #include <stdexcept>
-#include "Skema_Utils.hpp"
 
 #if defined(LAPACK_FOUND)
 typedef ptrdiff_t lapack_int;
@@ -12,53 +12,21 @@ typedef ptrdiff_t lapack_int;
 #define dpotrf dpotrf_
 
 extern "C" {
-void dgesvd(char*,
-            char*,
-            lapack_int*,
-            lapack_int*,
-            double*,
-            lapack_int*,
-            double*,
-            double*,
-            lapack_int*,
-            double*,
-            lapack_int*,
-            double*,
-            lapack_int*,
-            lapack_int*);
+void dgesvd(char *, char *, lapack_int *, lapack_int *, double *, lapack_int *,
+            double *, double *, lapack_int *, double *, lapack_int *, double *,
+            lapack_int *, lapack_int *);
 
-void dgeqrf(lapack_int*,
-            lapack_int*,
-            double*,
-            lapack_int*,
-            double*,
-            double*,
-            lapack_int*,
-            lapack_int*);
+void dgeqrf(lapack_int *, lapack_int *, double *, lapack_int *, double *,
+            double *, lapack_int *, lapack_int *);
 
-void dorgqr(lapack_int*,
-            lapack_int*,
-            lapack_int*,
-            double*,
-            lapack_int*,
-            double*,
-            double*,
-            lapack_int*,
-            lapack_int*);
+void dorgqr(lapack_int *, lapack_int *, lapack_int *, double *, lapack_int *,
+            double *, double *, lapack_int *, lapack_int *);
 
-void dgels(char*,
-           lapack_int*,
-           lapack_int*,
-           lapack_int*,
-           double*,
-           lapack_int*,
-           double*,
-           lapack_int*,
-           double*,
-           lapack_int*,
-           lapack_int*);
+void dgels(char *, lapack_int *, lapack_int *, lapack_int *, double *,
+           lapack_int *, double *, lapack_int *, double *, lapack_int *,
+           lapack_int *);
 
-void dpotrf(char*, lapack_int*, double*, lapack_int*, lapack_int*);
+void dpotrf(char *, lapack_int *, double *, lapack_int *, lapack_int *);
 }
 
 #endif
@@ -68,12 +36,9 @@ namespace Skema {
 namespace linalg {
 
 // Compute U, S, & Vt
-inline void svd(const matrix_type& A,
-                const size_type nrow,
-                const size_type ncol,
-                matrix_type& U,
-                vector_type& S,
-                matrix_type& V) {
+inline void svd(const matrix_type &A, const size_type nrow,
+                const size_type ncol, matrix_type &U, vector_type &S,
+                matrix_type &V) {
 #if !defined(LAPACK_FOUND)
   std::cout << "Error: dgesvd not found." << std::endl;
 #else
@@ -97,11 +62,8 @@ inline void svd(const matrix_type& A,
 }
 
 // Compute U & S
-inline void svd(const matrix_type& A,
-                const size_type nrow,
-                const size_type ncol,
-                matrix_type& U,
-                vector_type& S) {
+inline void svd(const matrix_type &A, const size_type nrow,
+                const size_type ncol, matrix_type &U, vector_type &S) {
 #if !defined(LAPACK_FOUND)
   std::cout << "Error: dgesvd not found." << std::endl;
 #else
@@ -127,10 +89,8 @@ inline void svd(const matrix_type& A,
 }
 
 // Compute S only
-inline void svd(const matrix_type& A,
-                const size_type nrow,
-                const size_type ncol,
-                vector_type& S) {
+inline void svd(const matrix_type &A, const size_type nrow,
+                const size_type ncol, vector_type &S) {
 #if !defined(LAPACK_FOUND)
   std::cout << "Error: dgesvd not found." << std::endl;
 #else
@@ -156,7 +116,7 @@ inline void svd(const matrix_type& A,
 }
 
 // Compute ||A|_2
-inline scalar_type nrm2(const matrix_type& A) {
+inline scalar_type nrm2(const matrix_type &A) {
   const auto nrow{A.extent(0)};
   const auto ncol{A.extent(1)};
   const auto k{std::min(nrow, ncol)};
@@ -165,7 +125,7 @@ inline scalar_type nrm2(const matrix_type& A) {
   return S(0);
 }
 
-inline void qr(matrix_type& Q, const size_type nrow, const size_type ncol) {
+inline void qr(matrix_type &Q, const size_type nrow, const size_type ncol) {
 #if !defined(LAPACK_FOUND)
   std::cout << "Error: dgeqrf and/or dorgqr not found." << std::endl;
 #else
@@ -185,9 +145,7 @@ inline void qr(matrix_type& Q, const size_type nrow, const size_type ncol) {
 #endif
 }
 
-inline void qr(matrix_type& Q,
-               matrix_type& R,
-               const size_type nrow,
+inline void qr(matrix_type &Q, matrix_type &R, const size_type nrow,
                const size_type ncol) {
 #if !defined(LAPACK_FOUND)
   std::cout << "Error: dgeqrf and/or dorgqr not found." << std::endl;
@@ -216,16 +174,13 @@ inline void qr(matrix_type& Q,
 #endif
 }
 
-inline void ls(const char* trans,
-               matrix_type& A,
-               matrix_type& B,
-               const size_type nrow,
-               const size_type ncol,
+inline void ls(const char *trans, matrix_type &A, matrix_type &B,
+               const size_type nrow, const size_type ncol,
                const size_type nrhs) {
 #if !defined(LAPACK_FOUND)
   std::cout << "Error: dgels not found." << std::endl;
 #else
-  char* transp{(char*)trans};
+  char *transp{(char *)trans};
   lapack_int m{static_cast<lapack_int>(nrow)};
   lapack_int n{static_cast<lapack_int>(ncol)};
   lapack_int p{static_cast<lapack_int>(nrhs)};
@@ -242,7 +197,7 @@ inline void ls(const char* trans,
 #endif
 }
 
-inline void chol(matrix_type& A) {
+inline void chol(matrix_type &A) {
 #if !defined(LAPACK_FOUND)
   std::cout << "Error: dpotrf not found." << std::endl;
 #else
@@ -256,11 +211,10 @@ inline void chol(matrix_type& A) {
 
   if (info > 0) {
     std::string msg = "dpotrf: the leading minor of order ";
-    msg += static_cast<int>(info);
-    msg +=
-        " is not positive definite, and the factorization could not "
-        "be completed.";
-    throw std::runtime_error(msg);    
+    msg += std::to_string(static_cast<int>(info));
+    msg += " is not positive definite, and the factorization could not "
+           "be completed.";
+    throw std::runtime_error(msg);
   }
 
   for (auto j = 0; j < n; ++j) {
@@ -270,5 +224,5 @@ inline void chol(matrix_type& A) {
   }
 #endif
 }
-}  // namespace linalg
-}  // namespace Skema
+} // namespace linalg
+} // namespace Skema
