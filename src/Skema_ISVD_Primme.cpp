@@ -499,7 +499,7 @@ void isvd_dense_convTestFun(double* sval,
         t_crit = timer_crit.seconds();
         fprintf(
             primme_svds->outputFile,
-            "dense_convergence_test %lld blk %d MV %lld Sec %E tMV %E tORTH %E "
+            "dense_convergence_test %ld blk %d MV %ld Sec %E tMV %E tORTH %E "
             "SV %.16f "
             "|r| %.16f ",
             primme_svds->primme.stats.numOuterIterations, isv,
@@ -515,7 +515,7 @@ void isvd_dense_convTestFun(double* sval,
       } else {
         fprintf(
             primme_svds->outputFile,
-            "dense_convergence_test %lld blk %d MV %lld Sec %E tMV %E tORTH %E "
+            "dense_convergence_test %ld blk %d MV %ld Sec %E tMV %E tORTH %E "
             "SV %.16f "
             "|r| %.16f ",
             primme_svds->primme.stats.numOuterIterations, isv,
@@ -837,7 +837,7 @@ void isvd_sparse_convTestFun(double* sval,
 
         t_crit = timer_crit.seconds();
         fprintf(primme_svds->outputFile,
-                "sparse_convergence_test %lld blk %d MV %lld Sec %E tMV %E "
+                "sparse_convergence_test %ld blk %d MV %ld Sec %E tMV %E "
                 "tORTH %E "
                 "SV %.16f "
                 "|r| %.16f ",
@@ -853,7 +853,7 @@ void isvd_sparse_convTestFun(double* sval,
                 r, (1 - rho), del, err);
       } else {
         fprintf(primme_svds->outputFile,
-                "sparse_convergence_test %lld blk %d MV %lld Sec %E tMV %E "
+                "sparse_convergence_test %ld blk %d MV %ld Sec %E tMV %E "
                 "tORTH %E "
                 "SV %.16f "
                 "|r| %.16f ",
