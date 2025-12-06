@@ -774,8 +774,6 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType &A)
   double time{0.0};
   Kokkos::Timer timer;
   size_type wsize{algParams.window};
-  ordinal_type num_passes{algParams.num_passes};
-  ordinal_type pass{0};
   range_type idx;
 
   timings["init"]["omega"] += Omega.stats.initialize;
@@ -789,17 +787,13 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType &A)
     auto H = window->get(A, idx);
     timings["update"]["window"] += timer.seconds();
 
-    while (pass < num_passes) {
-      timer.reset();
-      y = update(H);
-      timings["update"]["omega"] += timer.seconds();
+    timer.reset();
+    y = update(H);
+    timings["update"]["omega"] += timer.seconds();
 
-      timer.reset();
-      axpy(nu, Y, eta, y);
-      timings["update"]["daxpy"] += timer.seconds();
-
-      ++pass;
-    }
+    timer.reset();
+    axpy(nu, Y, eta, y);
+    timings["update"]["daxpy"] += timer.seconds();
 
     if (algParams.debug) {
       std::cout << "H = \n";
@@ -823,21 +817,18 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType &A)
       idx = std::make_pair(irow, nrow);
       wsize = idx.second - idx.first;
     }
+    // std::cout << "idx.first = " << idx.first << ", idx.second = " << idx.second << std::endl;
     timer.reset();
     auto H = window->get(A, idx);
     timings["update"]["window"] += timer.seconds();
 
-    while (pass < num_passes) {
-      timer.reset();
-      y = update(H);
-      timings["update"]["omega"] += timer.seconds();
+    timer.reset();
+    y = update(H);
+    timings["update"]["omega"] += timer.seconds();
 
-      timer.reset();
-      axpy(nu, Y, eta, y, idx);
-      timings["update"]["daxpy"] += timer.seconds();
-
-      ++pass;
-    }
+    timer.reset();
+    axpy(nu, Y, eta, y, idx);
+    timings["update"]["daxpy"] += timer.seconds();
 
     if (algParams.debug) {
       std::cout << "H = \n";
@@ -1014,12 +1005,14 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   
   // C = chol( (B + B^T) / 2)
   std::cout << "\nComputing LL^T = chol(C)" << std::endl;
-  try {
-    linalg::chol(C);
-  } catch (const std::exception &e) {
+  int blaslapack_ret;
+    blaslapack_ret = linalg::chol(C);
+  if (blaslapack_ret != 0) {
     std::cout << "Skema::sketchyspd::low_rank_approx::chol encountered an "
-                 "exception: "
-              << e.what() << std::endl;
+                 "exception" << std::endl;
+    // Impl::write(B, "sketchysvd_chol_failure_B.txt");
+    // Impl::write(C, "sketchysvd_chol_failure_C.txt");
+    // Impl::write(Y, "sketchysvd_chol_failure_Y.txt");
     exit(EXIT_FAILURE);
   }
   Kokkos::fence();
