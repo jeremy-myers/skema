@@ -969,7 +969,6 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
     std::cout << "Y = Y + shift Omega" << std::endl;
     Impl::print(Y);
   }
-  Impl::write(Y, "Y_plus_shift_Omega.txt");
 
   // Form the matrix B = Ω∗Yν
   std::cout << "\nComputing B = norm(Y)*Omega^T * Y" << std::endl;
@@ -990,10 +989,6 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
     std::cout << "B = Omega^T * Y = " << std::endl;
     Impl::print(B);
   }
-  Impl::print(B);
-  std::string fname =
-      algParams.debug_filename.filename().stem().string() + "B_OmegaY.txt";
-  Impl::write(B, fname.c_str());
 
   // Compute a Cholesky decomposition B = CC^*
   std::cout << "\nComputing C = (B+B^T)/2" << std::endl;
@@ -1018,8 +1013,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
     std::cout << "C = 0.5 * (B + B^T) = " << std::endl;
     Impl::print(B);
   }
-  Impl::write(C, "B_plus_Bt.txt");
-  Impl::print(C);
+  
   // C = chol( (B + B^T) / 2)
   std::cout << "\nComputing LL^T = chol(C)" << std::endl;
   try {
@@ -1038,7 +1032,6 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
     std::cout << "chol(C) = " << std::endl;
     Impl::print(C);
   }
-  Impl::print(C);
 
   // Compute E = YνC^{−1} by back-substitution
   // Least squares problem Y / C
