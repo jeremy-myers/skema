@@ -27,8 +27,7 @@ SketchySVD<MatrixType, DimReduxT>::SketchySVD(const AlgParams &algParams_)
          where the input is sparse we may need to
          initialize some or all DimRedux maps to be transposed. When the ops are
          called, they check for this in update()*/
-      Upsilon(DimReduxT(
-          Mozilla(algParams_.issparse &&
+      Upsilon(DimReduxT((algParams_.issparse &&
                   (algParams_.dim_redux == DimRedux_Map::GAUSS))
               ? nrow
               : range,
