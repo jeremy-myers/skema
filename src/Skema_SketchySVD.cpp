@@ -935,8 +935,6 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   try {
     ynorm = linalg::nrm2(Y_copy);
     shift = mu * ynorm;
-    std::cout << "mu = " << mu << ", norm(Y) = " << ynorm
-              << ", shift = " << shift << std::endl;
   } catch (const std::exception &e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::norm2 encountered an "
                  "exception: "
