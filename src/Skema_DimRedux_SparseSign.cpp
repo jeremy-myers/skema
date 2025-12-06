@@ -137,9 +137,9 @@ auto SparseSignDimRedux::col_subview(
       row_map(irow + 1) = nnz;
     }
   }
+  Kokkos::fence();
   Kokkos::resize(entries, nnz);
   Kokkos::resize(values, nnz);
-
   return crs_matrix_type("sparse sign col view", nrow, idx.second - idx.first,
                          nnz, values, row_map, entries);
 }
