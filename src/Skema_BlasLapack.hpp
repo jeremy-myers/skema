@@ -197,7 +197,7 @@ inline void ls(const char *trans, matrix_type &A, matrix_type &B,
 #endif
 }
 
-inline void chol(matrix_type &A) {
+inline int chol(matrix_type &A) {
 #if !defined(LAPACK_FOUND)
   std::cout << "Error: dpotrf not found." << std::endl;
 #else
@@ -214,7 +214,6 @@ inline void chol(matrix_type &A) {
     msg += std::to_string(static_cast<int>(info));
     msg += " is not positive definite, and the factorization could not "
            "be completed.";
-    throw std::runtime_error(msg);
   }
 
   for (auto j = 0; j < n; ++j) {
@@ -222,6 +221,8 @@ inline void chol(matrix_type &A) {
       A(i, j) = 0.0;
     }
   }
+
+  return static_cast<int>(info);
 #endif
 }
 } // namespace linalg
