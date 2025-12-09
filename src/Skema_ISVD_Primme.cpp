@@ -566,11 +566,18 @@ void ISVD_SVDS<matrix_type>::compute(
   primme_svds::reinitialize();
   primme_svds::params.locking = 0;
 
-  scalar_type alpha{static_cast<scalar_type>(algParams.matrix_m) /
+  // Preliminaries
+  scalar_type ctest_alpha{static_cast<scalar_type>(algParams.matrix_m) /
                     static_cast<scalar_type>(sampler.num_samples())};
+
+  scalar_type ctest_eps{algParams.isvd_convtest_eps};
+  size_type ctest_skip{algParams.isvd_convtest_skip};
+  if (ctest_skip == 0)
+      ctest_skip = algParams.rank;
+
   ISVD_SVDS_convTest<matrix_type> convtest(
-      sampler.matrix(), sampler.indices(), sampler.num_samples(), alpha,
-      algParams.isvd_convtest_eps, algParams.isvd_convtest_skip);
+      sampler.matrix(), sampler.indices(), sampler.num_samples(), ctest_alpha,
+      ctest_eps, ctest_skip);
 
   // Set convTestFun
   if (algParams.isvd_sampling) {
@@ -582,7 +589,7 @@ void ISVD_SVDS<matrix_type>::compute(
     convtest.flags = Kokkos::Bitset<device_type>(3 * rank);
     convtest.flags.clear();
 
-    ISVD_SVDS_convTest<matrix_type>::jsv = algParams.isvd_convtest_skip - 1;
+    ISVD_SVDS_convTest<matrix_type>::jsv = ctest_skip - 1;
     ISVD_SVDS_convTest<matrix_type>::numRestarts = 0;
     ISVD_SVDS_convTest<matrix_type>::curMaxIx = 0;
 
@@ -905,11 +912,18 @@ void ISVD_SVDS<crs_matrix_type>::compute(
   primme_svds::reinitialize();
   primme_svds::params.locking = 0;
 
-  scalar_type alpha{static_cast<scalar_type>(algParams.matrix_m) /
+  // Preliminaries
+  scalar_type ctest_alpha{static_cast<scalar_type>(algParams.matrix_m) /
                     static_cast<scalar_type>(sampler.num_samples())};
+
+  scalar_type ctest_eps{algParams.isvd_convtest_eps};
+  size_type ctest_skip{algParams.isvd_convtest_skip};
+  if (ctest_skip == 0)
+      ctest_skip = algParams.rank;
+
   ISVD_SVDS_convTest<crs_matrix_type> convtest(
-      sampler.matrix(), sampler.indices(), sampler.num_samples(), alpha,
-      algParams.isvd_convtest_eps, algParams.isvd_convtest_skip);
+      sampler.matrix(), sampler.indices(), sampler.num_samples(), ctest_alpha,
+      ctest_eps, ctest_skip);
 
   // Set convTestFun
   if (algParams.isvd_sampling) {
@@ -921,7 +935,7 @@ void ISVD_SVDS<crs_matrix_type>::compute(
     convtest.flags = Kokkos::Bitset<device_type>(3 * rank);
     convtest.flags.clear();
 
-    ISVD_SVDS_convTest<crs_matrix_type>::jsv = algParams.isvd_convtest_skip - 1;
+    ISVD_SVDS_convTest<crs_matrix_type>::jsv = ctest_skip - 1;
     ISVD_SVDS_convTest<crs_matrix_type>::numRestarts = 0;
     ISVD_SVDS_convTest<crs_matrix_type>::curMaxIx = 0;
 

@@ -230,18 +230,15 @@ inline void svds_monitorFun(void *basisSvals, int *basisSize, int *basisFlags,
 }
 }
 
-template <typename MatrixType>
-void primme_eigs(const MatrixType &, const AlgParams &);
+template <typename MatrixType> void primme_eigs(const MatrixType &, AlgParams);
 
 template <typename MatrixType>
-void primme_eigs(const MatrixType &, matrix_type &, vector_type &,
-                 const AlgParams &);
+void primme_eigs(const MatrixType &, matrix_type &, vector_type &, AlgParams);
 
-template <typename MatrixType>
-void primme_svds(const MatrixType &, const AlgParams &);
+template <typename MatrixType> void primme_svds(const MatrixType &, AlgParams);
 
 template <typename MatrixType>
 void primme_svds(const MatrixType &, matrix_type &, vector_type &,
-                 matrix_type &, const AlgParams &);
+                 matrix_type &, AlgParams);
 
 } // namespace Skema

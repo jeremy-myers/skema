@@ -1,9 +1,9 @@
-#include <stdio.h>
 #include <cassert>
-#include <cstddef>
 #include <cmath>
+#include <cstddef>
 #include <cstdlib>
 #include <iomanip>
+#include <stdio.h>
 #include <string>
 #include <utility>
 #include <vector>
@@ -18,26 +18,24 @@
 
 namespace Skema {
 template <typename MatrixType>
-auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
+auto ISVD<MatrixType>::solve(const MatrixType &A) -> void {
   const size_type nrow{algParams.matrix_m};
   const size_type ncol{algParams.matrix_n};
   const size_type rank{algParams.rank};
-  const bool sampling{algParams.isvd_sampling};
   size_type wsize{algParams.window};
   const bool residual_iters{algParams.isvd_compute_residual_iters};
-  const size_type nwindows{static_cast<size_type>(std::ceil(nrow/wsize))};
+  const size_type nwindows{static_cast<size_type>(std::ceil(nrow / wsize))};
 
   // Temporary array for local computations
   matrix_type uvecs("uvecs", rank + wsize, rank);
 
   // Create solver & sampler
   Skema::ISVD_SVDS<MatrixType> solver(algParams);
-  Skema::ReservoirSampler<MatrixType> sampler(algParams.isvd_num_samples, nrow,
-                                              ncol, algParams.seeds[0],
-                                              algParams.print_level);
+  Skema::ReservoirSampler<MatrixType> sampler(
+      num_samples, nrow, ncol, algParams.seeds[0], algParams.print_level);
 
   // Initial approximation
-  ordinal_type ucnt{0};  // window count
+  ordinal_type ucnt{0}; // window count
   range_type idx{std::make_pair<size_type>(0, wsize)};
   range_type rlargest{std::make_pair<size_type>(0, rank)};
 
@@ -50,7 +48,8 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   sampler.sample(A_window);
 
   // Compute initial decomposition
-  std::cout << "Processing window " << ucnt+1 << " of " << nwindows << std::endl;
+  std::cout << "Processing window " << ucnt + 1 << " of " << nwindows
+            << std::endl;
   solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex,
                  solver_rnrms);
 
@@ -84,7 +83,8 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
     sampler.sample(A_window);
 
     // Compute decomposition with optional sampler
-    std::cout << "Processing window " << ucnt+1 << " of " << nwindows << std::endl;
+    std::cout << "Processing window " << ucnt + 1 << " of " << nwindows
+              << std::endl;
     solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex,
                    solver_rnrms, sampler);
 
@@ -109,7 +109,7 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
 }
 
 template <typename MatrixType>
-auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> void {
+auto ISVD<MatrixType>::compute_residuals(const MatrixType &A) -> void {
   double time{0.0};
   Kokkos::Timer timer;
 
@@ -127,7 +127,7 @@ auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> void {
 
 /* Compute U = A*V*Sigma^{-1} */
 template <typename MatrixType>
-auto ISVD<MatrixType>::compute_U(const MatrixType& A) -> void {
+auto ISVD<MatrixType>::compute_U(const MatrixType &A) -> void {
   double time{0.0};
   Kokkos::Timer timer;
   size_type wsize{wsize0};
@@ -148,7 +148,7 @@ auto ISVD<MatrixType>::compute_U(const MatrixType& A) -> void {
     }
 
     auto A_window =
-        window->get(A, idx, false);  // Don't update counters for window
+        window->get(A, idx, false); // Don't update counters for window
     auto v = Impl::transpose(vtvex);
     utmp = Kokkos::subview(u, idx, Kokkos::ALL());
     Impl::mm(&N, &N, &one, A_window, v, &zero, utmp);
@@ -193,8 +193,8 @@ auto ISVD<MatrixType>::save_history(std::filesystem::path fname) -> void {
 
 template <typename MatrixType>
 auto ISVD<MatrixType>::save_window_history(
-    const std::shared_ptr<XVDS_stats>& solver_stats,
-    const std::shared_ptr<Window_stats>& window_stats) -> void {
+    const std::shared_ptr<XVDS_stats> &solver_stats,
+    const std::shared_ptr<Window_stats> &window_stats) -> void {
   auto count = std::to_string(window_stats->count);
 
   // containers of non-integral types need special treatement
@@ -228,59 +228,35 @@ auto ISVD<MatrixType>::save_window_history(
 }
 
 template <>
-void isvd(const matrix_type& A, const AlgParams& algParams) {
+void isvd(const matrix_type &A, matrix_type &U, vector_type &S, matrix_type &V,
+          AlgParams algParams) {
   ISVD<matrix_type> sketch(algParams);
   sketch.solve(A);
   sketch.compute_residuals(A);
 
+  U = sketch.U();
+  S = sketch.S();
+  V = sketch.V();
+
   if (!algParams.history_filename.empty()) {
     sketch.save_history(algParams.history_filename);
-  }
-
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-
-    auto U = sketch.U();
-    auto S = sketch.S();
-    auto V = sketch.V();
-
-    fname = algParams.debug_filename.filename().stem().string() + "_U.txt";
-    Impl::write(U, fname.c_str());
-
-    fname = algParams.debug_filename.filename().stem().string() + "_S.txt";
-    Impl::write(S, fname.c_str());
-
-    fname = algParams.debug_filename.filename().stem().string() + "_V.txt";
-    Impl::write(V, fname.c_str());
   }
 };
 
 template <>
-void isvd(const crs_matrix_type& A, const AlgParams& algParams) {
+void isvd(const crs_matrix_type &A, matrix_type &U, vector_type &S,
+          matrix_type &V, AlgParams algParams) {
   ISVD<crs_matrix_type> sketch(algParams);
   sketch.solve(A);
   sketch.compute_residuals(A);
 
+  U = sketch.U();
+  S = sketch.S();
+  V = sketch.V();
+
   if (!algParams.history_filename.empty()) {
     sketch.save_history(algParams.history_filename);
   }
-
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-
-    auto U = sketch.U();
-    auto S = sketch.S();
-    auto V = sketch.V();
-
-    fname = algParams.debug_filename.filename().stem().string() + "_U.txt";
-    Impl::write(U, fname.c_str());
-
-    fname = algParams.debug_filename.filename().stem().string() + "_S.txt";
-    Impl::write(S, fname.c_str());
-
-    fname = algParams.debug_filename.filename().stem().string() + "_V.txt";
-    Impl::write(V, fname.c_str());
-  }
 };
 
-}  // namespace Skema
+} // namespace Skema
