@@ -84,57 +84,74 @@ set(JSON_BuildTests OFF CACHE INTERNAL "")
 add_subdirectory(tpls/json)
 
 include_directories(
-    ${Skema_SOURCE_DIR}/src/
-    ${Skema_SOURCE_DIR}/driver/
     ${Kokkos_INCLUDE_DIRS_RET}
     ${KokkosKernels_INCLUDE_DIRS_RET}
     ${PRIMME_INCLUDE_DIR}
     ${LAPACK_INCLUDE_DIR}
+    ${Skema_SOURCE_DIR}/src/
+    ${Skema_SOURCE_DIR}/driver/
     ${Skema_SOURCE_DIR}/tpls/json/single_include/nlohmann/
 )
 
-# Target definitions
-add_executable(${PROJECT_NAME}
-    ${CMAKE_SOURCE_DIR}/driver/main.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_AlgParams.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_IO.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_EIGSVD.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_EIGSVD_MatrixMatvec.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_Kernel.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_Sampler.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_ISVD_Primme.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_ISVD_MatrixMatvec.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_ISVD.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_DimRedux_Gauss.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_DimRedux_SparseSign.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_Sketchy_SPD.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_Sketchy_SVD.cpp
+# -------------
+# Skema Library
+# -------------
+
+# List source files to be built
+set(Skema_SOURCE_LIST
+    ${Skema_SOURCE_DIR}/src/Skema_AlgParams.cpp
+    ${Skema_SOURCE_DIR}/src/Skema_IO.cpp
+    ${Skema_SOURCE_DIR}/src/Skema_EIGSVD.cpp
+    ${Skema_SOURCE_DIR}/src/Skema_EIGSVD_MatrixMatvec.cpp
+    ${Skema_SOURCE_DIR}/src/Skema_Kernel.cpp
+    ${Skema_SOURCE_DIR}/src/Skema_Sampler.cpp
+    ${Skema_SOURCE_DIR}/src/Skema_ISVD_Primme.cpp
+    ${Skema_SOURCE_DIR}/src/Skema_ISVD_MatrixMatvec.cpp
+    ${Skema_SOURCE_DIR}/src/Skema_ISVD.cpp
+    ${Skema_SOURCE_DIR}/src/Skema_DimRedux_Gauss.cpp
+    ${Skema_SOURCE_DIR}/src/Skema_DimRedux_SparseSign.cpp
+    ${Skema_SOURCE_DIR}/src/Skema_Sketchy_SPD.cpp
+    ${Skema_SOURCE_DIR}/src/Skema_Sketchy_SVD.cpp
 )
-set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "skema")
 
-target_link_libraries(${PROJECT_NAME} PUBLIC ${LAPACK_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} PUBLIC Kokkos::kokkos)
-target_link_libraries(${PROJECT_NAME} PUBLIC Kokkos::kokkoskernels)
-target_link_libraries(${PROJECT_NAME} PUBLIC primme)
-target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
+# Future: if add any special libraries or functionality through if/else or macros,
+# append to Skema_SOURCE_LIST as: 
+#       set(Skema_SOURCE_LIST ${Skema_SOURCE_LIST} <new source file>)
 
+# Build the library
+add_library(skemalib ${Skema_SOURCE_LIST})
+
+target_link_libraries(skemalib PUBLIC ${LAPACK_LIBRARIES})
 if(LAPACK_FOUND)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE LAPACK_FOUND=${LAPACK_FOUND})
+    target_compile_definitions(skemalib PRIVATE LAPACK_FOUND=${LAPACK_FOUND})
 endif()
 
+target_link_libraries(skemalib PUBLIC Kokkos::kokkos)
+target_link_libraries(skemalib PUBLIC Kokkos::kokkoskernels)
+target_link_libraries(skemalib PUBLIC primme)
+target_link_libraries(skemalib PRIVATE nlohmann_json::nlohmann_json)
+
+install(TARGETS skemalib
+        EXPORT skema
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+file(GLOB skema_headers ${Skema_SOURCE_DIR}/*.hpp)
+install(FILES ${skema_headers}
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/skema
+        PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+        )
 
 # Target definitions
+add_executable(skema
+    ${CMAKE_SOURCE_DIR}/driver/main.cpp
+)
+target_link_libraries(skema skemalib)
+install(TARGETS skema
+        EXPORT skema
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
 add_executable(convert
     ${CMAKE_SOURCE_DIR}/driver/convert.cpp
-    ${CMAKE_SOURCE_DIR}/src/Skema_AlgParams.cpp
 )
-set_target_properties(convert PROPERTIES OUTPUT_NAME "convert")
-
-target_link_libraries(convert PUBLIC ${LAPACK_LIBRARIES})
-target_link_libraries(convert PUBLIC Kokkos::kokkos)
-target_link_libraries(convert PUBLIC Kokkos::kokkoskernels)
-target_link_libraries(convert PUBLIC primme)
-
-if(LAPACK_FOUND)
-    target_compile_definitions(convert PRIVATE LAPACK_FOUND=${LAPACK_FOUND})
-endif()
+target_link_libraries(convert skemalib)
