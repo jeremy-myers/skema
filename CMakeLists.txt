@@ -10,6 +10,17 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${Skema_BINARY_DIR}/bin)
 
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  # Specify the commit you depend on and update it regularly.
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG 52eb8108c5bdec04579160ae17225d66034bd723
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
 find_package(LAPACK REQUIRED)
 if(LAPACK_FOUND)
     set(LAPACK_FOUND TRUE)
@@ -155,3 +166,17 @@ add_executable(convert
     ${CMAKE_SOURCE_DIR}/driver/convert.cpp
 )
 target_link_libraries(convert skemalib)
+
+# Testing
+# add_executable(example example.cpp)
+# target_link_libraries(example gtest_main)
+# add_test(NAME example_test COMMAND example)
+include_directories(${Skema_SOURCE_DIR}/test)
+
+set(Skema_SOURCE_TEST
+    ${Skema_SOURCE_DIR}/test/Unit_Tests_Main.cpp
+    ${Skema_SOURCE_DIR}/test/Skema_Test_Kernel.cpp
+)
+
+add_executable(skema_unit_tests ${Skema_SOURCE_TEST})
+target_link_libraries(skema_unit_tests gtest skemalib)
