@@ -18,7 +18,7 @@
 
 namespace Skema {
 template <typename MatrixType>
-auto ISVD<MatrixType>::solve(const MatrixType &A) -> void {
+auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   const size_type nrow{algParams.matrix_m};
   const size_type ncol{algParams.matrix_n};
   const size_type rank{algParams.rank};
@@ -35,7 +35,7 @@ auto ISVD<MatrixType>::solve(const MatrixType &A) -> void {
       num_samples, nrow, ncol, algParams.seeds[0], algParams.print_level);
 
   // Initial approximation
-  ordinal_type ucnt{0}; // window count
+  ordinal_type ucnt{0};  // window count
   range_type idx{std::make_pair<size_type>(0, wsize)};
   range_type rlargest{std::make_pair<size_type>(0, rank)};
 
@@ -73,7 +73,7 @@ auto ISVD<MatrixType>::solve(const MatrixType &A) -> void {
     if (irow + wsize < nrow) {
       idx = std::make_pair(irow, irow + wsize);
     } else {
-      idx = std::make_pair(irow, nrow);
+      idx   = std::make_pair(irow, nrow);
       wsize = idx.second - idx.first;
     }
 
@@ -109,17 +109,17 @@ auto ISVD<MatrixType>::solve(const MatrixType &A) -> void {
 }
 
 template <typename MatrixType>
-auto ISVD<MatrixType>::compute_residuals(const MatrixType &A) -> void {
+auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> void {
   double time{0.0};
   Kokkos::Timer timer;
 
   if (algParams.issymmetric) {
     auto v = Impl::transpose(vtvex);
-    rnrms = residuals(A, v, svals, rank, algParams, window);
+    rnrms  = residuals(A, v, svals, rank, algParams, window);
   } else {
     compute_U(A);
     auto v = Impl::transpose(vtvex);
-    rnrms = residuals(A, u, svals, v, rank, algParams, window);
+    rnrms  = residuals(A, u, svals, v, rank, algParams, window);
   }
   time = timer.seconds();
   std::cout << "Compute residuals: " << time << std::endl;
@@ -127,7 +127,7 @@ auto ISVD<MatrixType>::compute_residuals(const MatrixType &A) -> void {
 
 /* Compute U = A*V*Sigma^{-1} */
 template <typename MatrixType>
-auto ISVD<MatrixType>::compute_U(const MatrixType &A) -> void {
+auto ISVD<MatrixType>::compute_U(const MatrixType& A) -> void {
   double time{0.0};
   Kokkos::Timer timer;
   size_type wsize{wsize0};
@@ -143,21 +143,21 @@ auto ISVD<MatrixType>::compute_U(const MatrixType &A) -> void {
     if (irow + wsize < nrow) {
       idx = std::make_pair(irow, irow + wsize);
     } else {
-      idx = std::make_pair(irow, nrow);
+      idx   = std::make_pair(irow, nrow);
       wsize = idx.second - idx.first;
     }
 
     auto A_window =
-        window->get(A, idx, false); // Don't update counters for window
+        window->get(A, idx, false);  // Don't update counters for window
     auto v = Impl::transpose(vtvex);
-    utmp = Kokkos::subview(u, idx, Kokkos::ALL());
+    utmp   = Kokkos::subview(u, idx, Kokkos::ALL());
     Impl::mm(&N, &N, &one, A_window, v, &zero, utmp);
   }
 
   Kokkos::parallel_for(
       rank, KOKKOS_LAMBDA(const int r) {
         auto ur = Kokkos::subview(u, Kokkos::ALL(), r);
-        auto s = svals(r);
+        auto s  = svals(r);
         for (auto i = 0; i < nrow; ++i) {
           ur(i) /= s;
         }
@@ -193,8 +193,8 @@ auto ISVD<MatrixType>::save_history(std::filesystem::path fname) -> void {
 
 template <typename MatrixType>
 auto ISVD<MatrixType>::save_window_history(
-    const std::shared_ptr<XVDS_stats> &solver_stats,
-    const std::shared_ptr<Window_stats> &window_stats) -> void {
+    const std::shared_ptr<XVDS_stats>& solver_stats,
+    const std::shared_ptr<Window_stats>& window_stats) -> void {
   auto count = std::to_string(window_stats->count);
 
   // containers of non-integral types need special treatement
@@ -220,15 +220,15 @@ auto ISVD<MatrixType>::save_window_history(
   hist[count]["update"]["window"] = window_stats->time;
   hist[count]["primme_svds"]["numOuterIterations"] =
       solver_stats->numOuterIterations;
-  hist[count]["primme_svds"]["numMatvecs"] = solver_stats->numMatvecs;
+  hist[count]["primme_svds"]["numMatvecs"]  = solver_stats->numMatvecs;
   hist[count]["primme_svds"]["elapsedTime"] = solver_stats->elapsedTime;
-  hist[count]["primme_svds"]["timeMatvec"] = solver_stats->timeMatvec;
-  hist[count]["primme_svds"]["timeOrtho"] = solver_stats->timeOrtho;
-  hist[count]["primme_svds"]["rnrms"] = j_r_solver;
+  hist[count]["primme_svds"]["timeMatvec"]  = solver_stats->timeMatvec;
+  hist[count]["primme_svds"]["timeOrtho"]   = solver_stats->timeOrtho;
+  hist[count]["primme_svds"]["rnrms"]       = j_r_solver;
 }
 
 template <>
-void isvd(const matrix_type &A, matrix_type &U, vector_type &S, matrix_type &V,
+void isvd(const matrix_type& A, matrix_type& U, vector_type& S, matrix_type& V,
           AlgParams algParams) {
   ISVD<matrix_type> sketch(algParams);
   sketch.solve(A);
@@ -244,8 +244,8 @@ void isvd(const matrix_type &A, matrix_type &U, vector_type &S, matrix_type &V,
 };
 
 template <>
-void isvd(const crs_matrix_type &A, matrix_type &U, vector_type &S,
-          matrix_type &V, AlgParams algParams) {
+void isvd(const crs_matrix_type& A, matrix_type& U, vector_type& S,
+          matrix_type& V, AlgParams algParams) {
   ISVD<crs_matrix_type> sketch(algParams);
   sketch.solve(A);
   sketch.compute_residuals(A);
@@ -259,4 +259,4 @@ void isvd(const crs_matrix_type &A, matrix_type &U, vector_type &S,
   }
 };
 
-} // namespace Skema
+}  // namespace Skema

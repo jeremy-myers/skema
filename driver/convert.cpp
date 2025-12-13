@@ -13,10 +13,10 @@ int convert(const std::string& inputfilename, Skema::AlgParams& algParams) {
   double time = timer.seconds();
   std::cout << "Done: " << time << " s" << std::endl;
 
-  algParams.matrix_m = matrix.numRows();
-  algParams.matrix_n = matrix.numCols();
+  algParams.matrix_m   = matrix.numRows();
+  algParams.matrix_n   = matrix.numCols();
   algParams.matrix_nnz = matrix.nnz();
-  algParams.issparse = true;
+  algParams.issparse   = true;
 
   std::cout << "Writing " << algParams.outputfilename.string() << "... "
             << std::flush;

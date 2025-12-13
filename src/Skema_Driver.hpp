@@ -10,9 +10,8 @@
 
 namespace Skema {
 template <typename MatrixType>
-inline auto driver(const MatrixType &matrix, AlgParams algParams)
+inline auto driver(const MatrixType& matrix, AlgParams algParams)
     -> std::tuple<matrix_type, vector_type, matrix_type> {
-
   /* Fix ups */
   if constexpr (std::is_same_v<MatrixType, matrix_type>) {
     algParams.matrix_m = matrix.extent(0);
@@ -20,7 +19,7 @@ inline auto driver(const MatrixType &matrix, AlgParams algParams)
 
     // Kernel
     if (algParams.kernel_func != Skema::Kernel_Map::NONE) {
-      algParams.matrix_n = algParams.matrix_m;
+      algParams.matrix_n    = algParams.matrix_m;
       algParams.issymmetric = true;
       if (algParams.force_three_sketch) {
         algParams.issymmetric = false;
@@ -28,7 +27,7 @@ inline auto driver(const MatrixType &matrix, AlgParams algParams)
     }
 
     algParams.matrix_nnz = algParams.matrix_m * algParams.matrix_n;
-    algParams.issparse = false;
+    algParams.issparse   = false;
 
     if (algParams.normalize_matrix > 0.0) {
       Kokkos::parallel_for(
@@ -40,10 +39,10 @@ inline auto driver(const MatrixType &matrix, AlgParams algParams)
           });
     }
   } else if constexpr (std::is_same_v<MatrixType, crs_matrix_type>) {
-    algParams.matrix_m = matrix.numRows();
-    algParams.matrix_n = matrix.numCols();
+    algParams.matrix_m   = matrix.numRows();
+    algParams.matrix_n   = matrix.numCols();
     algParams.matrix_nnz = matrix.nnz();
-    algParams.issparse = true;
+    algParams.issparse   = true;
 
     if (algParams.normalize_matrix > 0.0) {
       for (auto v = 0; v < algParams.matrix_nnz; ++v) {
@@ -71,27 +70,25 @@ inline auto driver(const MatrixType &matrix, AlgParams algParams)
   matrix_type v;
 
   switch (Skema::Solver_Method::types[algParams.solver]) {
-  case Skema::Solver_Method::PRIMME:
-    if (algParams.issymmetric) {
-      primme_eigs(matrix, u, s, algParams);
-      v = u;
-    } else {
-      primme_svds(matrix, u, s, v, algParams);
-    }
-    break;
-  case Skema::Solver_Method::ISVD:
-    isvd(matrix, u, s, v, algParams);
-    break;
-  case Skema::Solver_Method::SKETCH:
-    if ((algParams.issymmetric) && (!algParams.force_three_sketch)) {
-      sketchy_symm_pos_def(matrix, u, s, algParams);
-      v = u;
-    } else {
-      sketchy_svd(matrix, u, s, v, algParams);
-    }
-    break;
+    case Skema::Solver_Method::PRIMME:
+      if (algParams.issymmetric) {
+        primme_eigs(matrix, u, s, algParams);
+        v = u;
+      } else {
+        primme_svds(matrix, u, s, v, algParams);
+      }
+      break;
+    case Skema::Solver_Method::ISVD: isvd(matrix, u, s, v, algParams); break;
+    case Skema::Solver_Method::SKETCH:
+      if ((algParams.issymmetric) && (!algParams.force_three_sketch)) {
+        sketchy_symm_pos_def(matrix, u, s, algParams);
+        v = u;
+      } else {
+        sketchy_svd(matrix, u, s, v, algParams);
+      }
+      break;
   }
 
   return std::make_tuple(u, s, v);
 }
-} // namespace Skema
+}  // namespace Skema

@@ -8,18 +8,19 @@
 
 namespace Skema {
 // SketchySVD for general matrices
-template <typename MatrixType, typename DimReduxT> class SketchySVD {
-public:
+template <typename MatrixType, typename DimReduxT>
+class SketchySVD {
+ public:
   SketchySVD(AlgParams);
   ~SketchySVD() {};
 
-  auto compute_residuals(const MatrixType &) -> void;
-  auto linear_update(const MatrixType &) -> void;
+  auto compute_residuals(const MatrixType&) -> void;
+  auto linear_update(const MatrixType&) -> void;
   auto low_rank_approx(bool update_timers = true)
       -> std::tuple<matrix_type, vector_type, matrix_type>;
   auto save_history(std::filesystem::path) -> void;
 
-private:
+ private:
   matrix_type uvecs;
   vector_type svals;
   matrix_type vvecs;
@@ -48,35 +49,36 @@ private:
   std::map<std::string, std::map<std::string, scalar_type>> timings;
   std::map<std::string, std::map<std::string, std::vector<scalar_type>>> traces;
 
-  auto axpy(const double, matrix_type &, const double, const matrix_type &,
+  auto axpy(const double, matrix_type&, const double, const matrix_type&,
             const range_type = std::make_pair<size_type>(0, 0)) -> void;
 
   auto initial_approx(bool update_timers = true)
       -> std::tuple<matrix_type, matrix_type, matrix_type>;
 
-  auto update(const MatrixType &,
+  auto update(const MatrixType&,
               const range_type idx = std::make_pair<size_type>(0, 0))
       -> std::tuple<matrix_type, matrix_type, matrix_type>;
 };
 
 // Driver
 template <typename MatrixType>
-void sketchy_svd(const MatrixType &, matrix_type &, vector_type &,
-                 matrix_type &, AlgParams);
+void sketchy_svd(const MatrixType&, matrix_type&, vector_type&, matrix_type&,
+                 AlgParams);
 
 // SketchySVD variant for symmetric positive definite matrices
-template <typename MatrixType, typename DimReduxT> class SketchySPD {
-public:
+template <typename MatrixType, typename DimReduxT>
+class SketchySPD {
+ public:
   SketchySPD(AlgParams);
   ~SketchySPD() {};
 
-  auto compute_residuals(const MatrixType &) -> void;
-  auto linear_update(const MatrixType &) -> void;
+  auto compute_residuals(const MatrixType&) -> void;
+  auto linear_update(const MatrixType&) -> void;
   auto low_rank_approx(bool update_timers = true)
       -> std::tuple<matrix_type, vector_type>;
   auto save_history(std::filesystem::path) -> void;
 
-private:
+ private:
   matrix_type uvecs;
   vector_type svals;
   vector_type rnrms;
@@ -98,14 +100,14 @@ private:
   std::map<std::string, std::map<std::string, double>> timings;
   std::map<std::string, std::map<std::string, std::vector<scalar_type>>> traces;
 
-  auto axpy(const double, matrix_type &, const double, const matrix_type &,
+  auto axpy(const double, matrix_type&, const double, const matrix_type&,
             const range_type = std::make_pair<size_type>(0, 0)) -> void;
 
-  auto update(const MatrixType &) -> matrix_type;
+  auto update(const MatrixType&) -> matrix_type;
 };
 
 // Driver
 template <typename MatrixType>
-auto sketchy_symm_pos_def(const MatrixType &, matrix_type &, vector_type &,
+auto sketchy_symm_pos_def(const MatrixType&, matrix_type&, vector_type&,
                           AlgParams) -> void;
-} // namespace Skema
+}  // namespace Skema

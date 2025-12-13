@@ -16,10 +16,8 @@ inline auto diag(const vector_type& a) -> matrix_type {
 
 // Computes A*V by window
 template <typename MatrixType, typename WindowType>
-inline auto map_A_by_window(const MatrixType& A,
-                            const matrix_type& V,
-                            const ordinal_type rank,
-                            const AlgParams& algParams,
+inline auto map_A_by_window(const MatrixType& A, const matrix_type& V,
+                            const ordinal_type rank, const AlgParams& algParams,
                             const WindowType& window) -> matrix_type {
   const size_type nrow{algParams.matrix_m};
   size_type wsize{algParams.window};
@@ -36,7 +34,7 @@ inline auto map_A_by_window(const MatrixType& A,
     if (irow + wsize < nrow) {
       idx = std::make_pair(irow, irow + wsize);
     } else {
-      idx = std::make_pair(irow, nrow);
+      idx   = std::make_pair(irow, nrow);
       wsize = idx.second - idx.first;
     }
 
@@ -58,10 +56,8 @@ inline auto map_A_by_window(const MatrixType& A,
 
 // Computes A*V & A^T * U by window
 template <typename MatrixType, typename WindowType>
-inline auto map_A_by_window(const MatrixType& A,
-                            const matrix_type& U,
-                            const matrix_type& V,
-                            const ordinal_type rank,
+inline auto map_A_by_window(const MatrixType& A, const matrix_type& U,
+                            const matrix_type& V, const ordinal_type rank,
                             const AlgParams& algParams,
                             const WindowType& window)
     -> Kokkos::pair<matrix_type, matrix_type> {
@@ -84,7 +80,7 @@ inline auto map_A_by_window(const MatrixType& A,
     if (irow + wsize < nrow) {
       idx = std::make_pair(irow, irow + wsize);
     } else {
-      idx = std::make_pair(irow, nrow);
+      idx   = std::make_pair(irow, nrow);
       wsize = idx.second - idx.first;
     }
 
@@ -113,12 +109,10 @@ inline auto map_A_by_window(const MatrixType& A,
 }
 
 template <typename MatrixType, typename... WindowType>
-inline auto residuals(const MatrixType& A,
-                      const matrix_type& V,
-                      const vector_type& S,
-                      const ordinal_type rank,
-                      const AlgParams& algParams,
-                      const WindowType&... window) -> vector_type {
+inline auto residuals(const MatrixType& A, const matrix_type& V,
+                      const vector_type& S, const ordinal_type rank,
+                      const AlgParams& algParams, const WindowType&... window)
+    -> vector_type {
   const size_type nrow{algParams.matrix_m};
   const size_type ncol{algParams.matrix_n};
 
@@ -158,12 +152,9 @@ inline auto residuals(const MatrixType& A,
 }
 
 template <typename MatrixType, typename... WindowType>
-inline auto residuals(const MatrixType& A,
-                      const matrix_type& U,
-                      const vector_type& S,
-                      const matrix_type& V,
-                      const ordinal_type rank,
-                      const AlgParams& algParams,
+inline auto residuals(const MatrixType& A, const matrix_type& U,
+                      const vector_type& S, const matrix_type& V,
+                      const ordinal_type rank, const AlgParams& algParams,
                       const WindowType&... window) -> vector_type {
   const size_type nrow{algParams.matrix_m};
   const size_type ncol{algParams.matrix_n};
@@ -179,10 +170,10 @@ inline auto residuals(const MatrixType& A,
   if (sizeof...(WindowType) > 0) {
     // If Window is passed, do it in tiles
     auto tmp = map_A_by_window(A, U, V, rank, algParams, window...);
-    AV = tmp.first;
-    AtU = tmp.second;
+    AV       = tmp.first;
+    AtU      = tmp.second;
   } else {
-    AV = matrix_type("AV", nrow, rank);
+    AV  = matrix_type("AV", nrow, rank);
     AtU = matrix_type("AtU", ncol, rank);
     Impl::mm(&N, &N, &one, A, V, &zero, AV);
     Impl::mm(&T, &N, &one, A, U, &zero, AtU);

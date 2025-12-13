@@ -12,10 +12,8 @@ class Sampler {
  public:
   typedef Kokkos::Random_XorShift64_Pool<> pool_type;
 
-  Sampler(const size_type nsamples_,
-          const size_type nrow_,
-          const size_type ncol_,
-          const ordinal_type seed_,
+  Sampler(const size_type nsamples_, const size_type nrow_,
+          const size_type ncol_, const ordinal_type seed_,
           const ordinal_type print_level_)
       : nsamples(nsamples_),
         nrow(nrow_),
@@ -23,11 +21,11 @@ class Sampler {
         rand_pool(pool_type(seed_)),
         print_level(print_level_) {
     initialized = false;
-    count = 0;
-    offset = 0;
+    count       = 0;
+    offset      = 0;
   };
   Sampler(const Sampler&) = default;
-  Sampler(Sampler&&) = default;
+  Sampler(Sampler&&)      = default;
   Sampler& operator=(const Sampler&);
   Sampler& operator=(Sampler&&);
   virtual ~Sampler() {}
@@ -51,14 +49,12 @@ class ReservoirSampler : public Sampler<MatrixType> {
   typedef Sampler<MatrixType> base_sampler;
   typedef typename base_sampler::pool_type pool_type;
 
-  ReservoirSampler(const size_type nsamples_,
-                   const size_type nrow_,
-                   const size_type ncol_,
-                   const ordinal_type seed_,
+  ReservoirSampler(const size_type nsamples_, const size_type nrow_,
+                   const size_type ncol_, const ordinal_type seed_,
                    const ordinal_type print_level_)
       : Sampler<MatrixType>(nsamples_, nrow_, ncol_, seed_, print_level_) {}
   ReservoirSampler(const ReservoirSampler&) = default;
-  ReservoirSampler(ReservoirSampler&&) = default;
+  ReservoirSampler(ReservoirSampler&&)      = default;
   ReservoirSampler& operator=(const ReservoirSampler&);
   ReservoirSampler& operator=(ReservoirSampler&&);
   virtual ~ReservoirSampler() {}

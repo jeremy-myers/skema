@@ -1,14 +1,14 @@
 #include "Skema_AlgParams.hpp"
 #include "Skema_Driver.hpp"
 #include "Skema_IO.hpp"
-#include "Skema_Common.hpp" // TODO similar functions in different places
+#include "Skema_Common.hpp"  // TODO similar functions in different places
 #include <Kokkos_Core.hpp>
 #include <chrono>
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
 
-void usage(char **argv) {
+void usage(char** argv) {
   std::cout << "Usage: " << argv[0] << " [options]" << std::endl;
   std::cout << "General options:" << std::endl;
   std::cout << "  --input\tpath to input matrix. Supported filetypes: "
@@ -25,7 +25,7 @@ void usage(char **argv) {
   Skema::AlgParams::print_help(std::cout);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   Kokkos::initialize(argc, argv);
   {
     auto args = Skema::build_arg_list(argc, argv);
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
       std::cout << "==============================================="
                 << std::endl;
 
-      auto start = std::chrono::system_clock::now();
+      auto start             = std::chrono::system_clock::now();
       std::time_t start_time = std::chrono::system_clock::to_time_t(start);
       if (algParams.print_level > 0) {
         std::cout << "\nSkema started at " << std::ctime(&start_time)
@@ -71,19 +71,19 @@ int main(int argc, char *argv[]) {
       double time{0.0};
       if (algParams.issparse) {
         auto matrix = Skema::read_matrix<crs_matrix_type>(inputfilename);
-        time = timer.seconds();
+        time        = timer.seconds();
         std::cout << "Done: " << time << " s" << std::endl;
 
         std::tie(U, S, V) = Skema::driver<crs_matrix_type>(matrix, algParams);
       } else {
         auto matrix = Skema::read_matrix<matrix_type>(inputfilename);
-        time = timer.seconds();
+        time        = timer.seconds();
         std::cout << "Done: " << time << " s" << std::endl;
 
         std::tie(U, S, V) = Skema::driver<matrix_type>(matrix, algParams);
       }
 
-      auto end = std::chrono::system_clock::now();
+      auto end             = std::chrono::system_clock::now();
       std::time_t end_time = std::chrono::system_clock::to_time_t(end);
       std::chrono::duration<double> elapsed_seconds = end - start;
       if (algParams.print_level > 0) {
@@ -96,17 +96,20 @@ int main(int argc, char *argv[]) {
         std::string fname;
 
         if (U.extent(0) > 0 && U.extent(1) > 0) {
-          fname = algParams.debug_filename.filename().stem().string() + "_U.txt";
+          fname =
+              algParams.debug_filename.filename().stem().string() + "_U.txt";
           Skema::Impl::write(U, fname.c_str());
         }
 
         if (S.extent(0) > 0) {
-          fname = algParams.debug_filename.filename().stem().string() + "_S.txt";
+          fname =
+              algParams.debug_filename.filename().stem().string() + "_S.txt";
           Skema::Impl::write(S, fname.c_str());
         }
 
         if (V.extent(0) > 0 && V.extent(1) > 0) {
-          fname = algParams.debug_filename.filename().stem().string() + "_V.txt";
+          fname =
+              algParams.debug_filename.filename().stem().string() + "_V.txt";
           Skema::Impl::write(V, fname.c_str());
         }
       }

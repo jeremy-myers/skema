@@ -12,13 +12,16 @@
 
 namespace Skema {
 
-struct XVDS_stats; // Forward declaration
+struct XVDS_stats;  // Forward declaration
 
-template <typename MatrixType> class ISVD {
-public:
+template <typename MatrixType>
+class ISVD {
+ public:
   ISVD(AlgParams algParams_)
-      : algParams(algParams_), nrow(algParams_.matrix_m),
-        ncol(algParams_.matrix_n), rank(algParams_.rank),
+      : algParams(algParams_),
+        nrow(algParams_.matrix_m),
+        ncol(algParams_.matrix_n),
+        rank(algParams_.rank),
         svals(vector_type("svals", rank)),
         vtvex(matrix_type("vtvex", rank, ncol)),
         rnrms(vector_type("rnrms", rank)),
@@ -27,21 +30,22 @@ public:
         num_samples(algParams.window < algParams.isvd_num_samples
                         ? algParams.window
                         : algParams.isvd_num_samples),
-        window(getWindow<MatrixType>(algParams)), wsize0(algParams.window) {}
+        window(getWindow<MatrixType>(algParams)),
+        wsize0(algParams.window) {}
 
   ~ISVD() {};
 
   /* Public methods */
-  auto compute_residuals(const MatrixType &) -> void;
+  auto compute_residuals(const MatrixType&) -> void;
   auto save_history(std::filesystem::path) -> void;
-  auto solve(const MatrixType &) -> void;
+  auto solve(const MatrixType&) -> void;
 
   /* Accessors */
   inline auto U() -> matrix_type { return u; };
   inline auto S() -> vector_type { return svals; };
   inline auto V() -> matrix_type { return Impl::transpose(vtvex); };
 
-protected:
+ protected:
   const size_type nrow;
   const size_type ncol;
   const size_type rank;
@@ -56,14 +60,14 @@ protected:
   const size_type num_samples;
   std::unique_ptr<WindowBase<MatrixType>> window;
   nlohmann::json hist;
-  auto save_window_history(const std::shared_ptr<XVDS_stats> &,
-                           const std::shared_ptr<Window_stats> &) -> void;
+  auto save_window_history(const std::shared_ptr<XVDS_stats>&,
+                           const std::shared_ptr<Window_stats>&) -> void;
 
   /* Compute U = A*V*Sigma^{-1} */
-  auto compute_U(const MatrixType &) -> void;
+  auto compute_U(const MatrixType&) -> void;
 
   KOKKOS_INLINE_FUNCTION
-  void distribute(const vector_type &svals, const matrix_type &vvecs) {
+  void distribute(const vector_type& svals, const matrix_type& vvecs) {
     size_type k{static_cast<size_type>(svals.size())};
     Kokkos::parallel_for(
         k, KOKKOS_LAMBDA(const int ii) {
@@ -75,7 +79,7 @@ protected:
   };
 
   KOKKOS_INLINE_FUNCTION
-  void normalize(const vector_type &svals, const matrix_type &vvecs) {
+  void normalize(const vector_type& svals, const matrix_type& vvecs) {
     size_type k{static_cast<size_type>(svals.size())};
     Kokkos::parallel_for(
         k, KOKKOS_LAMBDA(const int ii) {
@@ -91,6 +95,6 @@ template class ISVD<matrix_type>;
 template class ISVD<crs_matrix_type>;
 
 template <typename MatrixType>
-void isvd(const MatrixType &, matrix_type &, vector_type &, matrix_type &,
+void isvd(const MatrixType&, matrix_type&, vector_type&, matrix_type&,
           AlgParams);
-} // namespace Skema
+}  // namespace Skema

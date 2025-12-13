@@ -40,8 +40,8 @@ void ReservoirSampler<matrix_type>::sample(const matrix_type& A) {
     idxs = index_type("sample indices", nsamples);
 
     initialized = true;
-    count = 0;
-    offset = 0;
+    count       = 0;
+    offset      = 0;
     auto maxidx = std::min<size_t>(nsamples, m);
     for (auto j = 0; j < ncol; ++j) {
       for (auto i = 0; i < maxidx; ++i) {
@@ -51,7 +51,7 @@ void ReservoirSampler<matrix_type>::sample(const matrix_type& A) {
     for (auto i = 0; i < maxidx; ++i) {
       idxs(i) = i;
     }
-    count = maxidx;
+    count  = maxidx;
     offset = maxidx;
 
     // Get the range for the remaining rows of A and pass to update
@@ -73,7 +73,7 @@ void ReservoirSampler<matrix_type>::sample(const matrix_type& A) {
       if (nu < nsamples) {
         for (auto j = 0; j < ncol; ++j) {
           data(nu, j) = A(i, j);
-          idxs(nu) = static_cast<size_t>(i + offset);
+          idxs(nu)    = static_cast<size_t>(i + offset);
         }
       }
     }
@@ -94,8 +94,7 @@ const crs_matrix_type ReservoirSampler<crs_matrix_type>::matrix() const {
 /* Core algorithm */
 template <>
 void ReservoirSampler<crs_matrix_type>::sample(const crs_matrix_type& A) {
-  if (nsamples == 0)
-    return;
+  if (nsamples == 0) return;
 
   const size_type m{static_cast<size_type>(A.numRows())};
   if (!initialized) {
@@ -106,8 +105,8 @@ void ReservoirSampler<crs_matrix_type>::sample(const crs_matrix_type& A) {
     idxs = index_type("sample indices", nsamples);
 
     initialized = true;
-    count = 0;
-    offset = 0;
+    count       = 0;
+    offset      = 0;
     size_type maxidx{std::min<size_type>(nsamples, m)};
 
     range_type idx = std::make_pair(0, maxidx);
@@ -117,7 +116,7 @@ void ReservoirSampler<crs_matrix_type>::sample(const crs_matrix_type& A) {
     for (auto ii = 0; ii < maxidx; ++ii) {
       idxs(ii) = ii;
     }
-    count = maxidx;
+    count  = maxidx;
     offset = maxidx;
 
     // Create a Crs matrix with the remaining rows of A and pass to update
@@ -228,7 +227,7 @@ void ReservoirSampler<crs_matrix_type>::sample(const crs_matrix_type& A) {
     assert(keep_from_prev_rowids.count() + only_new_rowids.extent(0) ==
            row_count - 1);
     // Update the sample matrix
-    auto nnz = valmap.extent(0);
+    auto nnz      = valmap.extent(0);
     auto num_rows = rowmap.extent(0) - 1;
     data = crs_matrix_type("sample matrix", num_rows, A.numCols(), nnz, valmap,
                            rowmap, colmap);

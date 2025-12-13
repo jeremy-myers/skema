@@ -31,8 +31,7 @@ auto read_mtx<matrix_type>(const std::filesystem::path& filename)
 
   while (1) {
     getline(mmfile, fline);
-    if (fline[0] != '%')
-      break;
+    if (fline[0] != '%') break;
   }
   std::stringstream ss(fline);
   size_type nr{0};

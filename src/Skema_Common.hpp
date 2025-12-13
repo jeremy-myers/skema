@@ -11,59 +11,39 @@
 /* Common helper functions */
 namespace Skema {
 namespace Impl {
-inline void mv(const char* trans,
-               const scalar_type* alpha,
-               const matrix_type& A,
-               const vector_type& B,
-               const scalar_type* beta,
-               vector_type& C) {
+inline void mv(const char* trans, const scalar_type* alpha,
+               const matrix_type& A, const vector_type& B,
+               const scalar_type* beta, vector_type& C) {
   KokkosBlas::gemv(trans, *alpha, A, B, *beta, C);
 }
 
-inline void mv(const char* trans,
-               const scalar_type* alpha,
-               const crs_matrix_type& A,
-               const vector_type& B,
-               const scalar_type* beta,
-               vector_type& C) {
+inline void mv(const char* trans, const scalar_type* alpha,
+               const crs_matrix_type& A, const vector_type& B,
+               const scalar_type* beta, vector_type& C) {
   KokkosSparse::spmv(trans, *alpha, A, B, *beta, C);
 }
 
-inline void mm(const char* transA,
-               const char* transB,
-               const scalar_type* alpha,
-               const matrix_type& A,
-               const matrix_type& B,
-               const scalar_type* beta,
-               matrix_type& C) {
+inline void mm(const char* transA, const char* transB, const scalar_type* alpha,
+               const matrix_type& A, const matrix_type& B,
+               const scalar_type* beta, matrix_type& C) {
   KokkosBlas::gemm(transA, transB, *alpha, A, B, *beta, C);
 }
 
-inline void mm(const char* transA,
-               const char* transB,
-               const scalar_type* alpha,
-               const crs_matrix_type& A,
-               const matrix_type& B,
-               const scalar_type* beta,
-               matrix_type& C) {
+inline void mm(const char* transA, const char* transB, const scalar_type* alpha,
+               const crs_matrix_type& A, const matrix_type& B,
+               const scalar_type* beta, matrix_type& C) {
   KokkosSparse::spmv(transA, *alpha, A, B, *beta, C);
 }
 
-inline void mm(const char* mode,
-               const scalar_type* alpha,
-               const crs_matrix_type& A,
-               const matrix_type& B,
-               const scalar_type* beta,
-               matrix_type& C) {
+inline void mm(const char* mode, const scalar_type* alpha,
+               const crs_matrix_type& A, const matrix_type& B,
+               const scalar_type* beta, matrix_type& C) {
   KokkosSparse::spmv(mode, *alpha, A, B, *beta, C);
 }
 
-inline void mm(const char* mode,
-               const scalar_type* alpha,
-               const crs_matrix_type& A,
-               const crs_matrix_type& B,
-               const scalar_type* beta,
-               crs_matrix_type& C) {
+inline void mm(const char* mode, const scalar_type* alpha,
+               const crs_matrix_type& A, const crs_matrix_type& B,
+               const scalar_type* beta, crs_matrix_type& C) {
   typedef typename crs_matrix_type::size_type size_type;
   typedef typename crs_matrix_type::ordinal_type lno_t;
   typedef typename crs_matrix_type::value_type scalar_t;

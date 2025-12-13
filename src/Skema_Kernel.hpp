@@ -15,13 +15,9 @@ class Kernel {
  public:
   Kernel() : stats_(std::make_shared<Kernel_stats>()) {};
   virtual ~Kernel() {}
-  virtual MatrixType compute(const MatrixType&,
-                             const size_type,
-                             const size_type,
-                             const MatrixType&,
-                             const size_type,
-                             const size_type,
-                             const size_type,
+  virtual MatrixType compute(const MatrixType&, const size_type,
+                             const size_type, const MatrixType&,
+                             const size_type, const size_type, const size_type,
                              const range_type) = 0;
 
   virtual std::shared_ptr<Kernel_stats> stats() { return stats_; };
@@ -37,14 +33,9 @@ class GaussRBF : public Kernel<MatrixType> {
   GaussRBF(const scalar_type gamma_) : gamma(gamma_) {};
   virtual ~GaussRBF() {};
 
-  MatrixType compute(const MatrixType&,
-                     const size_type,
-                     const size_type,
-                     const MatrixType&,
-                     const size_type,
-                     const size_type,
-                     const size_type,
-                     const range_type) override;
+  MatrixType compute(const MatrixType&, const size_type, const size_type,
+                     const MatrixType&, const size_type, const size_type,
+                     const size_type, const range_type) override;
 
   inline void set_gamma(const scalar_type gamma_) { gamma = gamma_; };
 

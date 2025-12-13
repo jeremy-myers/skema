@@ -16,30 +16,33 @@ namespace Skema {
 // SketchySVD variant for symmetric positive definite matrices
 template <typename MatrixType, typename DimReduxT>
 SketchySPD<MatrixType, DimReduxT>::SketchySPD(AlgParams algParams_)
-    : nrow(algParams_.matrix_m), ncol(algParams_.matrix_n),
-      rank(algParams_.rank), range(algParams_.sketch_range < algParams_.rank
-                                       ? 4 * algParams_.rank + 1
-                                       : algParams_.sketch_range),
-      eta(algParams_.sketch_eta), nu(algParams_.sketch_nu),
+    : nrow(algParams_.matrix_m),
+      ncol(algParams_.matrix_n),
+      rank(algParams_.rank),
+      range(algParams_.sketch_range < algParams_.rank
+                ? 4 * algParams_.rank + 1
+                : algParams_.sketch_range),
+      eta(algParams_.sketch_eta),
+      nu(algParams_.sketch_nu),
       algParams(algParams_),
       Omega(DimReduxT(ncol, range, algParams.seeds[0], "Omega", algParams.debug,
                       algParams.debug_filename)),
       window(getWindow<MatrixType>(algParams)) {
-  timings["init"]["omega"] = 0.0;
-  timings["update"]["omega"] = 0.0;
+  timings["init"]["omega"]    = 0.0;
+  timings["update"]["omega"]  = 0.0;
   timings["update"]["window"] = 0.0;
-  timings["update"]["daxpy"] = 0.0;
-  timings["approx"]["omega"] = 0.0;
-  timings["approx"]["daxpy"] = 0.0;
-  timings["approx"]["norm2"] = 0.0;
+  timings["update"]["daxpy"]  = 0.0;
+  timings["approx"]["omega"]  = 0.0;
+  timings["approx"]["daxpy"]  = 0.0;
+  timings["approx"]["norm2"]  = 0.0;
   timings["approx"]["update"] = 0.0;
   timings["approx"]["dpotrf"] = 0.0;
-  timings["approx"]["dgels"] = 0.0;
+  timings["approx"]["dgels"]  = 0.0;
   timings["approx"]["dgesvd"] = 0.0;
 };
 
 template <typename MatrixType, typename DimReduxT>
-auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType &A)
+auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     -> void {
   double time{0.0};
   Kokkos::Timer timer;
@@ -76,7 +79,7 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType &A)
   }
 
   /* Main loop */
-  ordinal_type ucnt{0}; // window count
+  ordinal_type ucnt{0};  // window count
 
   // Compute svals after every window
   // bool compute_svals_iters{algParams.sketch_compute_svals_iters};
@@ -84,7 +87,7 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType &A)
     if (irow + wsize < nrow) {
       idx = std::make_pair(irow, irow + wsize);
     } else {
-      idx = std::make_pair(irow, nrow);
+      idx   = std::make_pair(irow, nrow);
       wsize = idx.second - idx.first;
     }
     // std::cout << "idx.first = " << idx.first << ", idx.second = " <<
@@ -127,7 +130,7 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType &A)
     2. Sparse-Sparse operations do not support either operand to be transposed
 */
 template <>
-auto SketchySPD<matrix_type, GaussDimRedux>::update(const matrix_type &A)
+auto SketchySPD<matrix_type, GaussDimRedux>::update(const matrix_type& A)
     -> matrix_type {
   // Dense-Dense operations, no constraints on operator order or transpose mode,
   // do Y update as desired.
@@ -137,19 +140,19 @@ auto SketchySPD<matrix_type, GaussDimRedux>::update(const matrix_type &A)
 }
 
 template <>
-auto SketchySPD<matrix_type, SparseSignDimRedux>::update(const matrix_type &A)
+auto SketchySPD<matrix_type, SparseSignDimRedux>::update(const matrix_type& A)
     -> matrix_type {
   // Y = H * Omega^T = (Omega * H^T)^T
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  auto At = Impl::transpose(A);
+  auto At  = Impl::transpose(A);
   auto ret = Omega.lmap(&one, At, &zero, 'T', 'N');
   return Impl::transpose(ret);
 }
 
 template <>
 auto SketchySPD<crs_matrix_type, GaussDimRedux>::update(
-    const crs_matrix_type &A) -> matrix_type {
+    const crs_matrix_type& A) -> matrix_type {
   // Sparse-Dense operation, DimRedux is in Normal mode ("N") no constraints on
   // operator order or transpose mode, do Y update as desired.
   constexpr scalar_type one{1.0};
@@ -159,7 +162,7 @@ auto SketchySPD<crs_matrix_type, GaussDimRedux>::update(
 
 template <>
 auto SketchySPD<crs_matrix_type, SparseSignDimRedux>::update(
-    const crs_matrix_type &A) -> matrix_type {
+    const crs_matrix_type& A) -> matrix_type {
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
   return Omega.rmap(&one, A, &zero, 'N', 'N');
@@ -197,7 +200,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   try {
     ynorm = linalg::nrm2(Y_copy);
     shift = mu * ynorm;
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::norm2 encountered an "
                  "exception: "
               << e.what() << std::endl;
@@ -216,7 +219,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   timer.reset();
   try {
     Omega.axpy(shift, Y);
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::axpy encountered an "
                  "exception: "
               << e.what() << std::endl;
@@ -236,7 +239,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   matrix_type B;
   try {
     B = Omega.lmap(&one, Y, &zero, 'T', 'N');
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::lmap encountered an "
                  "exception: "
               << e.what() << std::endl;
@@ -260,7 +263,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   matrix_type C("C", range, range);
   try {
     KokkosBlas::update(0.5, B, 0.5, Bt, 0.0, C);
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::update encountered an "
                  "exception: "
               << e.what() << std::endl;
@@ -304,14 +307,14 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   auto Yt = Impl::transpose(Y);
   try {
     linalg::ls(&T, C, Yt, range, range, Yt.extent(1));
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::ls encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
   Kokkos::fence();
 
-  Y = Impl::transpose(Yt);
+  Y    = Impl::transpose(Yt);
   time = timer.seconds();
   if (update_timers) {
     timings["approx"]["dgels"] += timer.seconds();
@@ -325,11 +328,11 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
 
   matrix_type Uwy("Uwy", mw, min_mnw);
   vector_type Swy("Swy", min_mnw);
-  matrix_type Vwy("Vwy", min_mnw, nw); // transpose
+  matrix_type Vwy("Vwy", min_mnw, nw);  // transpose
   timer.reset();
   try {
     linalg::svd(Y, mw, nw, Uwy, Swy, Vwy);
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::svd encountered an "
                  "exception: "
               << e.what() << std::endl;
@@ -342,7 +345,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   // Truncate to rank r
   std::cout << "\nTruncate to rank r" << std::endl;
   range_type rlargest = std::make_pair<size_type>(0, rank);
-  uvecs = Kokkos::subview(Uwy, Kokkos::ALL(), rlargest);
+  uvecs               = Kokkos::subview(Uwy, Kokkos::ALL(), rlargest);
 
   // Sr = S(1:r, 1:r);
   svals = Kokkos::subview(Swy, rlargest);
@@ -351,15 +354,15 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   std::cout << "\nRemove shift" << std::endl;
   for (auto rr = 0; rr < rank; ++rr) {
     scalar_type remove_shift = svals(rr) * svals(rr) - shift;
-    svals(rr) = std::max(0.0, remove_shift);
+    svals(rr)                = std::max(0.0, remove_shift);
   }
 
   return std::tuple<matrix_type, vector_type>(uvecs, svals);
 };
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySPD<MatrixT, DimReduxT>::axpy(const double eta, matrix_type &Y,
-                                          const double nu, const matrix_type &A,
+auto SketchySPD<MatrixT, DimReduxT>::axpy(const double eta, matrix_type& Y,
+                                          const double nu, const matrix_type& A,
                                           const range_type idx) -> void {
   if (idx.first == idx.second) {
     assert(Y.extent(0) == A.extent(0));
@@ -377,7 +380,7 @@ auto SketchySPD<MatrixT, DimReduxT>::axpy(const double eta, matrix_type &Y,
         policy, KOKKOS_LAMBDA(member_type team_member) {
           auto jj = team_member.league_rank();
           Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, nrow),
-                               [&](auto &ii) {
+                               [&](auto& ii) {
                                  scalar_type kij;
                                  Y(ii, jj) = eta * Y(ii, jj) + nu * A(ii, jj);
                                });
@@ -398,7 +401,7 @@ auto SketchySPD<MatrixT, DimReduxT>::axpy(const double eta, matrix_type &Y,
         policy, KOKKOS_LAMBDA(member_type team_member) {
           auto jj = team_member.league_rank();
           Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, nrow),
-                               [&](auto &ii) {
+                               [&](auto& ii) {
                                  const auto ix{ii + idx.first};
                                  Y(ix, jj) = eta * Y(ix, jj) + nu * A(ii, jj);
                                });
@@ -408,12 +411,12 @@ auto SketchySPD<MatrixT, DimReduxT>::axpy(const double eta, matrix_type &Y,
 }
 
 template <typename MatrixType, typename DimReduxT>
-auto SketchySPD<MatrixType, DimReduxT>::compute_residuals(const MatrixType &A)
-    -> void { // Compute final residuals
+auto SketchySPD<MatrixType, DimReduxT>::compute_residuals(const MatrixType& A)
+    -> void {  // Compute final residuals
   double time{0.0};
   Kokkos::Timer timer;
   rnrms = residuals(A, uvecs, svals, rank, algParams, window);
-  time = timer.seconds();
+  time  = timer.seconds();
   std::cout << "\nCompute residuals: " << time << std::endl;
 }
 
@@ -446,13 +449,13 @@ auto SketchySPD<MatrixType, DimReduxT>::save_history(
 
 // Drivers
 template <>
-auto sketchy_symm_pos_def(const matrix_type &matrix, matrix_type &U,
-                          vector_type &S, AlgParams algParams) -> void {
+auto sketchy_symm_pos_def(const matrix_type& matrix, matrix_type& U,
+                          vector_type& S, AlgParams algParams) -> void {
   if (algParams.dim_redux == DimRedux_Map::GAUSS) {
     SketchySPD<matrix_type, GaussDimRedux> sketch(algParams);
     try {
       sketch.linear_update(matrix);
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::linear_update encountered an "
                    "exception: "
                 << e.what() << std::endl;
@@ -460,7 +463,7 @@ auto sketchy_symm_pos_def(const matrix_type &matrix, matrix_type &U,
     }
     try {
       std::tie(U, S) = sketch.low_rank_approx();
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::low_rank_approx encountered an "
                    "exception: "
                 << e.what() << std::endl;
@@ -468,7 +471,7 @@ auto sketchy_symm_pos_def(const matrix_type &matrix, matrix_type &U,
     }
     try {
       sketch.compute_residuals(matrix);
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::compute_residuals encountered an "
                    "exception: "
                 << e.what() << std::endl;
@@ -481,7 +484,7 @@ auto sketchy_symm_pos_def(const matrix_type &matrix, matrix_type &U,
     SketchySPD<matrix_type, SparseSignDimRedux> sketch(algParams);
     try {
       sketch.linear_update(matrix);
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::linear_update encountered an "
                    "exception: "
                 << e.what() << std::endl;
@@ -489,7 +492,7 @@ auto sketchy_symm_pos_def(const matrix_type &matrix, matrix_type &U,
     }
     try {
       std::tie(U, S) = sketch.low_rank_approx();
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::low_rank_approx encountered an "
                    "exception: "
                 << e.what() << std::endl;
@@ -497,7 +500,7 @@ auto sketchy_symm_pos_def(const matrix_type &matrix, matrix_type &U,
     }
     try {
       sketch.compute_residuals(matrix);
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::compute_residuals encountered an "
                    "exception: "
                 << e.what() << std::endl;
@@ -508,7 +511,7 @@ auto sketchy_symm_pos_def(const matrix_type &matrix, matrix_type &U,
     }
     if (algParams.rayleigh_ritz_pass) {
       AlgParams params(algParams);
-      params.primme_maxIter = 2;
+      params.primme_maxIter      = 2;
       params.primme_maxBlockSize = algParams.rank;
       primme_eigs(matrix, U, S, params);
     }
@@ -519,13 +522,13 @@ auto sketchy_symm_pos_def(const matrix_type &matrix, matrix_type &U,
 };
 
 template <>
-auto sketchy_symm_pos_def(const crs_matrix_type &matrix, matrix_type &U,
-                          vector_type &S, AlgParams algParams) -> void {
+auto sketchy_symm_pos_def(const crs_matrix_type& matrix, matrix_type& U,
+                          vector_type& S, AlgParams algParams) -> void {
   if (algParams.dim_redux == DimRedux_Map::GAUSS) {
     SketchySPD<crs_matrix_type, GaussDimRedux> sketch(algParams);
     try {
       sketch.linear_update(matrix);
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::linear_update encountered an "
                    "exception: "
                 << e.what() << std::endl;
@@ -533,7 +536,7 @@ auto sketchy_symm_pos_def(const crs_matrix_type &matrix, matrix_type &U,
     }
     try {
       std::tie(U, S) = sketch.low_rank_approx();
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::low_rank_approx encountered an "
                    "exception: "
                 << e.what() << std::endl;
@@ -541,7 +544,7 @@ auto sketchy_symm_pos_def(const crs_matrix_type &matrix, matrix_type &U,
     }
     try {
       sketch.compute_residuals(matrix);
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::compute_residuals encountered an "
                    "exception: "
                 << e.what() << std::endl;
@@ -552,7 +555,7 @@ auto sketchy_symm_pos_def(const crs_matrix_type &matrix, matrix_type &U,
     }
     if (algParams.rayleigh_ritz_pass) {
       AlgParams params(algParams);
-      params.primme_maxIter = 2;
+      params.primme_maxIter      = 2;
       params.primme_maxBlockSize = algParams.rank;
       primme_eigs(matrix, U, S, params);
     }
@@ -560,7 +563,7 @@ auto sketchy_symm_pos_def(const crs_matrix_type &matrix, matrix_type &U,
     SketchySPD<crs_matrix_type, SparseSignDimRedux> sketch(algParams);
     try {
       sketch.linear_update(matrix);
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::linear_update encountered an "
                    "exception: "
                 << e.what() << std::endl;
@@ -568,7 +571,7 @@ auto sketchy_symm_pos_def(const crs_matrix_type &matrix, matrix_type &U,
     }
     try {
       std::tie(U, S) = sketch.low_rank_approx();
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::low_rank_approx encountered an "
                    "exception: "
                 << e.what() << std::endl;
@@ -576,7 +579,7 @@ auto sketchy_symm_pos_def(const crs_matrix_type &matrix, matrix_type &U,
     }
     try {
       sketch.compute_residuals(matrix);
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::compute_residuals encountered an "
                    "exception: "
                 << e.what() << std::endl;
@@ -587,7 +590,7 @@ auto sketchy_symm_pos_def(const crs_matrix_type &matrix, matrix_type &U,
     }
     if (algParams.rayleigh_ritz_pass) {
       AlgParams params(algParams);
-      params.primme_maxIter = 2;
+      params.primme_maxIter      = 2;
       params.primme_maxBlockSize = algParams.rank;
       primme_eigs(matrix, U, S, params);
     }
@@ -598,4 +601,4 @@ auto sketchy_symm_pos_def(const crs_matrix_type &matrix, matrix_type &U,
   }
 };
 
-} // namespace Skema
+}  // namespace Skema

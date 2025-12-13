@@ -35,12 +35,9 @@ class DimRedux {
 
  public:
   DimRedux();
-  DimRedux(const size_type nrow_,
-           const size_type ncol_,
-           const ordinal_type seed_,
-           const std::string label_,
-           const bool debug_,
-           const std::filesystem::path debug_filename_,
+  DimRedux(const size_type nrow_, const size_type ncol_,
+           const ordinal_type seed_, const std::string label_,
+           const bool debug_, const std::filesystem::path debug_filename_,
            const bool init_transposed_ = false)
       : nrow(nrow_),
         ncol(ncol_),
@@ -51,29 +48,25 @@ class DimRedux {
         debug(debug_),
         debug_filename(debug_filename_),
         init_transposed(init_transposed_) {};
-  DimRedux(const DimRedux&) = default;
-  DimRedux(DimRedux&&) = default;
+  DimRedux(const DimRedux&)            = default;
+  DimRedux(DimRedux&&)                 = default;
   DimRedux& operator=(const DimRedux&) = default;
-  DimRedux& operator=(DimRedux&&) = default;
-  ~DimRedux() = default;
+  DimRedux& operator=(DimRedux&&)      = default;
+  ~DimRedux()                          = default;
 
   template <typename InputMatrixT>
-  inline auto lmap(const scalar_type* alpha,
-                   const InputMatrixT& B,
-                   const scalar_type* beta,
-                   char transA = 'N',
-                   char transB = 'N',
+  inline auto lmap(const scalar_type* alpha, const InputMatrixT& B,
+                   const scalar_type* beta, char transA = 'N',
+                   char transB          = 'N',
                    const range_type idx = std::make_pair<size_type>(0, 0))
       -> matrix_type {
     return self().lmap(alpha, B, beta, transA, transB, idx);
   };
 
   template <typename InputMatrixT>
-  inline auto rmap(const scalar_type* alpha,
-                   const InputMatrixT& A,
-                   const scalar_type* beta,
-                   char transA = 'N',
-                   char transB = 'T',
+  inline auto rmap(const scalar_type* alpha, const InputMatrixT& A,
+                   const scalar_type* beta, char transA = 'N',
+                   char transB          = 'T',
                    const range_type idx = std::make_pair<size_type>(0, 0))
       -> matrix_type {
     return self().rmap(alpha, A, beta, transA, transB, idx);
@@ -95,20 +88,14 @@ class DimRedux {
 class GaussDimRedux : public DimRedux<GaussDimRedux> {
  public:
   GaussDimRedux();
-  GaussDimRedux(const size_type nrow_,
-                const size_type ncol_,
+  GaussDimRedux(const size_type nrow_, const size_type ncol_,
                 const ordinal_type seed_,
-                const std::string label_ = "GaussDimRedux",
-                const bool debug_ = false,
+                const std::string label_                    = "GaussDimRedux",
+                const bool debug_                           = false,
                 const std::filesystem::path debug_filename_ = "",
-                const bool init_transposed_ = false)
-      : DimRedux<GaussDimRedux>(nrow_,
-                                ncol_,
-                                seed_,
-                                label_,
-                                debug_,
-                                debug_filename_,
-                                init_transposed_),
+                const bool init_transposed_                 = false)
+      : DimRedux<GaussDimRedux>(nrow_, ncol_, seed_, label_, debug_,
+                                debug_filename_, init_transposed_),
         maxval(std::sqrt(2 * std::log(nrow_ * ncol_))) {
     Kokkos::Timer timer;
     data = matrix_type(label, nrow, ncol);
@@ -127,26 +114,25 @@ class GaussDimRedux : public DimRedux<GaussDimRedux> {
     }
   };
 
+  GaussDimRedux(const matrix_type& data_)
+      : DimRedux<GaussDimRedux>(data_.extent(0), data_.extent(1), 0, "", false,
+                                "", false),
+        data(data_) {};
+
   GaussDimRedux(const GaussDimRedux&) = default;
-  GaussDimRedux(GaussDimRedux&&) = default;
+  GaussDimRedux(GaussDimRedux&&)      = default;
   GaussDimRedux& operator=(const GaussDimRedux&);
   GaussDimRedux& operator=(GaussDimRedux&&);
 
   template <typename InputMatrixT>
-  auto lmap(const scalar_type* alpha,
-            const InputMatrixT& B,
-            const scalar_type* beta,
-            char transA = 'N',
-            char transB = 'N',
+  auto lmap(const scalar_type* alpha, const InputMatrixT& B,
+            const scalar_type* beta, char transA = 'N', char transB = 'N',
             const range_type idx = std::make_pair<size_type>(0, 0))
       -> matrix_type;
 
   template <typename InputMatrixT>
-  auto rmap(const scalar_type* alpha,
-            const InputMatrixT& A,
-            const scalar_type* beta,
-            char transA = 'N',
-            char transB = 'T',
+  auto rmap(const scalar_type* alpha, const InputMatrixT& A,
+            const scalar_type* beta, char transA = 'N', char transB = 'T',
             const range_type idx = std::make_pair<size_type>(0, 0))
       -> matrix_type;
 
@@ -188,20 +174,14 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
   //        SCIENTIFIC SIMULATION (Tropp et al., 2019):
  public:
   SparseSignDimRedux();
-  SparseSignDimRedux(const size_type nrow_,
-                     const size_type ncol_,
+  SparseSignDimRedux(const size_type nrow_, const size_type ncol_,
                      const ordinal_type seed_,
                      const std::string label_ = "SparseSignDimRedux",
-                     const bool debug_ = false,
+                     const bool debug_        = false,
                      const std::filesystem::path debug_filename_ = "",
-                     const bool init_transposed_ = false)
-      : DimRedux<SparseSignDimRedux>(nrow_,
-                                     ncol_,
-                                     seed_,
-                                     label_,
-                                     debug_,
-                                     debug_filename_,
-                                     init_transposed_),
+                     const bool init_transposed_                 = false)
+      : DimRedux<SparseSignDimRedux>(nrow_, ncol_, seed_, label_, debug_,
+                                     debug_filename_, init_transposed_),
         zeta(std::max<size_type>(2, std::min<size_type>(ncol_, 8))) {
     // Create a CRS row map with zeta entries per row.
     namespace KE = Kokkos::Experimental;
@@ -268,26 +248,20 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
   };
 
   SparseSignDimRedux(const SparseSignDimRedux&) = default;
-  SparseSignDimRedux(SparseSignDimRedux&&) = default;
+  SparseSignDimRedux(SparseSignDimRedux&&)      = default;
   SparseSignDimRedux& operator=(const SparseSignDimRedux&);
   SparseSignDimRedux& operator=(SparseSignDimRedux&&);
   ~SparseSignDimRedux() = default;
 
   template <typename InputMatrixT>
-  auto lmap(const scalar_type* alpha,
-            const InputMatrixT& B,
-            const scalar_type* beta,
-            char transA = 'N',
-            char transB = 'N',
+  auto lmap(const scalar_type* alpha, const InputMatrixT& B,
+            const scalar_type* beta, char transA = 'N', char transB = 'N',
             const range_type idx = std::make_pair<size_type>(0, 0))
       -> matrix_type;
 
   template <typename InputMatrixT>
-  auto rmap(const scalar_type* alpha,
-            const InputMatrixT& A,
-            const scalar_type* beta,
-            char transA = 'N',
-            char transB = 'T',
+  auto rmap(const scalar_type* alpha, const InputMatrixT& A,
+            const scalar_type* beta, char transA = 'N', char transB = 'T',
             const range_type idx = std::make_pair<size_type>(0, 0))
       -> matrix_type;
 

@@ -7,8 +7,8 @@
 namespace Skema {
 
 template <typename VectorT, typename PrimmeStats>
-auto save_primme_stats(const std::filesystem::path fname, const VectorT &svals,
-                       const VectorT &rnrms, const PrimmeStats *stats) {
+auto save_primme_stats(const std::filesystem::path fname, const VectorT& svals,
+                       const VectorT& rnrms, const PrimmeStats* stats) {
   nlohmann::json save;
 
   const size_type rank{svals.extent(0)};
@@ -20,13 +20,13 @@ auto save_primme_stats(const std::filesystem::path fname, const VectorT &svals,
   }
   nlohmann::json j_svals(s);
   nlohmann::json j_rnrms(r);
-  save["svals"] = j_svals;
-  save["rnrms"] = j_rnrms;
+  save["svals"]              = j_svals;
+  save["rnrms"]              = j_rnrms;
   save["numOuterIterations"] = stats->numOuterIterations;
-  save["numMatvecs"] = stats->numMatvecs;
-  save["elapsedTime"] = stats->elapsedTime;
-  save["timeMatvec"] = stats->timeMatvec;
-  save["timeOrtho"] = stats->timeOrtho;
+  save["numMatvecs"]         = stats->numMatvecs;
+  save["elapsedTime"]        = stats->elapsedTime;
+  save["timeMatvec"]         = stats->timeMatvec;
+  save["timeOrtho"]          = stats->timeOrtho;
 
   if (!fname.filename().empty()) {
     std::ofstream f;
@@ -39,12 +39,12 @@ auto save_primme_stats(const std::filesystem::path fname, const VectorT &svals,
 
 // EIGS: Requires explicit specialization for kernel
 template <>
-void PRIMME_EIGS<matrix_type>::compute(const matrix_type &matrix,
+void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
                                        const size_type nrow,
                                        const size_type ncol,
-                                       const size_type rank, matrix_type &U,
-                                       vector_type &S, matrix_type &V,
-                                       vector_type &R) {
+                                       const size_type rank, matrix_type& U,
+                                       vector_type& S, matrix_type& V,
+                                       vector_type& R) {
   Kokkos::Timer timer;
 
   vector_type evals("evals", rank);
@@ -52,13 +52,13 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type &matrix,
   vector_type rnrms("rnrms", rank);
 
   /* Initialize primme parameters */
-  params.matrix = &(const_cast<matrix_type &>(matrix));
-  params.n = nrow;
-  params.numEvals = rank;
-  params.eps = algParams.primme_eps;
-  params.target = primme_largest;
+  params.matrix       = &(const_cast<matrix_type&>(matrix));
+  params.n            = nrow;
+  params.numEvals     = rank;
+  params.eps          = algParams.primme_eps;
+  params.target       = primme_largest;
   params.matrixMatvec = eigs_default_dense_matvec;
-  params.monitorFun = eigs_monitorFun;
+  params.monitorFun   = eigs_monitorFun;
 
   primme_preset_method method = parse_primme_method(algParams.primme_method);
 
@@ -69,7 +69,7 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type &matrix,
   auto window = getWindow<matrix_type>(algParams);
   EIGS_Kernel_Matrix kernel(matrix, window, matrix.extent(1), algParams.window);
   if (algParams.kernel_func != Skema::Kernel_Map::NONE) {
-    params.matrix = &kernel;
+    params.matrix       = &kernel;
     params.matrixMatvec = eigs_kernel_dense_matvec;
   }
 
@@ -87,8 +87,8 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type &matrix,
   std::string filename = !algParams.primme_outputFile.empty()
                              ? algParams.primme_outputFile.filename().string()
                              : "primme.txt";
-  FILE *fp = fopen(filename.c_str(), "w");
-  params.outputFile = fp;
+  FILE* fp             = fopen(filename.c_str(), "w");
+  params.outputFile    = fp;
 
   if (fp == NULL) {
     perror("PRIMME output file failed to open: ");
@@ -122,12 +122,12 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type &matrix,
 }
 
 template <>
-void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type &matrix,
+void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
                                            const size_type nrow,
                                            const size_type ncol,
-                                           const size_type rank, matrix_type &U,
-                                           vector_type &S, matrix_type &V,
-                                           vector_type &R) {
+                                           const size_type rank, matrix_type& U,
+                                           vector_type& S, matrix_type& V,
+                                           vector_type& R) {
   Kokkos::Timer timer;
 
   vector_type evals("evals", rank);
@@ -135,13 +135,13 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type &matrix,
   vector_type rnrms("rnrms", rank);
 
   /* Initialize primme parameters */
-  params.matrix = &(const_cast<crs_matrix_type &>(matrix));
-  params.n = nrow;
-  params.numEvals = rank;
-  params.eps = algParams.primme_eps;
-  params.target = primme_largest;
+  params.matrix       = &(const_cast<crs_matrix_type&>(matrix));
+  params.n            = nrow;
+  params.numEvals     = rank;
+  params.eps          = algParams.primme_eps;
+  params.target       = primme_largest;
   params.matrixMatvec = eigs_default_sparse_matvec;
-  params.monitorFun = eigs_monitorFun;
+  params.monitorFun   = eigs_monitorFun;
 
   primme_preset_method method = parse_primme_method(algParams.primme_method);
 
@@ -163,11 +163,10 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type &matrix,
   std::string filename = !algParams.primme_outputFile.empty()
                              ? algParams.primme_outputFile.filename().string()
                              : "primme.txt";
-  FILE *fp = fopen(filename.c_str(), "w");
-  params.outputFile = fp;
+  FILE* fp             = fopen(filename.c_str(), "w");
+  params.outputFile    = fp;
 
-  if (fp == NULL)
-    perror("PRIMME output file failed to open: ");
+  if (fp == NULL) perror("PRIMME output file failed to open: ");
 
   primme_set_method(method, &params);
   primme_display_params(params);
@@ -190,12 +189,12 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type &matrix,
 }
 
 template <typename MatrixType>
-void PRIMME_SVDS<MatrixType>::compute(const MatrixType &matrix,
+void PRIMME_SVDS<MatrixType>::compute(const MatrixType& matrix,
                                       const size_type nrow,
                                       const size_type ncol,
-                                      const size_type rank, matrix_type &U,
-                                      vector_type &S, matrix_type &V,
-                                      vector_type &R) {
+                                      const size_type rank, matrix_type& U,
+                                      vector_type& S, matrix_type& V,
+                                      vector_type& R) {
   Kokkos::Timer timer;
 
   vector_type svals("svals", rank);
@@ -203,12 +202,12 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType &matrix,
   vector_type rnrms("rnrms", rank);
 
   /* Initialize primme parameters */
-  params.matrix = &(const_cast<MatrixType &>(matrix));
-  params.m = nrow;
-  params.n = ncol;
+  params.matrix   = &(const_cast<MatrixType&>(matrix));
+  params.m        = nrow;
+  params.n        = ncol;
   params.numSvals = rank;
-  params.eps = algParams.primme_eps;
-  params.target = primme_svds_largest;
+  params.eps      = algParams.primme_eps;
+  params.target   = primme_svds_largest;
 
   primme_preset_method methodStage1 =
       parse_primme_method(algParams.primme_method);
@@ -216,7 +215,7 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType &matrix,
       parse_primme_method(algParams.primme_method);
 
   for (auto i = 0; i < 4; ++i) {
-    params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
+    params.iseed[i]        = static_cast<PRIMME_INT>(algParams.seeds[i]);
     params.primme.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
   }
 
@@ -251,11 +250,10 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType &matrix,
   std::string filename = !algParams.primme_outputFile.empty()
                              ? algParams.primme_outputFile.filename().string()
                              : "primme.txt";
-  FILE *fp = fopen(filename.c_str(), "w");
-  params.outputFile = fp;
+  FILE* fp             = fopen(filename.c_str(), "w");
+  params.outputFile    = fp;
 
-  if (fp == NULL)
-    perror("PRIMME output file failed to open: ");
+  if (fp == NULL) perror("PRIMME output file failed to open: ");
 
   primme_svds_set_method(primme_svds_normalequations, methodStage1,
                          methodStage1, &params);
@@ -278,7 +276,8 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType &matrix,
   save_primme_stats(json_file, svals, rnrms, &params.stats);
 }
 
-template <> void primme_eigs(const matrix_type &matrix, AlgParams algParams) {
+template <>
+void primme_eigs(const matrix_type& matrix, AlgParams algParams) {
   PRIMME_EIGS<matrix_type> solver(algParams);
   matrix_type u;
   vector_type s;
@@ -289,7 +288,7 @@ template <> void primme_eigs(const matrix_type &matrix, AlgParams algParams) {
 }
 
 template <>
-void primme_eigs(const matrix_type &matrix, matrix_type &u, vector_type &s,
+void primme_eigs(const matrix_type& matrix, matrix_type& u, vector_type& s,
                  AlgParams algParams) {
   PRIMME_EIGS<matrix_type> solver(algParams);
   matrix_type v;
@@ -299,7 +298,7 @@ void primme_eigs(const matrix_type &matrix, matrix_type &u, vector_type &s,
 }
 
 template <>
-void primme_eigs(const crs_matrix_type &matrix, AlgParams algParams) {
+void primme_eigs(const crs_matrix_type& matrix, AlgParams algParams) {
   PRIMME_EIGS<crs_matrix_type> solver(algParams);
   matrix_type u;
   vector_type s;
@@ -310,7 +309,7 @@ void primme_eigs(const crs_matrix_type &matrix, AlgParams algParams) {
 }
 
 template <>
-void primme_eigs(const crs_matrix_type &matrix, matrix_type &u, vector_type &s,
+void primme_eigs(const crs_matrix_type& matrix, matrix_type& u, vector_type& s,
                  AlgParams algParams) {
   PRIMME_EIGS<crs_matrix_type> solver(algParams);
   matrix_type v;
@@ -319,7 +318,8 @@ void primme_eigs(const crs_matrix_type &matrix, matrix_type &u, vector_type &s,
                  u, s, v, r);
 }
 
-template <> void primme_svds(const matrix_type &matrix, AlgParams algParams) {
+template <>
+void primme_svds(const matrix_type& matrix, AlgParams algParams) {
   PRIMME_SVDS<matrix_type> solver(algParams);
   matrix_type u;
   vector_type s;
@@ -330,8 +330,8 @@ template <> void primme_svds(const matrix_type &matrix, AlgParams algParams) {
 }
 
 template <>
-void primme_svds(const matrix_type &matrix, matrix_type &u, vector_type &s,
-                 matrix_type &v, AlgParams algParams) {
+void primme_svds(const matrix_type& matrix, matrix_type& u, vector_type& s,
+                 matrix_type& v, AlgParams algParams) {
   PRIMME_SVDS<matrix_type> solver(algParams);
   vector_type r;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
@@ -339,7 +339,7 @@ void primme_svds(const matrix_type &matrix, matrix_type &u, vector_type &s,
 }
 
 template <>
-void primme_svds(const crs_matrix_type &matrix, AlgParams algParams) {
+void primme_svds(const crs_matrix_type& matrix, AlgParams algParams) {
   PRIMME_SVDS<crs_matrix_type> solver(algParams);
 
   matrix_type u;
@@ -351,11 +351,11 @@ void primme_svds(const crs_matrix_type &matrix, AlgParams algParams) {
 }
 
 template <>
-void primme_svds(const crs_matrix_type &matrix, matrix_type &u, vector_type &s,
-                 matrix_type &v, AlgParams algParams) {
+void primme_svds(const crs_matrix_type& matrix, matrix_type& u, vector_type& s,
+                 matrix_type& v, AlgParams algParams) {
   PRIMME_SVDS<crs_matrix_type> solver(algParams);
   vector_type r;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
                  u, s, v, r);
 }
-} // namespace Skema
+}  // namespace Skema
