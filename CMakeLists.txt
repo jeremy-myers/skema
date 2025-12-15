@@ -10,17 +10,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${Skema_BINARY_DIR}/bin)
 
-include(FetchContent)
-FetchContent_Declare(
-  googletest
-  # Specify the commit you depend on and update it regularly.
-  GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG 52eb8108c5bdec04579160ae17225d66034bd723
-)
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
-
 find_package(LAPACK REQUIRED)
 if(LAPACK_FOUND)
     set(LAPACK_FOUND TRUE)
@@ -95,89 +84,56 @@ set(JSON_BuildTests OFF CACHE INTERNAL "")
 add_subdirectory(tpls/json)
 
 include_directories(
+    ${Skema_SOURCE_DIR}/src/
+    ${Skema_SOURCE_DIR}/driver/
     ${Kokkos_INCLUDE_DIRS_RET}
     ${KokkosKernels_INCLUDE_DIRS_RET}
     ${PRIMME_INCLUDE_DIR}
     ${LAPACK_INCLUDE_DIR}
-    ${Skema_SOURCE_DIR}/src/
-    ${Skema_SOURCE_DIR}/driver/
     ${Skema_SOURCE_DIR}/tpls/json/single_include/nlohmann/
 )
 
-# -------------
-# Skema Library
-# -------------
-
-# List source files to be built
-set(Skema_SOURCE_LIST
-    ${Skema_SOURCE_DIR}/src/Skema_AlgParams.cpp
-    ${Skema_SOURCE_DIR}/src/Skema_IO.cpp
-    ${Skema_SOURCE_DIR}/src/Skema_EIGSVD.cpp
-    ${Skema_SOURCE_DIR}/src/Skema_EIGSVD_MatrixMatvec.cpp
-    ${Skema_SOURCE_DIR}/src/Skema_Kernel.cpp
-    ${Skema_SOURCE_DIR}/src/Skema_Sampler.cpp
-    ${Skema_SOURCE_DIR}/src/Skema_ISVD_Primme.cpp
-    ${Skema_SOURCE_DIR}/src/Skema_ISVD_MatrixMatvec.cpp
-    ${Skema_SOURCE_DIR}/src/Skema_ISVD.cpp
-    ${Skema_SOURCE_DIR}/src/Skema_DimRedux_Gauss.cpp
-    ${Skema_SOURCE_DIR}/src/Skema_DimRedux_SparseSign.cpp
-    ${Skema_SOURCE_DIR}/src/Skema_Sketchy_SPD.cpp
-    ${Skema_SOURCE_DIR}/src/Skema_Sketchy_SVD.cpp
+# Target definitions
+add_executable(${PROJECT_NAME}
+    ${CMAKE_SOURCE_DIR}/driver/main.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_AlgParams.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_IO.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_EIGSVD.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_EIGSVD_MatrixMatvec.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_Kernel.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_Sampler.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_ISVD_Primme.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_ISVD_MatrixMatvec.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_ISVD.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_DimRedux_Gauss.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_DimRedux_SparseSign.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_SketchySVD.cpp
 )
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "skema")
 
-# Future: if add any special libraries or functionality through if/else or macros,
-# append to Skema_SOURCE_LIST as: 
-#       set(Skema_SOURCE_LIST ${Skema_SOURCE_LIST} <new source file>)
+target_link_libraries(${PROJECT_NAME} PUBLIC ${LAPACK_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PUBLIC Kokkos::kokkos)
+target_link_libraries(${PROJECT_NAME} PUBLIC Kokkos::kokkoskernels)
+target_link_libraries(${PROJECT_NAME} PUBLIC primme)
+target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
 
-# Build the library
-add_library(skemalib ${Skema_SOURCE_LIST})
-
-target_link_libraries(skemalib PUBLIC ${LAPACK_LIBRARIES})
 if(LAPACK_FOUND)
-    target_compile_definitions(skemalib PRIVATE LAPACK_FOUND=${LAPACK_FOUND})
+    target_compile_definitions(${PROJECT_NAME} PRIVATE LAPACK_FOUND=${LAPACK_FOUND})
 endif()
 
-target_link_libraries(skemalib PUBLIC Kokkos::kokkos)
-target_link_libraries(skemalib PUBLIC Kokkos::kokkoskernels)
-target_link_libraries(skemalib PUBLIC primme)
-target_link_libraries(skemalib PRIVATE nlohmann_json::nlohmann_json)
-
-install(TARGETS skemalib
-        EXPORT skema
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-file(GLOB skema_headers ${Skema_SOURCE_DIR}/*.hpp)
-install(FILES ${skema_headers}
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/skema
-        PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
-        )
 
 # Target definitions
-add_executable(skema
-    ${CMAKE_SOURCE_DIR}/driver/main.cpp
-)
-target_link_libraries(skema skemalib)
-install(TARGETS skema
-        EXPORT skema
-        DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
-
 add_executable(convert
     ${CMAKE_SOURCE_DIR}/driver/convert.cpp
+    ${CMAKE_SOURCE_DIR}/src/Skema_AlgParams.cpp
 )
-target_link_libraries(convert skemalib)
+set_target_properties(convert PROPERTIES OUTPUT_NAME "convert")
 
-# Testing
-# add_executable(example example.cpp)
-# target_link_libraries(example gtest_main)
-# add_test(NAME example_test COMMAND example)
-include_directories(${Skema_SOURCE_DIR}/test)
+target_link_libraries(convert PUBLIC ${LAPACK_LIBRARIES})
+target_link_libraries(convert PUBLIC Kokkos::kokkos)
+target_link_libraries(convert PUBLIC Kokkos::kokkoskernels)
+target_link_libraries(convert PUBLIC primme)
 
-set(Skema_SOURCE_TEST
-    ${Skema_SOURCE_DIR}/test/Unit_Tests_Main.cpp
-    ${Skema_SOURCE_DIR}/test/Skema_Test_DimRedux.cpp
-    ${Skema_SOURCE_DIR}/test/Skema_Test_Kernel.cpp
-)
-
-add_executable(skema_unit_tests ${Skema_SOURCE_TEST})
-target_link_libraries(skema_unit_tests gtest skemalib)
+if(LAPACK_FOUND)
+    target_compile_definitions(convert PRIVATE LAPACK_FOUND=${LAPACK_FOUND})
+endif()

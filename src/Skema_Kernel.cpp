@@ -3,10 +3,14 @@
 
 namespace Skema {
 template <>
-matrix_type GaussRBF<matrix_type>::compute(
-    const matrix_type& X, const size_type mx, const size_type nx,
-    const matrix_type& Y, const size_type my, const size_type ny,
-    const size_type nfeat, const range_type offsets) {
+matrix_type GaussRBF<matrix_type>::compute(const matrix_type& X,
+                                           const size_type mx,
+                                           const size_type nx,
+                                           const matrix_type& Y,
+                                           const size_type my,
+                                           const size_type ny,
+                                           const size_type nfeat,
+                                           const range_type offsets) {
   assert(nx == ny);
 
   Kokkos::Timer timer;
@@ -69,7 +73,7 @@ matrix_type GaussRBF<matrix_type>::compute(
     }
   }
 
-  auto time          = timer.seconds();
+  auto time = timer.seconds();
   this->stats_->time = time;
   this->stats_->elapsed_time += time;
 
@@ -77,10 +81,14 @@ matrix_type GaussRBF<matrix_type>::compute(
 }
 
 template <>
-crs_matrix_type GaussRBF<crs_matrix_type>::compute(
-    const crs_matrix_type& X, const size_type mx, const size_type nx,
-    const crs_matrix_type& Y, const size_type my, const size_type ny,
-    const size_type nfeat, const range_type offsets) {
+crs_matrix_type GaussRBF<crs_matrix_type>::compute(const crs_matrix_type& X,
+                                                   const size_type mx,
+                                                   const size_type nx,
+                                                   const crs_matrix_type& Y,
+                                                   const size_type my,
+                                                   const size_type ny,
+                                                   const size_type nfeat,
+                                                   const range_type offsets) {
   std::cout << "Gauss RBF kernel mapping not available for sparse matrices"
             << std::endl;
   exit(0);

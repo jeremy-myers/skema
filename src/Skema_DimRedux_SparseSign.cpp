@@ -7,18 +7,19 @@
 namespace Skema {
 
 template <>
-auto SparseSignDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
-                              const scalar_type* beta, char transA, char transB,
+auto SparseSignDimRedux::lmap(const scalar_type *alpha, const matrix_type &B,
+                              const scalar_type *beta, char transA, char transB,
                               const range_type idx) -> matrix_type {
   Kokkos::Timer timer;
-  if (init_transposed) {  // Need to swap modes
+  if (init_transposed) { // Need to swap modes
     transA = (transA == 'N') ? 'T' : 'N';
   }
   const auto m{(transA == 'N') ? nrow : ncol};
   const auto n{(transB == 'N') ? B.extent(1) : B.extent(0)};
   matrix_type C("SparseSignDimRedux::lmap::C", m, n);
   crs_matrix_type data_(data);
-  if (idx.first != idx.second) data_ = col_subview(data, idx);
+  if (idx.first != idx.second)
+    data_ = col_subview(data, idx);
   Impl::mm(&transA, &transB, alpha, data_, B, beta, C);
 
   Kokkos::fence();
@@ -27,13 +28,13 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
 }
 
 template <>
-auto SparseSignDimRedux::rmap(const scalar_type* alpha, const matrix_type& A,
-                              const scalar_type* beta, char transA, char transB,
+auto SparseSignDimRedux::rmap(const scalar_type *alpha, const matrix_type &A,
+                              const scalar_type *beta, char transA, char transB,
                               const range_type idx) -> matrix_type {
   Kokkos::Timer timer;
   const auto m{(transB == 'T') ? nrow : ncol};
   const auto n{A.extent(0)};
-  transB  = (transB == 'T' ? 'N' : 'T');  // swap transB
+  transB = (transB == 'T' ? 'N' : 'T'); // swap transB
   auto At = Impl::transpose(A);
   matrix_type C("SparseSignDimRedux::rmap::C", m, n);
   Impl::mm(&transB, &transA, alpha, data, At, beta, C);
@@ -44,14 +45,15 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha, const matrix_type& A,
 }
 
 template <>
-auto SparseSignDimRedux::lmap(const scalar_type* alpha,
-                              const crs_matrix_type& B, const scalar_type* beta,
+auto SparseSignDimRedux::lmap(const scalar_type *alpha,
+                              const crs_matrix_type &B, const scalar_type *beta,
                               char transA, char transB, const range_type idx)
     -> matrix_type {
   Kokkos::Timer timer;
   crs_matrix_type C;
   crs_matrix_type data_(data);
-  if (idx.first != idx.second) data_ = col_subview(data, idx);
+  if (idx.first != idx.second)
+    data_ = col_subview(data, idx);
   Impl::mm(&transA, alpha, data_, B, beta, C);
 
   Kokkos::fence();
@@ -72,8 +74,8 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha,
 }
 
 template <>
-auto SparseSignDimRedux::rmap(const scalar_type* alpha,
-                              const crs_matrix_type& A, const scalar_type* beta,
+auto SparseSignDimRedux::rmap(const scalar_type *alpha,
+                              const crs_matrix_type &A, const scalar_type *beta,
                               char transA, char transB, const range_type idx)
     -> matrix_type {
   Kokkos::Timer timer;
@@ -99,7 +101,7 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha,
 }
 
 template <>
-auto SparseSignDimRedux::axpy(const scalar_type val, matrix_type& A) -> void {
+auto SparseSignDimRedux::axpy(const scalar_type val, matrix_type &A) -> void {
   Kokkos::parallel_for(
       data.numRows(), KOKKOS_LAMBDA(const int ii) {
         auto row = data.row(ii);
@@ -111,7 +113,7 @@ auto SparseSignDimRedux::axpy(const scalar_type val, matrix_type& A) -> void {
 }
 
 auto SparseSignDimRedux::col_subview(
-    const crs_matrix_type& input, const Kokkos::pair<size_type, size_type> idx)
+    const crs_matrix_type &input, const Kokkos::pair<size_type, size_type> idx)
     -> crs_matrix_type {
   auto nrow{input.numRows()};
 
@@ -129,7 +131,7 @@ auto SparseSignDimRedux::col_subview(
       auto jcolidx = row.colidx(jcol);
       if ((idx.first <= jcolidx) && (jcolidx < idx.second)) {
         entries(nnz) = jcolidx - idx.first;
-        values(nnz)  = row.value(jcol);
+        values(nnz) = row.value(jcol);
         ++nnz;
       }
       row_map(irow + 1) = nnz;
@@ -141,4 +143,4 @@ auto SparseSignDimRedux::col_subview(
   return crs_matrix_type("sparse sign col view", nrow, idx.second - idx.first,
                          nnz, values, row_map, entries);
 }
-}  // namespace Skema
+} // namespace Skema

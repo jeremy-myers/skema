@@ -122,8 +122,7 @@ void Skema::AlgParams::print(std::ostream& out) const {
           ;
         }
         if (isvd_rank_add_factor > 0) {
-          out << "  iSVD rank add factor = " << isvd_rank_add_factor
-              << std::endl;
+          out << "  iSVD rank add factor = " << isvd_rank_add_factor << std::endl;
         }
       }
 
@@ -184,7 +183,8 @@ void Skema::AlgParams::print_help(std::ostream& out) {
   out << "  --method\tdecomposition method: ";
   for (auto i = 0; i < Skema::Solver_Method::num_types; ++i) {
     out << Skema::Solver_Method::names[i];
-    if (i != Skema::Solver_Method::num_types - 1) out << ", ";
+    if (i != Skema::Solver_Method::num_types - 1)
+      out << ", ";
   }
   out << std::endl;
   out << std::endl;
@@ -208,7 +208,8 @@ void Skema::AlgParams::print_help(std::ostream& out) {
   out << "  --model\tdim redux type: ";
   for (auto i = 0; i < Skema::DimRedux_Map::num_types; ++i) {
     out << Skema::DimRedux_Map::names[i];
-    if (i != Skema::DimRedux_Map::num_types - 1) out << ", ";
+    if (i != Skema::DimRedux_Map::num_types - 1)
+      out << ", ";
   }
   out << std::endl;
   out << "  --range\trange size of the dim redux map" << std::endl;
@@ -231,7 +232,8 @@ void Skema::AlgParams::print_help(std::ostream& out) {
   out << "  --kernel\tkernel function: ";
   for (auto i = 0; i < Skema::Kernel_Map::num_types; ++i) {
     out << Skema::Kernel_Map::names[i];
-    if (i != Skema::Kernel_Map::num_types - 1) out << ", ";
+    if (i != Skema::Kernel_Map::num_types - 1)
+      out << ", ";
   }
   out << std::endl;
   out << "  --gamma\tgamma parameter for kernel" << std::endl;
@@ -241,24 +243,23 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
   /* Parse options from command-line, using default values set above as defaults
    */
   // Generic options
-  inputfilename    = parse_filepath(args, "--input", "");
-  outputfilename   = parse_filepath(args, "--output", "");
-  debug_filename   = parse_filepath(args, "--debug-file", "");
+  inputfilename = parse_filepath(args, "--input", "");
+  outputfilename = parse_filepath(args, "--output", "");
+  debug_filename = parse_filepath(args, "--debug-file", "");
   history_filename = parse_filepath(args, "--history-file", "");
-  issparse         = parse_bool(args, "--sparse", "--dense", false);
-  issymmetric      = parse_bool(args, "--symmetric", "--asymmetric", false);
-  matrix_m         = parse_int(args, "--m", matrix_m, 0, INT_MAX);
-  matrix_n         = parse_int(args, "--n", matrix_n, 0, INT_MAX);
-  rank             = parse_int(args, "--rank", rank, 1, INT_MAX);
-  num_passes       = parse_int(args, "--num-passes", num_passes, 1, INT_MAX);
-  solver      = parse_enum(args, "--solver", Skema::Solver_Method::default_type,
-                           Skema::Solver_Method::num_types,
-                           Skema::Solver_Method::types, Skema::Solver_Method::names);
+  issparse = parse_bool(args, "--sparse", "--dense", false);
+  issymmetric = parse_bool(args, "--symmetric", "--asymmetric", false);
+  matrix_m = parse_int(args, "--m", matrix_m, 0, INT_MAX);
+  matrix_n = parse_int(args, "--n", matrix_n, 0, INT_MAX);
+  rank = parse_int(args, "--rank", rank, 1, INT_MAX);
+  num_passes = parse_int(args, "--num-passes", num_passes, 1, INT_MAX);
+  solver = parse_enum(args, "--solver", Skema::Solver_Method::default_type,
+                      Skema::Solver_Method::num_types,
+                      Skema::Solver_Method::types, Skema::Solver_Method::names);
   print_level = parse_int(args, "--print-level", print_level, 0, 5);
-  debug       = parse_bool(args, "--debug", "--debug-off", false);
+  debug = parse_bool(args, "--debug", "--debug-off", false);
   rayleigh_ritz_pass = parse_bool(args, "--rr", "--rr-off", false);
-  normalize_matrix   = parse_real(args, "--normalize-matrix", 0.0, 0.0,
-                                  std::numeric_limits<double>::max());
+  normalize_matrix = parse_real(args, "--normalize-matrix", 0.0, 0.0, std::numeric_limits<double>::max());
 
   // Streaming options
   window = parse_int(args, "--window", window, 1, INT_MAX);
@@ -269,8 +270,8 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
                  Skema::DimRedux_Map::num_types, Skema::DimRedux_Map::types,
                  Skema::DimRedux_Map::names);
   sketch_range = parse_int(args, "--range", sketch_range, 0, INT_MAX);
-  sketch_core  = parse_int(args, "--core", sketch_core, 0, INT_MAX);
-  seeds        = parse_int_array(args, "--seeds", seeds, 0, INT_MAX);
+  sketch_core = parse_int(args, "--core", sketch_core, 0, INT_MAX);
+  seeds = parse_int_array(args, "--seeds", seeds, 0, INT_MAX);
   sketch_eta =
       parse_real(args, "--eta", 1.0, 0.0, std::numeric_limits<double>::max());
   sketch_nu =
@@ -290,27 +291,26 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
       parse_enum(args, "--isvd-sampler", Skema::Sampler_Type::default_type,
                  Skema::Sampler_Type::num_types, Skema::Sampler_Type::types,
                  Skema::Sampler_Type::names);
-  isvd_num_samples  = parse_int(args, "--isvd-num-samples", 0, 0, INT_MAX);
+  isvd_num_samples = parse_int(args, "--isvd-num-samples", 0, 0, INT_MAX);
   isvd_convtest_eps = parse_real(args, "--isvd-convtest-eps", isvd_convtest_eps,
                                  std::numeric_limits<double>::epsilon(), 1.0);
   isvd_convtest_skip = parse_int(args, "--isvd-convtest-skip", 0, 0, INT_MAX);
   isvd_initial_guess = parse_bool(args, "--isvd-initial-guess",
                                   "--isvd-initial-guess-off", false);
-  isvd_rank_add_factor =
-      parse_int(args, "--isvd-rank-add-factor", 0, 0, INT_MAX);
+  isvd_rank_add_factor = parse_int(args, "--isvd-rank-add-factor", 0, 0, INT_MAX);
 
   // PRIMME solver options
-  primme_outputFile   = parse_filepath(args, "--primme_outputFile", "");
-  primme_printLevel   = parse_int(args, "--primme_printLevel", 0, 0, 5);
-  primme_eps          = parse_real(args, "--primme_eps", primme_eps,
-                                   std::numeric_limits<double>::epsilon(), 1.0);
-  primme_initSize     = parse_int(args, "--primme_initSize", 0, 0, INT_MAX);
+  primme_outputFile = parse_filepath(args, "--primme_outputFile", "");
+  primme_printLevel = parse_int(args, "--primme_printLevel", 0, 0, 5);
+  primme_eps = parse_real(args, "--primme_eps", primme_eps,
+                          std::numeric_limits<double>::epsilon(), 1.0);
+  primme_initSize = parse_int(args, "--primme_initSize", 0, 0, INT_MAX);
   primme_maxBasisSize = parse_int(args, "--primme_maxBasisSize", 0, 0, INT_MAX);
   primme_minRestartSize =
       parse_int(args, "--primme_minRestartSize", 0, 0, INT_MAX);
   primme_maxBlockSize = parse_int(args, "--primme_maxBlockSize", 0, 0, INT_MAX);
-  primme_maxMatvecs   = parse_int(args, "--primme_maxMatvecs", 0, 0, INT_MAX);
-  primme_maxIter      = parse_int(args, "--primme_maxIters", 0, 0, INT_MAX);
+  primme_maxMatvecs = parse_int(args, "--primme_maxMatvecs", 0, 0, INT_MAX);
+  primme_maxIter = parse_int(args, "--primme_maxIters", 0, 0, INT_MAX);
   primme_locking =
       parse_bool(args, "--primme_locking", "--primme_locking-off", false);
   primme_method =
@@ -319,18 +319,20 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
       parse_string(args, "--prime_methodStage2", "PRIMME_DEFAULT_METHOD");
 
   // Kernel options
-  kernel_func  = parse_enum(args, "--kernel", Skema::Kernel_Map::default_type,
-                            Skema::Kernel_Map::num_types,
-                            Skema::Kernel_Map::types, Skema::Kernel_Map::names);
+  kernel_func = parse_enum(args, "--kernel", Skema::Kernel_Map::default_type,
+                           Skema::Kernel_Map::num_types,
+                           Skema::Kernel_Map::types, Skema::Kernel_Map::names);
   kernel_gamma = parse_real(args, "--gamma", kernel_gamma, 0.0,
                             std::numeric_limits<double>::max());
 
-  if (isvd_num_samples > 0) isvd_sampling = true;
+  if (isvd_num_samples > 0)
+    isvd_sampling = true;
 }
 
 bool Skema::parse_bool(std::vector<std::string>& args,
                        const std::string& cl_arg_on,
-                       const std::string& cl_arg_off, bool default_value) {
+                       const std::string& cl_arg_off,
+                       bool default_value) {
   // return true if arg_on is found
   auto it = std::find(args.begin(), args.end(), cl_arg_on);
   // If not found, try removing the '--'
@@ -360,8 +362,11 @@ bool Skema::parse_bool(std::vector<std::string>& args,
 }
 
 template <typename T>
-T Skema::parse_enum(std::vector<std::string>& args, const std::string& cl_arg,
-                    T default_value, unsigned num_values, const T* values,
+T Skema::parse_enum(std::vector<std::string>& args,
+                    const std::string& cl_arg,
+                    T default_value,
+                    unsigned num_values,
+                    const T* values,
                     const char* const* names) {
   auto it = std::find(args.begin(), args.end(), cl_arg);
   // If not found, try removing the '--'
@@ -383,7 +388,8 @@ T Skema::parse_enum(std::vector<std::string>& args, const std::string& cl_arg,
     args.erase(arg_it, ++it);
     // find name in list of names
     for (unsigned i = 0; i < num_values; ++i) {
-      if (arg_val == names[i]) return values[i];
+      if (arg_val == names[i])
+        return values[i];
     }
     // if we got here, name wasn't found
     std::ostringstream error_string;
@@ -391,7 +397,8 @@ T Skema::parse_enum(std::vector<std::string>& args, const std::string& cl_arg,
                  << ",  must be one of the values: ";
     for (unsigned i = 0; i < num_values; ++i) {
       error_string << names[i];
-      if (i != num_values - 1) error_string << ", ";
+      if (i != num_values - 1)
+        error_string << ", ";
     }
     error_string << "." << std::endl;
     error(error_string.str());
@@ -404,7 +411,8 @@ T Skema::parse_enum(std::vector<std::string>& args, const std::string& cl_arg,
 template <typename T>
 typename T::type Skema::parse_enum_helper(const std::string& name) {
   for (unsigned i = 0; i < T::num_types; ++i) {
-    if (name == T::names[i]) return T::types[i];
+    if (name == T::names[i])
+      return T::types[i];
   }
 
   std::ostringstream error_string;
@@ -412,15 +420,19 @@ typename T::type Skema::parse_enum_helper(const std::string& name) {
                << ",  must be one of the values: ";
   for (unsigned i = 0; i < T::num_types; ++i) {
     error_string << T::names[i];
-    if (i != T::num_types - 1) error_string << ", ";
+    if (i != T::num_types - 1)
+      error_string << ", ";
   }
   error_string << "." << std::endl;
   error(error_string.str());
   return T::default_type;
 }
 
-int Skema::parse_int(std::vector<std::string>& args, const std::string& cl_arg,
-                     int default_value, int min, int max) {
+int Skema::parse_int(std::vector<std::string>& args,
+                     const std::string& cl_arg,
+                     int default_value,
+                     int min,
+                     int max) {
   int tmp = default_value;
   auto it = std::find(args.begin(), args.end(), cl_arg);
   // If not found, try removing the '--'
@@ -441,7 +453,7 @@ int Skema::parse_int(std::vector<std::string>& args, const std::string& cl_arg,
       tmp = INT_MAX;
     else {
       char* cend = 0;
-      tmp        = std::strtol(it->c_str(), &cend, 10);
+      tmp = std::strtol(it->c_str(), &cend, 10);
       // check if cl_arg is actually a ttb_indx
       if (it->c_str() == cend) {
         std::ostringstream error_string;
@@ -467,10 +479,12 @@ int Skema::parse_int(std::vector<std::string>& args, const std::string& cl_arg,
 }
 
 double Skema::parse_real(std::vector<std::string>& args,
-                         const std::string& cl_arg, double default_value,
-                         double min, double max) {
+                         const std::string& cl_arg,
+                         double default_value,
+                         double min,
+                         double max) {
   double tmp = default_value;
-  auto it    = std::find(args.begin(), args.end(), cl_arg);
+  auto it = std::find(args.begin(), args.end(), cl_arg);
   // If not found, try removing the '--'
   if ((it == args.end()) && (cl_arg.size() > 2) && (cl_arg[0] == '-') &&
       (cl_arg[1] == '-')) {
@@ -486,7 +500,7 @@ double Skema::parse_real(std::vector<std::string>& args,
     }
     // convert to double
     char* cend = 0;
-    tmp        = std::strtod(it->c_str(), &cend);
+    tmp = std::strtod(it->c_str(), &cend);
     // check if cl_arg is actually a double
     if (it->c_str() == cend) {
       std::ostringstream error_string;
@@ -514,7 +528,7 @@ std::string Skema::parse_string(std::vector<std::string>& args,
                                 const std::string& cl_arg,
                                 const std::string& default_value) {
   std::string tmp = default_value;
-  auto it         = std::find(args.begin(), args.end(), cl_arg);
+  auto it = std::find(args.begin(), args.end(), cl_arg);
   // If not found, try removing the '--'
   if ((it == args.end()) && (cl_arg.size() > 2) && (cl_arg[0] == '-') &&
       (cl_arg[1] == '-')) {
@@ -546,7 +560,8 @@ std::filesystem::path Skema::parse_filepath(std::vector<std::string>& args,
 std::vector<int> Skema::parse_int_array(std::vector<std::string>& args,
                                         const std::string& cl_arg,
                                         const std::vector<int>& default_value,
-                                        int min, int max) {
+                                        int min,
+                                        int max) {
   char* cend = 0;
   int tmp;
   std::vector<int> vals;
@@ -609,15 +624,18 @@ std::vector<int> Skema::parse_int_array(std::vector<std::string>& args,
 
 std::vector<std::string> Skema::build_arg_list(int argc, char** argv) {
   std::vector<std::string> arg_list(argc - 1);
-  for (int i = 1; i < argc; ++i) arg_list[i - 1] = argv[i];
+  for (int i = 1; i < argc; ++i)
+    arg_list[i - 1] = argv[i];
   return arg_list;
 }
 
 bool Skema::check_and_print_unused_args(const std::vector<std::string>& args,
                                         std::ostream& out) {
-  if (args.size() == 0) return false;
+  if (args.size() == 0)
+    return false;
 
-  for (auto arg : args) out << arg << " ";
+  for (auto arg : args)
+    out << arg << " ";
   out << std::endl << std::endl;
 
   return true;

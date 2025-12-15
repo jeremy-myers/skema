@@ -8,9 +8,14 @@
 #include "primme.h"
 
 extern "C" {
-void isvd_default_dense_matvec(void* x, PRIMME_INT* ldx, void* y,
-                               PRIMME_INT* ldy, int* blockSize, int* transpose,
-                               primme_svds_params* primme_svds, int* err) {
+void isvd_default_dense_matvec(void* x,
+                               PRIMME_INT* ldx,
+                               void* y,
+                               PRIMME_INT* ldy,
+                               int* blockSize,
+                               int* transpose,
+                               primme_svds_params* primme_svds,
+                               int* err) {
   ///! Capture exceptions here; don't propagate them to C code
   try {
     const ISVD_Matrix<matrix_type> matrix =
@@ -77,9 +82,14 @@ void isvd_default_dense_matvec(void* x, PRIMME_INT* ldx, void* y,
   }
 }
 
-void isvd_default_sparse_matvec(void* x, PRIMME_INT* ldx, void* y,
-                                PRIMME_INT* ldy, int* blockSize, int* transpose,
-                                primme_svds_params* primme_svds, int* err) {
+void isvd_default_sparse_matvec(void* x,
+                                PRIMME_INT* ldx,
+                                void* y,
+                                PRIMME_INT* ldy,
+                                int* blockSize,
+                                int* transpose,
+                                primme_svds_params* primme_svds,
+                                int* err) {
   ///! Capture exceptions here; don't propagate them to C code
   try {
     const ISVD_Matrix<crs_matrix_type> matrix =

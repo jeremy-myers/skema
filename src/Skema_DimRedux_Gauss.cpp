@@ -8,8 +8,11 @@
 namespace Skema {
 
 template <>
-auto GaussDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
-                         const scalar_type* beta, char transA, char transB,
+auto GaussDimRedux::lmap(const scalar_type* alpha,
+                         const matrix_type& B,
+                         const scalar_type* beta,
+                         char transA,
+                         char transB,
                          const range_type idx) -> matrix_type {
   Kokkos::Timer timer;
   if (init_transposed) {  // Need to swap modes
@@ -30,8 +33,11 @@ auto GaussDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
 }
 
 template <>
-auto GaussDimRedux::rmap(const scalar_type* alpha, const matrix_type& A,
-                         const scalar_type* beta, char transA, char transB,
+auto GaussDimRedux::rmap(const scalar_type* alpha,
+                         const matrix_type& A,
+                         const scalar_type* beta,
+                         char transA,
+                         char transB,
                          const range_type idx) -> matrix_type {
   Kokkos::Timer timer;
   const auto m{(transA == 'N') ? A.extent(0) : ncol};
@@ -46,8 +52,11 @@ auto GaussDimRedux::rmap(const scalar_type* alpha, const matrix_type& A,
 }
 
 template <>
-auto GaussDimRedux::lmap(const scalar_type* alpha, const crs_matrix_type& B,
-                         const scalar_type* beta, char transA, char transB,
+auto GaussDimRedux::lmap(const scalar_type* alpha,
+                         const crs_matrix_type& B,
+                         const scalar_type* beta,
+                         char transA,
+                         char transB,
                          const range_type idx) -> matrix_type {
   Kokkos::Timer timer;
   const auto m{(transA == 'N') ? B.numRows() : B.numCols()};
@@ -67,8 +76,11 @@ auto GaussDimRedux::lmap(const scalar_type* alpha, const crs_matrix_type& B,
 }
 
 template <>
-auto GaussDimRedux::rmap(const scalar_type* alpha, const crs_matrix_type& A,
-                         const scalar_type* beta, char transA, char transB,
+auto GaussDimRedux::rmap(const scalar_type* alpha,
+                         const crs_matrix_type& A,
+                         const scalar_type* beta,
+                         char transA,
+                         char transB,
                          const range_type idx) -> matrix_type {
   Kokkos::Timer timer;
   const auto m{(transA == 'N') ? A.numRows() : A.numCols()};

@@ -24,13 +24,15 @@ struct ISVD_SVDS_random_initial_guess {
   void operator()(const size_type i) const {
     if (i < nrow * rank) {
       auto generator = rand_pool.get_state();
-      u.data()[i]    = generator.normal();
+      u.data()[i] = generator.normal();
       rand_pool.free_state(generator);
     }
   }
 
-  ISVD_SVDS_random_initial_guess(VectorType& u_, const size_type nrow_,
-                                 const size_type rank_, const int seed_)
+  ISVD_SVDS_random_initial_guess(VectorType& u_,
+                                 const size_type nrow_,
+                                 const size_type rank_,
+                                 const int seed_)
       : u(u_), nrow(nrow_), rank(rank_), rand_pool(pool_type(seed_)) {};
   VectorType u;
   const size_type nrow;
@@ -51,13 +53,15 @@ struct ISVD_SVDS_custom_initial_guess {
       u.data()[i] = U.data()[i];
     } else {
       auto generator = rand_pool.get_state();
-      u.data()[i]    = generator.normal();
+      u.data()[i] = generator.normal();
       rand_pool.free_state(generator);
     }
   }
 
-  ISVD_SVDS_custom_initial_guess(VectorType& u_, const MatrixType& U_,
-                                 const size_type nrow_, const size_type rank_,
+  ISVD_SVDS_custom_initial_guess(VectorType& u_,
+                                 const MatrixType& U_,
+                                 const size_type nrow_,
+                                 const size_type rank_,
                                  const size_type rank_add_factor_,
                                  const int seed_)
       : u(u_),
@@ -75,10 +79,14 @@ struct ISVD_SVDS_custom_initial_guess {
 };
 
 template <typename MatrixType>
-void ISVD_SVDS<MatrixType>::compute(const MatrixType& X, const size_type nrow,
-                                    const size_type ncol, const size_type rank,
-                                    matrix_type& U, vector_type& S,
-                                    matrix_type& Vt, vector_type& R) {
+void ISVD_SVDS<MatrixType>::compute(const MatrixType& X,
+                                    const size_type nrow,
+                                    const size_type ncol,
+                                    const size_type rank,
+                                    matrix_type& U,
+                                    vector_type& S,
+                                    matrix_type& Vt,
+                                    vector_type& R) {
   // If providing an initial guess, we need to know up front.
   const size_type rank_add_factor{(count > 0 && algParams.isvd_initial_guess)
                                       ? algParams.isvd_rank_add_factor
@@ -91,13 +99,13 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X, const size_type nrow,
   vector_type rnrms("rnrms", rank + rank_add_factor);
 
   /* Set primme_svds parameters */
-  using primme_svds              = PRIMME_SVDS<MatrixType>;
-  primme_svds::params.matrix     = &matrix;
-  primme_svds::params.m          = nrow;
-  primme_svds::params.n          = ncol;
-  primme_svds::params.numSvals   = rank + rank_add_factor;
+  using primme_svds = PRIMME_SVDS<MatrixType>;
+  primme_svds::params.matrix = &matrix;
+  primme_svds::params.m = nrow;
+  primme_svds::params.n = ncol;
+  primme_svds::params.numSvals = rank + rank_add_factor;
   primme_svds::params.outputFile = fp_output_filename;
-  primme_svds::params.eps        = algParams.primme_eps;
+  primme_svds::params.eps = algParams.primme_eps;
   primme_svds::params.printLevel = algParams.primme_printLevel;
   for (auto i = 0; i < 4; ++i) {
     primme_svds::params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
@@ -173,9 +181,12 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X, const size_type nrow,
 
 // TODO Move to functor above to skip several copies.
 template <typename MatrixT>
-void ISVD_SVDS<MatrixT>::set_u0(const MatrixT& A, const size_type nrow,
-                                const size_type ncol, const size_type rank,
-                                matrix_type& U, vector_type& S,
+void ISVD_SVDS<MatrixT>::set_u0(const MatrixT& A,
+                                const size_type nrow,
+                                const size_type ncol,
+                                const size_type rank,
+                                matrix_type& U,
+                                vector_type& S,
                                 matrix_type& Vt) {
   constexpr char N{'N'};
   constexpr char T{'T'};
@@ -211,9 +222,12 @@ void ISVD_SVDS<MatrixT>::set_u0(const MatrixT& A, const size_type nrow,
 
 template <typename MatrixType>
 struct ISVD_SVDS_convTest {
-  ISVD_SVDS_convTest(const MatrixType& matrix_, const index_type indices_,
-                     const size_type num_samples_, const scalar_type alpha_,
-                     const scalar_type eps_, const size_type kskip_)
+  ISVD_SVDS_convTest(const MatrixType& matrix_,
+                     const index_type indices_,
+                     const size_type num_samples_,
+                     const scalar_type alpha_,
+                     const scalar_type eps_,
+                     const size_type kskip_)
       : sample_matrix(matrix_),
         sample_indices(indices_),
         num_samples(num_samples_),
@@ -245,9 +259,14 @@ size_type ISVD_SVDS_convTest<MatrixType>::curMaxIx;
 // Wrapper for compute that sets convtest & initial guess for dense inputs if
 // desired
 extern "C" {
-void isvd_dense_convTestFun(double* sval, void* leftsvec, void* rightvec,
-                            double* rnorm, int* method, int* isconv,
-                            primme_svds_params* primme_svds, int* ierr) {
+void isvd_dense_convTestFun(double* sval,
+                            void* leftsvec,
+                            void* rightvec,
+                            double* rnorm,
+                            int* method,
+                            int* isconv,
+                            primme_svds_params* primme_svds,
+                            int* ierr) {
   using MatrixType = matrix_type;
   try {
     constexpr char N{'N'};
@@ -265,11 +284,11 @@ void isvd_dense_convTestFun(double* sval, void* leftsvec, void* rightvec,
               " isv %d Restart---return flags[%d] = %d \n", isv - 1, isv - 1,
               convtest.flags.test(isv - 1));
       *isconv = convtest.flags.test(isv - 1);
-      *ierr   = 0;
+      *ierr = 0;
       return;
     }
 
-    isv               = -isv - 1;  // Transform back to eigenvalue index
+    isv = -isv - 1;  // Transform back to eigenvalue index
     convtest.curMaxIx = std::max<size_type>(
         convtest.curMaxIx,
         isv);  // keep track of the max index seen in case of locking
@@ -282,7 +301,7 @@ void isvd_dense_convTestFun(double* sval, void* leftsvec, void* rightvec,
     /* if isv was flagged previously based on my test, pass the flag to primme
      */
     if (convtest.flags.test(isv)) {
-      *ierr   = 0;
+      *ierr = 0;
       *isconv = true;
       return;
     }
@@ -357,13 +376,13 @@ void isvd_dense_convTestFun(double* sval, void* leftsvec, void* rightvec,
       } else if ((leftsvec != nullptr) && (rightvec == nullptr)) {
         /* Have leftsvec, do not have rightvec */
         lvec_upper_begin = 0;
-        lvec_upper_end   = kidx;
+        lvec_upper_end = kidx;
         lvec_lower_begin = kidx;
-        lvec_lower_end   = nrow;
+        lvec_lower_end = nrow;
         rvec_upper_begin = 0;
-        rvec_upper_end   = ncol;
+        rvec_upper_end = ncol;
         rvec_lower_begin = 0;
-        rvec_lower_end   = ncol;
+        rvec_lower_end = ncol;
 
         lvec_upper_range = std::make_pair(lvec_upper_begin, lvec_upper_end);
         lvec_lower_range = std::make_pair(lvec_lower_begin, lvec_lower_end);
@@ -401,7 +420,7 @@ void isvd_dense_convTestFun(double* sval, void* leftsvec, void* rightvec,
       } else {
         /* Have nothing, exit early */
         *isconv = 0;
-        *ierr   = 0;
+        *ierr = 0;
         return;
       }
       t_mtv1 = timer_mtv1.seconds();
@@ -425,10 +444,10 @@ void isvd_dense_convTestFun(double* sval, void* leftsvec, void* rightvec,
       // Compute r = ||sample_matrix * v - snew * v(sample_indices)||_2
       timer_norm.reset();
       for (auto ii = 0; ii < nsamp; ++ii) {
-        ind       = convtest.sample_indices(ii);
+        ind = convtest.sample_indices(ii);
         r_new(ii) = Av(ii) - snew * rvec(ind);
       }
-      r      = alpha * KokkosBlas::nrm2(r_new);
+      r = alpha * KokkosBlas::nrm2(r_new);
       t_norm = timer_norm.seconds();
 
       // Only compute convergence criterion if we have done at least 2 outer
@@ -520,7 +539,7 @@ void isvd_dense_convTestFun(double* sval, void* leftsvec, void* rightvec,
       *ierr = 0;
     } else {
       *isconv = 0;
-      *ierr   = 0;
+      *ierr = 0;
     }
   } catch (const std::exception& e) {
     std::cout << "convTestFun encountered an exception: " << e.what()
@@ -532,26 +551,26 @@ void isvd_dense_convTestFun(double* sval, void* leftsvec, void* rightvec,
 
 template <>
 void ISVD_SVDS<matrix_type>::compute(
-    const matrix_type& matrix, const size_type nrow, const size_type ncol,
-    const size_type rank, matrix_type& U, vector_type& S, matrix_type& Vt,
-    vector_type& R, const ReservoirSampler<matrix_type>& sampler) {
+    const matrix_type& matrix,
+    const size_type nrow,
+    const size_type ncol,
+    const size_type rank,
+    matrix_type& U,
+    vector_type& S,
+    matrix_type& Vt,
+    vector_type& R,
+    const ReservoirSampler<matrix_type>& sampler) {
   using primme_svds = PRIMME_SVDS<matrix_type>;
 
   // If here, then we've seen a previous window.
   primme_svds::reinitialize();
   primme_svds::params.locking = 0;
 
-  // Preliminaries
-  scalar_type ctest_alpha{static_cast<scalar_type>(algParams.matrix_m) /
-                          static_cast<scalar_type>(sampler.num_samples())};
-
-  scalar_type ctest_eps{algParams.isvd_convtest_eps};
-  size_type ctest_skip{algParams.isvd_convtest_skip};
-  if (ctest_skip == 0) ctest_skip = algParams.rank;
-
-  ISVD_SVDS_convTest<matrix_type> convtest(sampler.matrix(), sampler.indices(),
-                                           sampler.num_samples(), ctest_alpha,
-                                           ctest_eps, ctest_skip);
+  scalar_type alpha{static_cast<scalar_type>(algParams.matrix_m) /
+                    static_cast<scalar_type>(sampler.num_samples())};
+  ISVD_SVDS_convTest<matrix_type> convtest(
+      sampler.matrix(), sampler.indices(), sampler.num_samples(), alpha,
+      algParams.isvd_convtest_eps, algParams.isvd_convtest_skip);
 
   // Set convTestFun
   if (algParams.isvd_sampling) {
@@ -563,11 +582,11 @@ void ISVD_SVDS<matrix_type>::compute(
     convtest.flags = Kokkos::Bitset<device_type>(3 * rank);
     convtest.flags.clear();
 
-    ISVD_SVDS_convTest<matrix_type>::jsv         = ctest_skip - 1;
+    ISVD_SVDS_convTest<matrix_type>::jsv = algParams.isvd_convtest_skip - 1;
     ISVD_SVDS_convTest<matrix_type>::numRestarts = 0;
-    ISVD_SVDS_convTest<matrix_type>::curMaxIx    = 0;
+    ISVD_SVDS_convTest<matrix_type>::curMaxIx = 0;
 
-    primme_svds::params.convtest    = &convtest;
+    primme_svds::params.convtest = &convtest;
     primme_svds::params.convTestFun = isvd_dense_convTestFun;
   }
 
@@ -580,9 +599,14 @@ void ISVD_SVDS<matrix_type>::compute(
 }
 
 extern "C" {
-void isvd_sparse_convTestFun(double* sval, void* leftsvec, void* rightvec,
-                             double* rnorm, int* method, int* isconv,
-                             primme_svds_params* primme_svds, int* ierr) {
+void isvd_sparse_convTestFun(double* sval,
+                             void* leftsvec,
+                             void* rightvec,
+                             double* rnorm,
+                             int* method,
+                             int* isconv,
+                             primme_svds_params* primme_svds,
+                             int* ierr) {
   using MatrixType = crs_matrix_type;
   try {
     constexpr char N{'N'};
@@ -599,11 +623,11 @@ void isvd_sparse_convTestFun(double* sval, void* leftsvec, void* rightvec,
               " isv %d Restart---return flags[%d] = %d \n", isv - 1, isv - 1,
               convtest.flags.test(isv - 1));
       *isconv = convtest.flags.test(isv - 1);
-      *ierr   = 0;
+      *ierr = 0;
       return;
     }
 
-    isv               = -isv - 1;  // Transform back to eigenvalue index
+    isv = -isv - 1;  // Transform back to eigenvalue index
     convtest.curMaxIx = std::max<size_type>(
         convtest.curMaxIx,
         isv);  // keep track of the max index seen in case of locking
@@ -616,7 +640,7 @@ void isvd_sparse_convTestFun(double* sval, void* leftsvec, void* rightvec,
     /* if isv was flagged previously based on my test, pass the flag to primme
      */
     if (convtest.flags.test(isv)) {
-      *ierr   = 0;
+      *ierr = 0;
       *isconv = true;
       return;
     }
@@ -692,13 +716,13 @@ void isvd_sparse_convTestFun(double* sval, void* leftsvec, void* rightvec,
       } else if ((leftsvec != nullptr) && (rightvec == nullptr)) {
         /* Have leftsvec, do not have rightvec */
         lvec_upper_begin = 0;
-        lvec_upper_end   = kidx;
+        lvec_upper_end = kidx;
         lvec_lower_begin = kidx;
-        lvec_lower_end   = nrow;
+        lvec_lower_end = nrow;
         rvec_upper_begin = 0;
-        rvec_upper_end   = ncol;
+        rvec_upper_end = ncol;
         rvec_lower_begin = 0;
-        rvec_lower_end   = ncol;
+        rvec_lower_end = ncol;
 
         lvec_upper_range = std::make_pair(lvec_upper_begin, lvec_upper_end);
         lvec_lower_range = std::make_pair(lvec_lower_begin, lvec_lower_end);
@@ -706,7 +730,7 @@ void isvd_sparse_convTestFun(double* sval, void* leftsvec, void* rightvec,
         rvec_lower_range = std::make_pair(rvec_lower_begin, rvec_lower_end);
 
         unmanaged_vector_type l_view0((scalar_type*)leftsvec, primme_svds->m);
-        lvec       = Kokkos::subview(l_view0, Kokkos::ALL());
+        lvec = Kokkos::subview(l_view0, Kokkos::ALL());
         lvec_upper = Kokkos::subview(l_view0, lvec_upper_range);
         lvec_lower = Kokkos::subview(l_view0, lvec_lower_range);
 
@@ -735,7 +759,7 @@ void isvd_sparse_convTestFun(double* sval, void* leftsvec, void* rightvec,
       } else {
         /* Have nothing, exit early */
         *isconv = 0;
-        *ierr   = 0;
+        *ierr = 0;
         return;
       }
       t_mtv1 = timer_mtv1.seconds();
@@ -759,10 +783,10 @@ void isvd_sparse_convTestFun(double* sval, void* leftsvec, void* rightvec,
       // Compute r = ||sample_matrix * v - snew * v(sample_indices)||_2
       timer_norm.reset();
       for (auto ii = 0; ii < nsamp; ++ii) {
-        ind       = convtest.sample_indices(ii);
+        ind = convtest.sample_indices(ii);
         r_new(ii) = Av(ii) - snew * rvec(ind);
       }
-      r      = alpha * KokkosBlas::nrm2(r_new);
+      r = alpha * KokkosBlas::nrm2(r_new);
       t_norm = timer_norm.seconds();
 
       // Only compute convergence criterion if we have done at least 2 outer
@@ -854,7 +878,7 @@ void isvd_sparse_convTestFun(double* sval, void* leftsvec, void* rightvec,
       *ierr = 0;
     } else {
       *isconv = 0;
-      *ierr   = 0;
+      *ierr = 0;
     }
   } catch (const std::exception& e) {
     std::cout << "convTestFun encountered an exception: " << e.what()
@@ -866,26 +890,26 @@ void isvd_sparse_convTestFun(double* sval, void* leftsvec, void* rightvec,
 
 template <>
 void ISVD_SVDS<crs_matrix_type>::compute(
-    const crs_matrix_type& matrix, const size_type nrow, const size_type ncol,
-    const size_type rank, matrix_type& U, vector_type& S, matrix_type& Vt,
-    vector_type& R, const ReservoirSampler<crs_matrix_type>& sampler) {
+    const crs_matrix_type& matrix,
+    const size_type nrow,
+    const size_type ncol,
+    const size_type rank,
+    matrix_type& U,
+    vector_type& S,
+    matrix_type& Vt,
+    vector_type& R,
+    const ReservoirSampler<crs_matrix_type>& sampler) {
   using primme_svds = PRIMME_SVDS<crs_matrix_type>;
 
   // If here, then we've seen a previous window.
   primme_svds::reinitialize();
   primme_svds::params.locking = 0;
 
-  // Preliminaries
-  scalar_type ctest_alpha{static_cast<scalar_type>(algParams.matrix_m) /
-                          static_cast<scalar_type>(sampler.num_samples())};
-
-  scalar_type ctest_eps{algParams.isvd_convtest_eps};
-  size_type ctest_skip{algParams.isvd_convtest_skip};
-  if (ctest_skip == 0) ctest_skip = algParams.rank;
-
+  scalar_type alpha{static_cast<scalar_type>(algParams.matrix_m) /
+                    static_cast<scalar_type>(sampler.num_samples())};
   ISVD_SVDS_convTest<crs_matrix_type> convtest(
-      sampler.matrix(), sampler.indices(), sampler.num_samples(), ctest_alpha,
-      ctest_eps, ctest_skip);
+      sampler.matrix(), sampler.indices(), sampler.num_samples(), alpha,
+      algParams.isvd_convtest_eps, algParams.isvd_convtest_skip);
 
   // Set convTestFun
   if (algParams.isvd_sampling) {
@@ -897,11 +921,11 @@ void ISVD_SVDS<crs_matrix_type>::compute(
     convtest.flags = Kokkos::Bitset<device_type>(3 * rank);
     convtest.flags.clear();
 
-    ISVD_SVDS_convTest<crs_matrix_type>::jsv         = ctest_skip - 1;
+    ISVD_SVDS_convTest<crs_matrix_type>::jsv = algParams.isvd_convtest_skip - 1;
     ISVD_SVDS_convTest<crs_matrix_type>::numRestarts = 0;
-    ISVD_SVDS_convTest<crs_matrix_type>::curMaxIx    = 0;
+    ISVD_SVDS_convTest<crs_matrix_type>::curMaxIx = 0;
 
-    primme_svds::params.convtest    = &convtest;
+    primme_svds::params.convtest = &convtest;
     primme_svds::params.convTestFun = isvd_sparse_convTestFun;
   }
 

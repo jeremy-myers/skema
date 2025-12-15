@@ -18,7 +18,8 @@ class WindowBase {
   WindowBase(const AlgParams& algParams_)
       : stats_(std::make_shared<Window_stats>()) {}
   virtual ~WindowBase() {};
-  virtual MatrixType get(const MatrixType&, const range_type,
+  virtual MatrixType get(const MatrixType&,
+                         const range_type,
                          const bool update_counters = true) = 0;
   inline std::shared_ptr<Window_stats> stats() { return stats_; }
 
@@ -32,10 +33,11 @@ class Window : public WindowBase<MatrixType> {
   Window(const AlgParams& algParams_) : WindowBase<MatrixType>(algParams_) {}
   ~Window() {};
 
-  inline auto get(const matrix_type& input, const range_type idx,
+  inline auto get(const matrix_type& input,
+                  const range_type idx,
                   const bool update_counters = true) -> matrix_type {
     Kokkos::Timer timer;
-    auto window      = Kokkos::subview(input, idx, Kokkos::ALL());
+    auto window = Kokkos::subview(input, idx, Kokkos::ALL());
     scalar_type time = timer.seconds();
     if (update_counters) {
       WindowBase<MatrixType>::stats_->count++;
@@ -45,7 +47,8 @@ class Window : public WindowBase<MatrixType> {
     return window;
   }
 
-  inline auto get(const crs_matrix_type& input, const range_type idx,
+  inline auto get(const crs_matrix_type& input,
+                  const range_type idx,
                   const bool update_counters = true) -> crs_matrix_type {
     Kokkos::Timer timer;
     crs_matrix_type::row_map_type::non_const_type window_row_map(
@@ -84,12 +87,12 @@ class GaussRBFWindow : public WindowBase<MatrixType> {
         helper(Window<MatrixType>(algParams_)) {}
   ~GaussRBFWindow() {};
 
-  inline auto get(const matrix_type& input, const range_type idx,
+  inline auto get(const matrix_type& input,
+                  const range_type idx,
                   const bool update_counters = true) -> matrix_type {
     // Timers are incremented internally
     auto slice = helper.get(input, idx);
-    std::cout << "Computing Gauss RBF kernel of size " << slice.extent(0)
-              << " x " << input.extent(0) << std::endl;
+    std::cout << "Computing Gauss RBF kernel of size " << slice.extent(0) << " x " << input.extent(0) << std::endl;
     auto window =
         map.compute(slice, slice.extent(0), slice.extent(1), input,
                     input.extent(0), input.extent(1), input.extent(1), idx);
@@ -103,7 +106,8 @@ class GaussRBFWindow : public WindowBase<MatrixType> {
     return window;
   }
 
-  inline auto get(const crs_matrix_type& input, const range_type idx,
+  inline auto get(const crs_matrix_type& input,
+                  const range_type idx,
                   const bool update_counters = true) -> crs_matrix_type {
     std::cout << "get_window for kernel function on sparse matrix not available"
               << std::endl;
