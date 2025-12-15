@@ -7,6 +7,19 @@
 
 namespace Skema {
 
+GaussDimRedux::GaussDimRedux(const size_type nrow_, const size_type ncol_,
+                             const ordinal_type seed_, const std::string label_,
+                             const bool init_transposed_)
+    : DimRedux<GaussDimRedux>(nrow_, ncol_, seed_, label_, init_transposed_) {
+  Kokkos::Timer timer;
+  data = matrix_type(label, nrow, ncol);
+  const double maxval{std::sqrt(2 * std::log(nrow_ * ncol_))};
+  Kokkos::fill_random(data, rand_pool, -maxval, maxval);
+  Kokkos::fence();
+
+  stats.initialize = timer.seconds();
+}
+
 template <>
 auto GaussDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
                          const scalar_type* beta, char transA, char transB,
@@ -119,4 +132,12 @@ auto GaussDimRedux::axpy(const scalar_type val, matrix_type& A) -> void {
 
 template <>
 auto GaussDimRedux::axpy(const scalar_type val, crs_matrix_type& A) -> void {}
+
+auto GaussDimRedux::write(const std::filesystem::path filename) -> void {
+  std::string fname{filename.string()};
+  if (filename.empty()) {
+    fname = label + ".txt";
+  }
+  Impl::write(data, fname.c_str());
+}
 }  // namespace Skema

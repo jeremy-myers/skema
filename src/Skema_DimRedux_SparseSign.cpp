@@ -6,6 +6,69 @@
 
 namespace Skema {
 
+SparseSignDimRedux::SparseSignDimRedux(const size_type nrow_,
+                                       const size_type ncol_,
+                                       const ordinal_type seed_,
+                                       const std::string label_,
+                                       const bool init_transposed_)
+    : DimRedux<SparseSignDimRedux>(nrow_, ncol_, seed_, label_,
+                                   init_transposed_) {
+  // Create a CRS row map with zeta entries per row.
+  namespace KE = Kokkos::Experimental;
+  execution_space exec_space;
+
+  Kokkos::Timer timer;
+  const size_type zeta{std::max<size_type>(2, std::min<size_type>(ncol, 8))};
+
+  // This is equivalent to a prefix/exclusive scan.
+  crs_matrix_type::row_map_type::non_const_type row_map("row_map", nrow + 1);
+  Kokkos::parallel_scan(
+      nrow + 1,
+      KOKKOS_LAMBDA(uint64_t ii, uint64_t& partial_sum, bool is_final) {
+        if (is_final) {
+          row_map(ii) = partial_sum;
+        }
+        partial_sum += zeta;
+      });
+
+  // There are zeta entries per row for n rows.
+  // Here, we iterate n times in blocks of size zeta.
+  // At each step, compute a random permutation of 0,...,k-1, take the
+  // first zeta numbers, and assign them to the ii-th block.
+  crs_matrix_type::index_type::non_const_type entries("entries", zeta * nrow);
+  for (auto ii = 0; ii < nrow; ++ii) {
+    range_type idx = std::make_pair(ii * zeta, (ii + 1) * zeta);
+    auto e = Kokkos::subview(entries, Kokkos::make_pair(idx.first, idx.second));
+    index_type pi("rand indices", zeta);
+    Kokkos::fill_random(pi, rand_pool, ncol);
+    Kokkos::sort(pi);
+    Kokkos::deep_copy(e, pi);
+  }
+
+  // The random values are taken from the Rademacher distribution (in the
+  // real case only, which is what we do here).
+  // We randomly fill a length zeta * n vector with uniform numbers in
+  // [-1,1] and use the functors IsPositiveFunctor and IsNegativeFunctor
+  // with KE::replace_if() to apply the ceiling function to the positive
+  // values and floor function to the negative values.
+  vector_type values("values", zeta * nrow);
+  Kokkos::fill_random(values, rand_pool, -1.0, 1.0);
+  Kokkos::fence();
+
+  KE::replace_if(exec_space, KE::begin(values), KE::end(values),
+                 IsPositive<crs_matrix_type::const_value_type>(), 1.0);
+  KE::replace_if(exec_space, KE::begin(values), KE::end(values),
+                 IsNegative<crs_matrix_type::const_value_type>(), -1.0);
+  Kokkos::fence();
+
+  // Create the CRS matrix
+  auto nnz = entries.extent(0);
+  data     = crs_matrix_type(label, nrow, ncol, nnz, values, row_map, entries);
+
+  Kokkos::fence();
+  stats.initialize = timer.seconds();
+}
+
 template <>
 auto SparseSignDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
                               const scalar_type* beta, char transA, char transB,
@@ -108,6 +171,14 @@ auto SparseSignDimRedux::axpy(const scalar_type val, matrix_type& A) -> void {
         }
       });
   Kokkos::fence();
+}
+
+auto SparseSignDimRedux::write(const std::filesystem::path filename) -> void {
+  std::string fname{filename.string()};
+  if (filename.empty()) {
+    fname = label + ".mtx";
+  }
+  Impl::write(data, fname.c_str());
 }
 
 auto SparseSignDimRedux::col_subview(

@@ -250,10 +250,10 @@ auto SketchySVD<matrix_type, GaussDimRedux>::update(const matrix_type& A,
   // do X,Y,W,Z update as desired.
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  auto x = Upsilon.lmap(&one, A, &zero, 'N', 'N', row_idxs);
-  auto y = Omega.rmap(&one, A, &zero, 'N', 'T', row_idxs);
-  auto w = Phi.lmap(&one, A, &zero, 'N', 'N', row_idxs);
-  auto z = Psi.rmap(&one, w, &zero, 'N', 'T');
+  auto x = Upsilon.apply_left(&one, A, &zero, 'N', 'N', row_idxs);
+  auto y = Omega.apply_right(&one, A, &zero, 'N', 'T', row_idxs);
+  auto w = Phi.apply_left(&one, A, &zero, 'N', 'N', row_idxs);
+  auto z = Psi.apply_right(&one, w, &zero, 'N', 'T');
   return std::tuple(x, y, z);
 }
 
@@ -271,12 +271,12 @@ auto SketchySVD<matrix_type, SparseSignDimRedux>::update(
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
   auto At = Impl::transpose(A);
-  auto yt = Omega.lmap(&one, At, &zero, 'N', 'N');
+  auto yt = Omega.apply_left(&one, At, &zero, 'N', 'N');
   auto y  = Impl::transpose(yt);
-  auto x  = Upsilon.lmap(&one, A, &zero, 'N', 'N', row_idxs);
-  auto w  = Phi.lmap(&one, A, &zero, 'N', 'N', row_idxs);
+  auto x  = Upsilon.apply_left(&one, A, &zero, 'N', 'N', row_idxs);
+  auto w  = Phi.apply_left(&one, A, &zero, 'N', 'N', row_idxs);
   auto wt = Impl::transpose(w);
-  auto zt = Psi.lmap(&one, wt, &zero, 'N', 'N');
+  auto zt = Psi.apply_left(&one, wt, &zero, 'N', 'N');
   auto z  = Impl::transpose(zt);
   return std::tuple(x, y, z);
 }
@@ -295,11 +295,11 @@ auto SketchySVD<crs_matrix_type, GaussDimRedux>::update(
   // free up space
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  auto xt = Upsilon.rmap(&one, A, &zero, 'T', 'N', row_idxs);
+  auto xt = Upsilon.apply_right(&one, A, &zero, 'T', 'N', row_idxs);
   auto x  = Impl::transpose(xt);
-  auto y  = Omega.rmap(&one, A, &zero, 'N', 'N');
-  auto wt = Phi.rmap(&one, A, &zero, 'T', 'N', row_idxs);
-  auto z  = Psi.rmap(&one, wt, &zero, 'T', 'N');
+  auto y  = Omega.apply_right(&one, A, &zero, 'N', 'N');
+  auto wt = Phi.apply_right(&one, A, &zero, 'T', 'N', row_idxs);
+  auto z  = Psi.apply_right(&one, wt, &zero, 'T', 'N');
   return std::tuple(x, y, z);
 }
 
@@ -314,10 +314,10 @@ auto SketchySVD<crs_matrix_type, SparseSignDimRedux>::update(
   // Z = W * PsiT
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  auto x = Upsilon.lmap(&one, A, &zero, 'N', 'N', row_idxs);
-  auto y = Omega.rmap(&one, A, &zero, 'N', 'N');
-  auto w = Phi.lmap(&one, A, &zero, 'N', 'N', row_idxs);
-  auto z = Psi.rmap(&one, w, &zero, 'N', 'N');
+  auto x = Upsilon.apply_left(&one, A, &zero, 'N', 'N', row_idxs);
+  auto y = Omega.apply_right(&one, A, &zero, 'N', 'N');
+  auto w = Phi.apply_left(&one, A, &zero, 'N', 'N', row_idxs);
+  auto z = Psi.apply_right(&one, w, &zero, 'N', 'N');
   return std::tuple(x, y, z);
 }
 
@@ -393,9 +393,9 @@ auto SketchySVD<MatrixType, DimReduxT>::initial_approx(bool update_timers)
   matrix_type U2;
   timer.reset();
   try {
-    U1 = Phi.lmap(&one, Q, &zero, 'N', 'N');
+    U1 = Phi.apply_left(&one, Q, &zero, 'N', 'N');
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::initial_approx::lmap encountered an "
+    std::cout << "Skema::sketchysvd::initial_approx::apply_left encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
@@ -414,9 +414,9 @@ auto SketchySVD<MatrixType, DimReduxT>::initial_approx(bool update_timers)
   }
   timer.reset();
   try {
-    U2 = Psi.lmap(&one, P, &zero, 'N', 'N');
+    U2 = Psi.apply_left(&one, P, &zero, 'N', 'N');
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchysvd::initial_approx::lmap encountered an "
+    std::cout << "Skema::sketchysvd::initial_approx::apply_left encountered an "
                  "exception: "
               << e.what() << std::endl;
   }

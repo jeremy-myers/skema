@@ -169,4 +169,16 @@ inline void write(const crs_matrix_type& A, const char* filename) {
   KokkosSparse::Impl::write_kokkos_crst_matrix(A, filename);
 }
 }  // namespace Impl
+
+template <typename ValueType>
+struct IsPositive {
+  KOKKOS_INLINE_FUNCTION
+  bool operator()(const ValueType val) const { return (val > 0); }
+};
+
+template <typename ValueType>
+struct IsNegative {
+  KOKKOS_INLINE_FUNCTION
+  bool operator()(const ValueType val) const { return (val < 0); }
+};
 }  // namespace Skema

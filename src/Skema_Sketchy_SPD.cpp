@@ -135,7 +135,7 @@ auto SketchySPD<matrix_type, GaussDimRedux>::update(const matrix_type& A)
   // do Y update as desired.
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  return Omega.rmap(&one, A, &zero, 'N', 'N');
+  return Omega.apply_right(&one, A, &zero, 'N', 'N');
 }
 
 template <>
@@ -145,7 +145,7 @@ auto SketchySPD<matrix_type, SparseSignDimRedux>::update(const matrix_type& A)
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
   auto At  = Impl::transpose(A);
-  auto ret = Omega.lmap(&one, At, &zero, 'T', 'N');
+  auto ret = Omega.apply_left(&one, At, &zero, 'T', 'N');
   return Impl::transpose(ret);
 }
 
@@ -156,7 +156,7 @@ auto SketchySPD<crs_matrix_type, GaussDimRedux>::update(
   // operator order or transpose mode, do Y update as desired.
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  return Omega.rmap(&one, A, &zero, 'N', 'N');
+  return Omega.apply_right(&one, A, &zero, 'N', 'N');
 }
 
 template <>
@@ -164,7 +164,7 @@ auto SketchySPD<crs_matrix_type, SparseSignDimRedux>::update(
     const crs_matrix_type& A) -> matrix_type {
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  return Omega.rmap(&one, A, &zero, 'N', 'N');
+  return Omega.apply_right(&one, A, &zero, 'N', 'N');
 }
 
 template <typename MatrixType, typename DimReduxT>
@@ -217,7 +217,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   std::cout << "\nComputing norm(Y)*Omega" << std::endl;
   timer.reset();
   try {
-    Omega.axpy(shift, Y);
+    Omega.scale_and_add(shift, Y);
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::axpy encountered an "
                  "exception: "
@@ -237,11 +237,12 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   timer.reset();
   matrix_type B;
   try {
-    B = Omega.lmap(&one, Y, &zero, 'T', 'N');
+    B = Omega.apply_left(&one, Y, &zero, 'T', 'N');
   } catch (const std::exception& e) {
-    std::cout << "Skema::sketchyspd::low_rank_approx::lmap encountered an "
-                 "exception: "
-              << e.what() << std::endl;
+    std::cout
+        << "Skema::sketchyspd::low_rank_approx::apply_left encountered an "
+           "exception: "
+        << e.what() << std::endl;
   }
   Kokkos::fence();
   if (update_timers) {
