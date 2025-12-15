@@ -25,8 +25,7 @@ SketchySPD<MatrixType, DimReduxT>::SketchySPD(AlgParams algParams_)
       eta(algParams_.sketch_eta),
       nu(algParams_.sketch_nu),
       algParams(algParams_),
-      Omega(DimReduxT(ncol, range, algParams.seeds[0], "Omega", algParams.debug,
-                      algParams.debug_filename)),
+      Omega(DimReduxT(ncol, range, algParams.seeds[0], "Omega")),
       window(getWindow<MatrixType>(algParams)) {
   timings["init"]["omega"]    = 0.0;
   timings["update"]["omega"]  = 0.0;

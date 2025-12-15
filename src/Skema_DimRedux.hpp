@@ -29,15 +29,32 @@ class DimRedux {
   const pool_type rand_pool;
   bool initialized;
   const std::string label;
-  const bool debug;
-  const std::filesystem::path debug_filename;
   const bool init_transposed;
 
  public:
   DimRedux();
+
+  DimRedux(const size_type nrow_, const size_type ncol_)
+      : nrow(nrow_),
+        ncol(ncol_),
+        seed(0),
+        rand_pool(pool_type(0)),
+        initialized(false),
+        label("DimRedux"),
+        init_transposed(false) {};
+
+  DimRedux(const size_type nrow_, const size_type ncol_,
+           const ordinal_type seed_)
+      : nrow(nrow_),
+        ncol(ncol_),
+        seed(seed_),
+        rand_pool(pool_type(seed_)),
+        initialized(false),
+        label("DimRedux"),
+        init_transposed(false) {};
+
   DimRedux(const size_type nrow_, const size_type ncol_,
            const ordinal_type seed_, const std::string label_,
-           const bool debug_, const std::filesystem::path debug_filename_,
            const bool init_transposed_ = false)
       : nrow(nrow_),
         ncol(ncol_),
@@ -45,9 +62,8 @@ class DimRedux {
         rand_pool(pool_type(seed_)),
         initialized(false),
         label(label_),
-        debug(debug_),
-        debug_filename(debug_filename_),
         init_transposed(init_transposed_) {};
+
   DimRedux(const DimRedux&)            = default;
   DimRedux(DimRedux&&)                 = default;
   DimRedux& operator=(const DimRedux&) = default;
@@ -81,6 +97,10 @@ class DimRedux {
 
   inline size_type nrows() { return nrow; };
   inline size_type ncols() { return ncol; };
+  inline auto save(const std::filesystem::path filename = "") -> void {
+    std::cout << "DimRedux save" << std::endl;
+    self().write(filename);
+  };
 
   DimReduxStats stats;
 };
@@ -90,33 +110,21 @@ class GaussDimRedux : public DimRedux<GaussDimRedux> {
   GaussDimRedux();
   GaussDimRedux(const size_type nrow_, const size_type ncol_,
                 const ordinal_type seed_,
-                const std::string label_                    = "GaussDimRedux",
-                const bool debug_                           = false,
-                const std::filesystem::path debug_filename_ = "",
-                const bool init_transposed_                 = false)
-      : DimRedux<GaussDimRedux>(nrow_, ncol_, seed_, label_, debug_,
-                                debug_filename_, init_transposed_),
-        maxval(std::sqrt(2 * std::log(nrow_ * ncol_))) {
+                const std::string label_    = "GaussDimRedux",
+                const bool init_transposed_ = false)
+      : DimRedux<GaussDimRedux>(nrow_, ncol_, seed_, label_, init_transposed_) {
     Kokkos::Timer timer;
     data = matrix_type(label, nrow, ncol);
+    const double maxval{std::sqrt(2 * std::log(nrow_ * ncol_))};
     Kokkos::fill_random(data, rand_pool, -maxval, maxval);
     Kokkos::fence();
 
     stats.initialize = timer.seconds();
-
-    if (debug) {
-      Impl::print(data);
-    }
-
-    if (!debug_filename.empty()) {
-      std::string fname{debug_filename.stem().string() + "_" + label + ".txt"};
-      Impl::write(data, fname.c_str());
-    }
   };
 
   GaussDimRedux(const matrix_type& data_)
-      : DimRedux<GaussDimRedux>(data_.extent(0), data_.extent(1), 0, "", false,
-                                "", false),
+      : DimRedux<GaussDimRedux>(data_.extent(0), data_.extent(1), 0,
+                                "GaussDimRedux", false),
         data(data_) {};
 
   GaussDimRedux(const GaussDimRedux&) = default;
@@ -141,10 +149,18 @@ class GaussDimRedux : public DimRedux<GaussDimRedux> {
   template <typename InputMatrixT>
   auto axpy(const scalar_type, InputMatrixT&) -> void;
 
+  inline auto write(const std::filesystem::path filename = "") -> void {
+    std::cout << "GaussDR write" << std::endl;
+    std::string fname{filename.string()};
+    if (filename.empty()) {
+      fname = label + ".txt";
+    }
+    Impl::write(data, filename.c_str());
+  }
+
  private:
   friend class DimRedux<GaussDimRedux>;
   matrix_type data;
-  const scalar_type maxval;
 };
 
 template <typename ValueType>
@@ -176,18 +192,17 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
   SparseSignDimRedux();
   SparseSignDimRedux(const size_type nrow_, const size_type ncol_,
                      const ordinal_type seed_,
-                     const std::string label_ = "SparseSignDimRedux",
-                     const bool debug_        = false,
-                     const std::filesystem::path debug_filename_ = "",
-                     const bool init_transposed_                 = false)
-      : DimRedux<SparseSignDimRedux>(nrow_, ncol_, seed_, label_, debug_,
-                                     debug_filename_, init_transposed_),
-        zeta(std::max<size_type>(2, std::min<size_type>(ncol_, 8))) {
+                     const std::string label_    = "SparseSignDimRedux",
+                     const bool init_transposed_ = false)
+      : DimRedux<SparseSignDimRedux>(nrow_, ncol_, seed_, label_,
+                                     init_transposed_) {
     // Create a CRS row map with zeta entries per row.
     namespace KE = Kokkos::Experimental;
     execution_space exec_space;
 
     Kokkos::Timer timer;
+    const size_type zeta{std::max<size_type>(2, std::min<size_type>(ncol, 8))};
+
     // This is equivalent to a prefix/exclusive scan.
     crs_matrix_type::row_map_type::non_const_type row_map("row_map", nrow + 1);
     Kokkos::parallel_scan(
@@ -236,15 +251,6 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
 
     Kokkos::fence();
     stats.initialize = timer.seconds();
-
-    if (debug) {
-      Impl::print(data);
-    }
-
-    if (!debug_filename.empty()) {
-      std::string fname{debug_filename.stem().string() + "_" + label + ".mtx"};
-      Impl::write(data, fname.c_str());
-    }
   };
 
   SparseSignDimRedux(const SparseSignDimRedux&) = default;
@@ -270,12 +276,19 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
   template <typename InputMatrixT>
   auto axpy(const scalar_type, InputMatrixT&) -> void;
 
+  inline auto write(const std::filesystem::path filename = "") -> void {
+    std::string fname{filename.string()};
+    if (filename.empty()) {
+      fname = label + ".mtx";
+    }
+    Impl::write(data, filename.c_str());
+  }
+
   DimReduxStats stats;
 
  private:
   friend class DimRedux<SparseSignDimRedux>;
   crs_matrix_type data;
-  const size_type zeta;
 
   auto col_subview(const crs_matrix_type&,
                    const Kokkos::pair<size_type, size_type>) -> crs_matrix_type;

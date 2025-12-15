@@ -36,8 +36,7 @@ SketchySVD<MatrixType, DimReduxT>::SketchySVD(AlgParams algParams_)
           (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
               ? range
               : nrow,
-          algParams_.seeds[0], "Upsilon", algParams_.debug,
-          algParams_.debug_filename,
+          algParams_.seeds[0], "Upsilon",
           (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
               ? true
               : false)),
@@ -51,8 +50,7 @@ SketchySVD<MatrixType, DimReduxT>::SketchySVD(AlgParams algParams_)
                         algParams_.dim_redux == DimRedux_Map::SPARSE_SIGN))
                           ? range
                           : ncol,
-                      algParams_.seeds[1], "Omega", algParams_.debug,
-                      algParams_.debug_filename,
+                      algParams_.seeds[1], "Omega",
                       (algParams_.issparse &&
                        (algParams_.dim_redux == DimRedux_Map::GAUSS ||
                         algParams_.dim_redux == DimRedux_Map::SPARSE_SIGN))
@@ -65,8 +63,7 @@ SketchySVD<MatrixType, DimReduxT>::SketchySVD(AlgParams algParams_)
           (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
               ? core
               : nrow,
-          algParams_.seeds[2], "Phi", algParams_.debug,
-          algParams_.debug_filename,
+          algParams_.seeds[2], "Phi",
           (algParams_.issparse && (algParams_.dim_redux == DimRedux_Map::GAUSS))
               ? true
               : false)),
@@ -80,8 +77,7 @@ SketchySVD<MatrixType, DimReduxT>::SketchySVD(AlgParams algParams_)
                       algParams_.dim_redux == DimRedux_Map::SPARSE_SIGN))
                         ? core
                         : ncol,
-                    algParams_.seeds[3], "Psi", algParams_.debug,
-                    algParams_.debug_filename,
+                    algParams_.seeds[3], "Psi",
                     (algParams_.issparse &&
                      (algParams_.dim_redux == DimRedux_Map::GAUSS ||
                       algParams_.dim_redux == DimRedux_Map::SPARSE_SIGN))
