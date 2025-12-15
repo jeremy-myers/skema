@@ -98,7 +98,6 @@ class DimRedux {
   inline size_type nrows() { return nrow; };
   inline size_type ncols() { return ncol; };
   inline auto save(const std::filesystem::path filename = "") -> void {
-    std::cout << "DimRedux save" << std::endl;
     self().write(filename);
   };
 
@@ -150,12 +149,11 @@ class GaussDimRedux : public DimRedux<GaussDimRedux> {
   auto axpy(const scalar_type, InputMatrixT&) -> void;
 
   inline auto write(const std::filesystem::path filename = "") -> void {
-    std::cout << "GaussDR write" << std::endl;
     std::string fname{filename.string()};
     if (filename.empty()) {
       fname = label + ".txt";
     }
-    Impl::write(data, filename.c_str());
+    Impl::write(data, fname.c_str());
   }
 
  private:
@@ -281,7 +279,7 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
     if (filename.empty()) {
       fname = label + ".mtx";
     }
-    Impl::write(data, filename.c_str());
+    Impl::write(data, fname.c_str());
   }
 
   DimReduxStats stats;
