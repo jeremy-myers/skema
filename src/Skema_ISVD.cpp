@@ -1,9 +1,9 @@
-#include <stdio.h>
 #include <cassert>
-#include <cstddef>
 #include <cmath>
+#include <cstddef>
 #include <cstdlib>
 #include <iomanip>
+#include <stdio.h>
 #include <string>
 #include <utility>
 #include <vector>
@@ -22,19 +22,17 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   const size_type nrow{algParams.matrix_m};
   const size_type ncol{algParams.matrix_n};
   const size_type rank{algParams.rank};
-  const bool sampling{algParams.isvd_sampling};
   size_type wsize{algParams.window};
   const bool residual_iters{algParams.isvd_compute_residual_iters};
-  const size_type nwindows{static_cast<size_type>(std::ceil(nrow/wsize))};
+  const size_type nwindows{static_cast<size_type>(std::ceil(nrow / wsize))};
 
   // Temporary array for local computations
   matrix_type uvecs("uvecs", rank + wsize, rank);
 
   // Create solver & sampler
   Skema::ISVD_SVDS<MatrixType> solver(algParams);
-  Skema::ReservoirSampler<MatrixType> sampler(algParams.isvd_num_samples, nrow,
-                                              ncol, algParams.seeds[0],
-                                              algParams.print_level);
+  Skema::ReservoirSampler<MatrixType> sampler(
+      num_samples, nrow, ncol, algParams.seeds[0], algParams.print_level);
 
   // Initial approximation
   ordinal_type ucnt{0};  // window count
@@ -50,7 +48,8 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   sampler.sample(A_window);
 
   // Compute initial decomposition
-  std::cout << "Processing window " << ucnt+1 << " of " << nwindows << std::endl;
+  std::cout << "Processing window " << ucnt + 1 << " of " << nwindows
+            << std::endl;
   solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex,
                  solver_rnrms);
 
@@ -74,7 +73,7 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
     if (irow + wsize < nrow) {
       idx = std::make_pair(irow, irow + wsize);
     } else {
-      idx = std::make_pair(irow, nrow);
+      idx   = std::make_pair(irow, nrow);
       wsize = idx.second - idx.first;
     }
 
@@ -84,7 +83,8 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
     sampler.sample(A_window);
 
     // Compute decomposition with optional sampler
-    std::cout << "Processing window " << ucnt+1 << " of " << nwindows << std::endl;
+    std::cout << "Processing window " << ucnt + 1 << " of " << nwindows
+              << std::endl;
     solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex,
                    solver_rnrms, sampler);
 
@@ -115,11 +115,11 @@ auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> void {
 
   if (algParams.issymmetric) {
     auto v = Impl::transpose(vtvex);
-    rnrms = residuals(A, v, svals, rank, algParams, window);
+    rnrms  = residuals(A, v, svals, rank, algParams, window);
   } else {
     compute_U(A);
     auto v = Impl::transpose(vtvex);
-    rnrms = residuals(A, u, svals, v, rank, algParams, window);
+    rnrms  = residuals(A, u, svals, v, rank, algParams, window);
   }
   time = timer.seconds();
   std::cout << "Compute residuals: " << time << std::endl;
@@ -143,21 +143,21 @@ auto ISVD<MatrixType>::compute_U(const MatrixType& A) -> void {
     if (irow + wsize < nrow) {
       idx = std::make_pair(irow, irow + wsize);
     } else {
-      idx = std::make_pair(irow, nrow);
+      idx   = std::make_pair(irow, nrow);
       wsize = idx.second - idx.first;
     }
 
     auto A_window =
         window->get(A, idx, false);  // Don't update counters for window
     auto v = Impl::transpose(vtvex);
-    utmp = Kokkos::subview(u, idx, Kokkos::ALL());
+    utmp   = Kokkos::subview(u, idx, Kokkos::ALL());
     Impl::mm(&N, &N, &one, A_window, v, &zero, utmp);
   }
 
   Kokkos::parallel_for(
       rank, KOKKOS_LAMBDA(const int r) {
         auto ur = Kokkos::subview(u, Kokkos::ALL(), r);
-        auto s = svals(r);
+        auto s  = svals(r);
         for (auto i = 0; i < nrow; ++i) {
           ur(i) /= s;
         }
@@ -220,66 +220,42 @@ auto ISVD<MatrixType>::save_window_history(
   hist[count]["update"]["window"] = window_stats->time;
   hist[count]["primme_svds"]["numOuterIterations"] =
       solver_stats->numOuterIterations;
-  hist[count]["primme_svds"]["numMatvecs"] = solver_stats->numMatvecs;
+  hist[count]["primme_svds"]["numMatvecs"]  = solver_stats->numMatvecs;
   hist[count]["primme_svds"]["elapsedTime"] = solver_stats->elapsedTime;
-  hist[count]["primme_svds"]["timeMatvec"] = solver_stats->timeMatvec;
-  hist[count]["primme_svds"]["timeOrtho"] = solver_stats->timeOrtho;
-  hist[count]["primme_svds"]["rnrms"] = j_r_solver;
+  hist[count]["primme_svds"]["timeMatvec"]  = solver_stats->timeMatvec;
+  hist[count]["primme_svds"]["timeOrtho"]   = solver_stats->timeOrtho;
+  hist[count]["primme_svds"]["rnrms"]       = j_r_solver;
 }
 
 template <>
-void isvd(const matrix_type& A, const AlgParams& algParams) {
+void isvd(const matrix_type& A, matrix_type& U, vector_type& S, matrix_type& V,
+          AlgParams algParams) {
   ISVD<matrix_type> sketch(algParams);
   sketch.solve(A);
   sketch.compute_residuals(A);
 
+  U = sketch.U();
+  S = sketch.S();
+  V = sketch.V();
+
   if (!algParams.history_filename.empty()) {
     sketch.save_history(algParams.history_filename);
-  }
-
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-
-    auto U = sketch.U();
-    auto S = sketch.S();
-    auto V = sketch.V();
-
-    fname = algParams.debug_filename.filename().stem().string() + "_U.txt";
-    Impl::write(U, fname.c_str());
-
-    fname = algParams.debug_filename.filename().stem().string() + "_S.txt";
-    Impl::write(S, fname.c_str());
-
-    fname = algParams.debug_filename.filename().stem().string() + "_V.txt";
-    Impl::write(V, fname.c_str());
   }
 };
 
 template <>
-void isvd(const crs_matrix_type& A, const AlgParams& algParams) {
+void isvd(const crs_matrix_type& A, matrix_type& U, vector_type& S,
+          matrix_type& V, AlgParams algParams) {
   ISVD<crs_matrix_type> sketch(algParams);
   sketch.solve(A);
   sketch.compute_residuals(A);
 
+  U = sketch.U();
+  S = sketch.S();
+  V = sketch.V();
+
   if (!algParams.history_filename.empty()) {
     sketch.save_history(algParams.history_filename);
-  }
-
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-
-    auto U = sketch.U();
-    auto S = sketch.S();
-    auto V = sketch.V();
-
-    fname = algParams.debug_filename.filename().stem().string() + "_U.txt";
-    Impl::write(U, fname.c_str());
-
-    fname = algParams.debug_filename.filename().stem().string() + "_S.txt";
-    Impl::write(S, fname.c_str());
-
-    fname = algParams.debug_filename.filename().stem().string() + "_V.txt";
-    Impl::write(V, fname.c_str());
   }
 };
 

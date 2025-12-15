@@ -2,13 +2,9 @@
 #include "Skema_Utils.hpp"
 
 extern "C" {
-void eigs_default_dense_matvec(void* x,
-                               PRIMME_INT* ldx,
-                               void* y,
-                               PRIMME_INT* ldy,
-                               int* blockSize,
-                               primme_params* primme,
-                               int* err) {
+void eigs_default_dense_matvec(void* x, PRIMME_INT* ldx, void* y,
+                               PRIMME_INT* ldy, int* blockSize,
+                               primme_params* primme, int* err) {
   ///! Capture exceptions here; don't propagate them to C code
   try {
     const size_type nrow{static_cast<size_type>(primme->n)};
@@ -37,13 +33,9 @@ void eigs_default_dense_matvec(void* x,
   }
 }
 
-void eigs_default_sparse_matvec(void* x,
-                                PRIMME_INT* ldx,
-                                void* y,
-                                PRIMME_INT* ldy,
-                                int* blockSize,
-                                primme_params* primme,
-                                int* err) {
+void eigs_default_sparse_matvec(void* x, PRIMME_INT* ldx, void* y,
+                                PRIMME_INT* ldy, int* blockSize,
+                                primme_params* primme, int* err) {
   ///! Capture exceptions here; don't propagate them to C code
   try {
     const crs_matrix_type spmatrix = *(crs_matrix_type*)primme->matrix;
@@ -69,18 +61,14 @@ void eigs_default_sparse_matvec(void* x,
   }
 }
 
-void eigs_kernel_dense_matvec(void* x,
-                              PRIMME_INT* ldx,
-                              void* y,
-                              PRIMME_INT* ldy,
-                              int* blockSize,
-                              primme_params* primme,
-                              int* err) {
+void eigs_kernel_dense_matvec(void* x, PRIMME_INT* ldx, void* y,
+                              PRIMME_INT* ldy, int* blockSize,
+                              primme_params* primme, int* err) {
   ///! Capture exceptions here; don't propagate them to C code
   try {
     const EIGS_Kernel_Matrix kernel = *(EIGS_Kernel_Matrix*)primme->matrix;
-    const size_type nfeat = kernel.nfeat;
-    const size_type wsize = kernel.wsize;
+    const size_type nfeat           = kernel.nfeat;
+    const size_type wsize           = kernel.wsize;
     range_type row_range;
 
     const size_type nrow{static_cast<size_type>(primme->n)};
@@ -116,14 +104,9 @@ void eigs_kernel_dense_matvec(void* x,
   }
 }
 
-void svds_default_dense_matvec(void* x,
-                               PRIMME_INT* ldx,
-                               void* y,
-                               PRIMME_INT* ldy,
-                               int* blockSize,
-                               int* transpose,
-                               primme_svds_params* primme_svds,
-                               int* err) {
+void svds_default_dense_matvec(void* x, PRIMME_INT* ldx, void* y,
+                               PRIMME_INT* ldy, int* blockSize, int* transpose,
+                               primme_svds_params* primme_svds, int* err) {
   ///! Capture exceptions here; don't propagate them to C code
   try {
     const size_type nrow{static_cast<size_type>(primme_svds->m)};
@@ -159,14 +142,9 @@ void svds_default_dense_matvec(void* x,
   }
 }
 
-void svds_default_sparse_matvec(void* x,
-                                PRIMME_INT* ldx,
-                                void* y,
-                                PRIMME_INT* ldy,
-                                int* blockSize,
-                                int* transpose,
-                                primme_svds_params* primme_svds,
-                                int* err) {
+void svds_default_sparse_matvec(void* x, PRIMME_INT* ldx, void* y,
+                                PRIMME_INT* ldy, int* blockSize, int* transpose,
+                                primme_svds_params* primme_svds, int* err) {
   ///! Capture exceptions here; don't propagate them to C code
   try {
     const crs_matrix_type spmatrix = *(crs_matrix_type*)primme_svds->matrix;

@@ -1,14 +1,14 @@
 #pragma once
+#include "Skema_AlgParams.hpp"
+#include "Skema_Common.hpp"
+#include "Skema_Utils.hpp"
+#include "Skema_Window.hpp"
 #include <KokkosSparse.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Macros.hpp>
 #include <Kokkos_Random.hpp>
 #include <cstddef>
 #include <fstream>
-#include "Skema_AlgParams.hpp"
-#include "Skema_Common.hpp"
-#include "Skema_Utils.hpp"
-#include "Skema_Window.hpp"
 
 namespace Skema {
 
@@ -17,7 +17,7 @@ struct XVDS_stats;  // Forward declaration
 template <typename MatrixType>
 class ISVD {
  public:
-  ISVD(const AlgParams& algParams_)
+  ISVD(AlgParams algParams_)
       : algParams(algParams_),
         nrow(algParams_.matrix_m),
         ncol(algParams_.matrix_n),
@@ -26,6 +26,10 @@ class ISVD {
         vtvex(matrix_type("vtvex", rank, ncol)),
         rnrms(vector_type("rnrms", rank)),
         solver_rnrms(vector_type("rnrms", rank)),
+        sampling(algParams.isvd_num_samples > 0 ? true : false),
+        num_samples(algParams.window < algParams.isvd_num_samples
+                        ? algParams.window
+                        : algParams.isvd_num_samples),
         window(getWindow<MatrixType>(algParams)),
         wsize0(algParams.window) {}
 
@@ -52,6 +56,8 @@ class ISVD {
   vector_type solver_rnrms;
   const AlgParams algParams;
   const size_type wsize0;
+  const bool sampling;
+  const size_type num_samples;
   std::unique_ptr<WindowBase<MatrixType>> window;
   nlohmann::json hist;
   auto save_window_history(const std::shared_ptr<XVDS_stats>&,
@@ -89,5 +95,6 @@ template class ISVD<matrix_type>;
 template class ISVD<crs_matrix_type>;
 
 template <typename MatrixType>
-void isvd(const MatrixType&, const AlgParams&);
+void isvd(const MatrixType&, matrix_type&, vector_type&, matrix_type&,
+          AlgParams);
 }  // namespace Skema

@@ -6,28 +6,25 @@
 #include <cstdlib>
 
 /* Typedefs */
-using scalar_type = double;
+using scalar_type  = double;
 using ordinal_type = int;
-using size_type = std::size_t;
-using layout_type = Kokkos::LayoutLeft;
-using device_type = typename Kokkos::Device<
-    Kokkos::DefaultExecutionSpace,
-    typename Kokkos::DefaultExecutionSpace::memory_space>;
+using size_type    = std::size_t;
+using layout_type  = Kokkos::LayoutLeft;
+using device_type  = typename Kokkos::Device<
+     Kokkos::DefaultExecutionSpace,
+     typename Kokkos::DefaultExecutionSpace::memory_space>;
 using execution_space = typename device_type::execution_space;
-using memory_space = typename device_type::memory_space;
-using matrix_type = typename Kokkos::View<scalar_type**, layout_type>;
+using memory_space    = typename device_type::memory_space;
+using matrix_type     = typename Kokkos::View<scalar_type**, layout_type>;
 using unmanaged_matrix_type =
-    typename Kokkos::View<scalar_type**,
-                          Kokkos::LayoutLeft,
-                          Kokkos::HostSpace,
+    typename Kokkos::View<scalar_type**, Kokkos::LayoutLeft, Kokkos::HostSpace,
                           Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
-using crs_matrix_type = typename KokkosSparse::
-    CrsMatrix<scalar_type, ordinal_type, device_type, void, size_type>;
+using crs_matrix_type =
+    typename KokkosSparse::CrsMatrix<scalar_type, ordinal_type, device_type,
+                                     void, size_type>;
 using vector_type = typename Kokkos::View<scalar_type*, layout_type>;
 using unmanaged_vector_type =
-    typename Kokkos::View<scalar_type*,
-                          Kokkos::LayoutLeft,
-                          Kokkos::HostSpace,
+    typename Kokkos::View<scalar_type*, Kokkos::LayoutLeft, Kokkos::HostSpace,
                           Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 using index_type = typename Kokkos::View<ordinal_type*, layout_type>;
 using range_type = typename Kokkos::pair<size_type, size_type>;
@@ -37,46 +34,46 @@ namespace Skema {
 
 struct Matrix_Type {
   enum type { DENSE, SPARSE };
-  static constexpr unsigned num_types = 2;
-  static constexpr type types[] = {DENSE, SPARSE};
+  static constexpr unsigned num_types  = 2;
+  static constexpr type types[]        = {DENSE, SPARSE};
   static constexpr const char* names[] = {"dense", "sparse"};
-  static constexpr type default_type = DENSE;
+  static constexpr type default_type   = DENSE;
 };
 
 struct Solver_Method {
   enum type { ISVD, SKETCH, PRIMME };
-  static constexpr unsigned num_types = 3;
-  static constexpr type types[] = {ISVD, SKETCH, PRIMME};
+  static constexpr unsigned num_types  = 3;
+  static constexpr type types[]        = {ISVD, SKETCH, PRIMME};
   static constexpr const char* names[] = {"isvd", "sketch", "primme"};
-  static constexpr type default_type = ISVD;
+  static constexpr type default_type   = ISVD;
 };
 struct Decomposition_Type {
   enum type { EIG, EIGS, SVD, SVDS };
-  static constexpr unsigned num_types = 4;
-  static constexpr type types[] = {EIG, EIGS, SVD, SVDS};
+  static constexpr unsigned num_types  = 4;
+  static constexpr type types[]        = {EIG, EIGS, SVD, SVDS};
   static constexpr const char* names[] = {"eig", "eigs", "svd", "svds"};
-  static constexpr type default_type = SVDS;
+  static constexpr type default_type   = SVDS;
 };
 struct Kernel_Map {
   enum type { NONE, GAUSSRBF };
-  static constexpr unsigned num_types = 2;
-  static constexpr type types[] = {NONE, GAUSSRBF};
+  static constexpr unsigned num_types  = 2;
+  static constexpr type types[]        = {NONE, GAUSSRBF};
   static constexpr const char* names[] = {"none", "gaussrbf"};
-  static constexpr type default_type = NONE;
+  static constexpr type default_type   = NONE;
 };
 struct Sampler_Type {
   enum type { RESERVOIR };
-  static constexpr unsigned num_types = 1;
-  static constexpr type types[] = {RESERVOIR};
+  static constexpr unsigned num_types  = 1;
+  static constexpr type types[]        = {RESERVOIR};
   static constexpr const char* names[] = {"reservoir"};
-  static constexpr type default_type = RESERVOIR;
+  static constexpr type default_type   = RESERVOIR;
 };
 struct DimRedux_Map {
   enum type { GAUSS, SPARSE_SIGN };
-  static constexpr unsigned num_types = 2;
-  static constexpr type types[] = {GAUSS, SPARSE_SIGN};
+  static constexpr unsigned num_types  = 2;
+  static constexpr type types[]        = {GAUSS, SPARSE_SIGN};
   static constexpr const char* names[] = {"gauss", "sparse-sign"};
-  static constexpr type default_type = GAUSS;
+  static constexpr type default_type   = GAUSS;
 };
 
 constexpr const Skema::Matrix_Type::type Skema::Matrix_Type::types[];

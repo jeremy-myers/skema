@@ -31,32 +31,16 @@ class ISVD_SVDS : public PRIMME_SVDS<MatrixType> {
     }
   };
 
-  void compute(const MatrixType&,
-               const size_type,
-               const size_type,
-               const size_type,
-               matrix_type&,
-               vector_type&,
-               matrix_type&,
+  void compute(const MatrixType&, const size_type, const size_type,
+               const size_type, matrix_type&, vector_type&, matrix_type&,
                vector_type&) override;
 
-  void compute(const MatrixType&,
-               const size_type,
-               const size_type,
-               const size_type,
-               matrix_type&,
-               vector_type&,
-               matrix_type&,
-               vector_type&,
-               const ReservoirSampler<MatrixType>&);
+  void compute(const MatrixType&, const size_type, const size_type,
+               const size_type, matrix_type&, vector_type&, matrix_type&,
+               vector_type&, const ReservoirSampler<MatrixType>&);
 
-  void set_u0(const MatrixType&,
-              const size_type,
-              const size_type,
-              const size_type,
-              matrix_type&,
-              vector_type&,
-              matrix_type&);
+  void set_u0(const MatrixType&, const size_type, const size_type,
+              const size_type, matrix_type&, vector_type&, matrix_type&);
 
   inline std::shared_ptr<XVDS_stats> stats() override {
     return PRIMME_SVDS<MatrixType>::stats();
@@ -73,43 +57,21 @@ template class ISVD_SVDS<crs_matrix_type>;
 
 extern "C" {
 
-void isvd_dense_convTestFun(double* sval,
-                            void* leftsvec,
-                            void* rightvec,
+void isvd_dense_convTestFun(double* sval, void* leftsvec, void* rightvec,
 
-                            double* rnorm,
-                            int* method,
-                            int* isconv,
-                            primme_svds_params* primme_svds,
-                            int* ierr);
+                            double* rnorm, int* method, int* isconv,
+                            primme_svds_params* primme_svds, int* ierr);
 
-void isvd_sparse_convTestFun(double* sval,
-                             void* leftsvec,
-                             void* rightvec,
-                             double* rnorm,
-                             int* method,
-                             int* isconv,
-                             primme_svds_params* primme_svds,
-                             int* ierr);
+void isvd_sparse_convTestFun(double* sval, void* leftsvec, void* rightvec,
+                             double* rnorm, int* method, int* isconv,
+                             primme_svds_params* primme_svds, int* ierr);
 
-void isvd_monitorFun(void* basisSvals,
-                     int* basisSize,
-                     int* basisFlags,
-                     int* iblock,
-                     int* blockSize,
-                     void* basisNorms,
-                     int* numConverged,
-                     void* lockedSvals,
-                     int* numLocked,
-                     int* lockedFlags,
-                     void* lockedNorms,
-                     int* inner_its,
-                     void* LSRes,
-                     const char* msg,
-                     double* time,
-                     primme_event* event,
-                     int* stage,
-                     primme_svds_params* primme_svds,
-                     int* ierr);
+void isvd_monitorFun(void* basisSvals, int* basisSize, int* basisFlags,
+                     int* iblock, int* blockSize, void* basisNorms,
+                     int* numConverged, void* lockedSvals, int* numLocked,
+                     int* lockedFlags, void* lockedNorms, int* inner_its,
+                     void* LSRes, const char* msg, double* time,
+                     primme_event* event, int* stage,
+                     primme_svds_params* primme_svds, int* ierr);
 }
 }  // namespace Skema

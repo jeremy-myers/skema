@@ -1,17 +1,17 @@
 
 #pragma once
-#include <map>
 #include "Skema_AlgParams.hpp"
 #include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
 #include "Skema_Window.hpp"
+#include <map>
 
 namespace Skema {
 // SketchySVD for general matrices
 template <typename MatrixType, typename DimReduxT>
 class SketchySVD {
  public:
-  SketchySVD(const AlgParams&);
+  SketchySVD(AlgParams);
   ~SketchySVD() {};
 
   auto compute_residuals(const MatrixType&) -> void;
@@ -49,10 +49,7 @@ class SketchySVD {
   std::map<std::string, std::map<std::string, scalar_type>> timings;
   std::map<std::string, std::map<std::string, std::vector<scalar_type>>> traces;
 
-  auto axpy(const double,
-            matrix_type&,
-            const double,
-            const matrix_type&,
+  auto axpy(const double, matrix_type&, const double, const matrix_type&,
             const range_type = std::make_pair<size_type>(0, 0)) -> void;
 
   auto initial_approx(bool update_timers = true)
@@ -63,11 +60,16 @@ class SketchySVD {
       -> std::tuple<matrix_type, matrix_type, matrix_type>;
 };
 
+// Driver
+template <typename MatrixType>
+void sketchy_svd(const MatrixType&, matrix_type&, vector_type&, matrix_type&,
+                 AlgParams);
+
 // SketchySVD variant for symmetric positive definite matrices
 template <typename MatrixType, typename DimReduxT>
 class SketchySPD {
  public:
-  SketchySPD(const AlgParams&);
+  SketchySPD(AlgParams);
   ~SketchySPD() {};
 
   auto compute_residuals(const MatrixType&) -> void;
@@ -98,10 +100,7 @@ class SketchySPD {
   std::map<std::string, std::map<std::string, double>> timings;
   std::map<std::string, std::map<std::string, std::vector<scalar_type>>> traces;
 
-  auto axpy(const double,
-            matrix_type&,
-            const double,
-            const matrix_type&,
+  auto axpy(const double, matrix_type&, const double, const matrix_type&,
             const range_type = std::make_pair<size_type>(0, 0)) -> void;
 
   auto update(const MatrixType&) -> matrix_type;
@@ -109,5 +108,6 @@ class SketchySPD {
 
 // Driver
 template <typename MatrixType>
-void sketchysvd(const MatrixType&, const AlgParams&);
+auto sketchy_symm_pos_def(const MatrixType&, matrix_type&, vector_type&,
+                          AlgParams) -> void;
 }  // namespace Skema
