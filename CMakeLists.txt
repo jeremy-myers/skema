@@ -126,7 +126,7 @@ set(Skema_SOURCE_LIST
 )
 
 # Future: if add any special libraries or functionality through if/else or macros,
-# append to Skema_SOURCE_LIST as: 
+# append to Skema_SOURCE_LIST as:
 #       set(Skema_SOURCE_LIST ${Skema_SOURCE_LIST} <new source file>)
 
 # Build the library
@@ -181,3 +181,19 @@ set(Skema_SOURCE_TEST
 
 add_executable(skema_unit_tests ${Skema_SOURCE_TEST})
 target_link_libraries(skema_unit_tests gtest skemalib)
+
+# Experiment files
+set(Skema_SOURCE_EXPS
+    ${Skema_SOURCE_DIR}/test/run_kernel_exp.cpp
+)
+
+add_executable(run_kernel_exp ${Skema_SOURCE_EXPS})
+target_link_libraries(run_kernel_exp skemalib)
+
+# file(COPY ${Skema_SOURCE_DIR}/test/data DESTINATION ${Skema_BINARY_DIR/test})
+add_custom_command(
+    TARGET run_kernel_exp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/test/data
+    ${CMAKE_CURRENT_BINARY_DIR}/data
+)
