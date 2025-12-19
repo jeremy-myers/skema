@@ -97,9 +97,10 @@ int main(int argc, char* argv[]) {
 
     // Fixed parameters
     isvdopt_params.isvd_initial_guess = true;
-    isvdopt_params.isvd_sampling      = true;
-    isvdopt_params.isvd_num_samples   = ISVD_NSAMPLES;
-    isvdopt_params.isvd_convtest_eps  = ISVD_CONVTEST_EPS;
+    // Note - not doing convergence test as of 12/19/25
+    // isvdopt_params.isvd_sampling      = true;
+    // isvdopt_params.isvd_num_samples   = ISVD_NSAMPLES;
+    // isvdopt_params.isvd_convtest_eps  = ISVD_CONVTEST_EPS;
 
     sketchysvd_gauss_params.dim_redux = Skema::DimRedux_Map::type::GAUSS;
     sketchyspd_gauss_params.dim_redux = Skema::DimRedux_Map::type::GAUSS;
