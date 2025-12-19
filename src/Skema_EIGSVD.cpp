@@ -97,7 +97,8 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
   primme_set_method(method, &params);
   primme_display_params(params);
 
-  /* Call primme_svds  */
+  /* Call primme_eigs */
+  std::cout << "Computing low-rank approximation" << std::endl;
   timer.reset();
   int ret;
   ret = dprimme(evals.data(), evecs.data(), rnrms.data(), &params);
@@ -106,7 +107,7 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
 
   if (ret != 0) {
     fprintf(params.outputFile,
-            "Error: primme_svds returned with nonzero exit status: %d \n", ret);
+            "Error: primme_eigs returned with nonzero exit status: %d \n", ret);
   }
   if (fp != NULL) {
     fclose(fp);
@@ -171,7 +172,8 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   primme_set_method(method, &params);
   primme_display_params(params);
 
-  /* Call primme_svds  */
+  /* Call primme_eigs  */
+  std::cout << "Computing low-rank approximation" << std::endl;
   timer.reset();
   int ret;
   ret = dprimme(evals.data(), evecs.data(), rnrms.data(), &params);
@@ -260,6 +262,7 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType& matrix,
   primme_svds_display_params(params);
 
   /* Call primme_svds  */
+  std::cout << "Computing low-rank approximation" << std::endl;
   timer.reset();
   int ret;
   ret = dprimme_svds(svals.data(), svecs.data(), rnrms.data(), &params);

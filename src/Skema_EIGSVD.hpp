@@ -166,6 +166,8 @@ inline void eigs_monitorFun(void* basisEvals, int* basisSize, int* basisFlags,
         break;
       case primme_event_converged:
         assert(numConverged && iblock && basisEvals && basisNorms);
+        printf("  (%d/%d): %E sec.\n", *numConverged, primme->numEvals,
+               primme->stats.elapsedTime);
         fprintf(primme->outputFile,
                 "#Converged %d blk %d MV %ld Sec %E tMV %E tORTH %E SV "
                 "%.16f "
@@ -213,6 +215,8 @@ inline void svds_monitorFun(void* basisSvals, int* basisSize, int* basisFlags,
         break;
       case primme_event_converged:
         assert(numConverged && iblock && basisSvals && basisNorms);
+        printf("  (%d/%d): %E sec.\n", *numConverged, primme_svds->numSvals,
+               primme_svds->primme.stats.elapsedTime);
         fprintf(primme_svds->outputFile,
                 "#Converged %d blk %d MV %ld Sec %E tMV %E tORTH %E SV %.16f "
                 "|r| %.16f\n",

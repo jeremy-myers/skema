@@ -99,6 +99,7 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X, const size_type nrow,
   primme_svds::params.outputFile = fp_output_filename;
   primme_svds::params.eps        = algParams.primme_eps;
   primme_svds::params.printLevel = algParams.primme_printLevel;
+  primme_svds::params.monitorFun = isvd_monitorFun;
   for (auto i = 0; i < 4; ++i) {
     primme_svds::params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
   }
@@ -913,4 +914,53 @@ void ISVD_SVDS<crs_matrix_type>::compute(
   compute(matrix, nrow, ncol, rank, U, S, Vt, R);
 }
 
+extern "C" {
+void isvd_monitorFun(void* basisSvals, int* basisSize, int* basisFlags,
+                     int* iblock, int* blockSize, void* basisNorms,
+                     int* numConverged, void* lockedSvals, int* numLocked,
+                     int* lockedFlags, void* lockedNorms, int* inner_its,
+                     void* LSRes, const char* msg, double* time,
+                     primme_event* event, int* stage,
+                     primme_svds_params* primme_svds, int* ierr) {
+  assert(event != NULL && primme_svds != NULL);
+
+  if (primme_svds->outputFile &&
+      (primme_svds->procID == 0 || *event == primme_event_profile)) {
+    switch (*event) {
+      case primme_event_outer_iteration:
+        assert(basisSize && (!*basisSize || (basisSvals && basisFlags)) &&
+               blockSize && (!*blockSize || (iblock && basisNorms)) &&
+               numConverged);
+        for (int i = 0; i < *blockSize; ++i) {
+          fprintf(primme_svds->outputFile,
+                  "iter %ld blk %d MV %ld Sec %E tMV %E tORTH %E SV %.16f "
+                  "|r| %.16f\n",
+                  primme_svds->primme.stats.numOuterIterations, iblock[i],
+                  primme_svds->primme.stats.numMatvecs,
+                  primme_svds->primme.stats.elapsedTime,
+                  primme_svds->primme.stats.timeMatvec,
+                  primme_svds->primme.stats.timeOrtho,
+                  ((double*)basisSvals)[iblock[i]],
+                  ((double*)basisNorms)[iblock[i]]);
+        }
+        break;
+      case primme_event_converged:
+        assert(numConverged && iblock && basisSvals && basisNorms);
+        fprintf(primme_svds->outputFile,
+                "#Converged %d blk %d MV %ld Sec %E tMV %E tORTH %E SV %.16f "
+                "|r| %.16f\n",
+                *numConverged, iblock[0], primme_svds->primme.stats.numMatvecs,
+                primme_svds->primme.stats.elapsedTime,
+                primme_svds->primme.stats.timeMatvec,
+                primme_svds->primme.stats.timeOrtho,
+                ((double*)basisSvals)[iblock[0]],
+                ((double*)basisNorms)[iblock[0]]);
+        break;
+      default: break;
+    }
+    fflush(primme_svds->outputFile);
+  }
+  *ierr = 0;
+}
+}
 }  // namespace Skema

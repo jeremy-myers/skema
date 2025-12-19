@@ -19,6 +19,9 @@
 namespace Skema {
 template <typename MatrixType>
 auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
+  double time{0.0};
+  Kokkos::Timer timer;
+
   const size_type nrow{algParams.matrix_m};
   const size_type ncol{algParams.matrix_n};
   const size_type rank{algParams.rank};
@@ -40,6 +43,9 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   range_type rlargest{std::make_pair<size_type>(0, rank)};
 
   // Get first window
+  std::cout << "Streaming input" << std::endl;
+  std::cout << "  (" << ucnt + 1 << "/" << nwindows << "): " << std::flush;
+  timer.reset();
   auto A_window = window->get(A, idx);
 
   // Sample first window
@@ -48,8 +54,6 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   sampler.sample(A_window);
 
   // Compute initial decomposition
-  std::cout << "Processing window " << ucnt + 1 << " of " << nwindows
-            << std::endl;
   solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex,
                  solver_rnrms);
 
@@ -60,6 +64,9 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
 
   // Update vvecs with svals
   distribute(svals, vtvex);
+
+  time = timer.seconds();
+  std::cout << " " << time << " sec." << std::endl;
 
   auto window_stats = window->stats();
   auto solver_stats = solver.stats();
@@ -77,14 +84,15 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
       wsize = idx.second - idx.first;
     }
 
+    std::cout << "  (" << ucnt + 1 << "/" << nwindows << "): " << std::flush;
+    timer.reset();
+
     A_window = window->get(A, idx);
 
     // Sample window
     sampler.sample(A_window);
 
     // Compute decomposition with optional sampler
-    std::cout << "Processing window " << ucnt + 1 << " of " << nwindows
-              << std::endl;
     solver.compute(A_window, rank + wsize, ncol, rank, uvecs, svals, vtvex,
                    solver_rnrms, sampler);
 
@@ -94,6 +102,9 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
 
     // Update vvecs with svals
     distribute(svals, vtvex);
+
+    time += timer.seconds();
+    std::cout << " " << time << " sec." << std::endl;
 
     window_stats = window->stats();
     solver_stats = solver.stats();
@@ -110,9 +121,6 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
 
 template <typename MatrixType>
 auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> void {
-  double time{0.0};
-  Kokkos::Timer timer;
-
   if (algParams.issymmetric) {
     auto v = Impl::transpose(vtvex);
     rnrms  = residuals(A, v, svals, rank, algParams, window);
@@ -121,8 +129,6 @@ auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> void {
     auto v = Impl::transpose(vtvex);
     rnrms  = residuals(A, u, svals, v, rank, algParams, window);
   }
-  time = timer.seconds();
-  std::cout << "Compute residuals: " << time << std::endl;
 }
 
 /* Compute U = A*V*Sigma^{-1} */
@@ -246,9 +252,16 @@ void isvd(const matrix_type& A, matrix_type& U, vector_type& S, matrix_type& V,
 template <>
 void isvd(const crs_matrix_type& A, matrix_type& U, vector_type& S,
           matrix_type& V, AlgParams algParams) {
+  double time{0.0};
+  Kokkos::Timer timer;
+
   ISVD<crs_matrix_type> sketch(algParams);
   sketch.solve(A);
+
+  timer.reset();
   sketch.compute_residuals(A);
+  time = timer.seconds();
+  std::cout << "Compute residuals: " << time << " sec." << std::endl;
 
   U = sketch.U();
   S = sketch.S();

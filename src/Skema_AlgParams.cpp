@@ -49,6 +49,8 @@ Skema::AlgParams::AlgParams()
       primme_methodStage2("PRIMME_DEFAULT_METHOD"),
       sketch_range(1),
       sketch_core(1),
+      sketch_eta(1.0),
+      sketch_nu(1.0),
       force_three_sketch(false),
       sketch_compute_svals_iters(false),
       dim_redux(Skema::DimRedux_Map::default_type),
@@ -62,11 +64,8 @@ void Skema::error(std::string s) {
 }
 
 void Skema::AlgParams::print(std::ostream& out) const {
+  out << "  solver = " << Skema::Solver_Method::names[solver] << std::endl;
   out << "  rank = " << rank << std::endl;
-  out << "  num passes = " << num_passes << std::endl;
-  out << "  history file = "
-      << (!history_filename.empty() ? history_filename.string() : "stdout")
-      << std::endl;
   if (window > 0) {
     out << "  window = " << window << std::endl;
   }
@@ -94,8 +93,10 @@ void Skema::AlgParams::print(std::ostream& out) const {
         out << "  PRIMME methodStage2 = " << primme_methodStage2 << std::endl;
         out << "  PRIMME printLevel = " << primme_printLevel << std::endl;
         out << "  PRIMME tolerance = " << primme_eps << std::endl;
-        out << "  PRIMME locking = " << std::boolalpha << primme_locking
-            << std::endl;
+        if (primme_locking) {
+          out << "  PRIMME locking = " << std::boolalpha << primme_locking
+              << std::endl;
+        }
         if (isvd_num_samples > 0) {
           out << "  PRIMME conv test func eps = " << isvd_convtest_eps
               << std::endl;
@@ -129,15 +130,19 @@ void Skema::AlgParams::print(std::ostream& out) const {
 
       break;
 
-    case Skema::Solver_Method::SKETCH:
+    case Skema::Solver_Method::SKETCHY_SVD:
+    case Skema::Solver_Method::SKETCHY_SPD:
       out << "  range = " << sketch_range << std::endl;
       out << "  core = " << sketch_core << std::endl;
       out << "  eta = " << sketch_eta << std::endl;
       out << "  nu = " << sketch_nu << std::endl;
-      out << "  model = " << Skema::DimRedux_Map::names[dim_redux] << std::endl;
+      out << "  dimredux = " << Skema::DimRedux_Map::names[dim_redux]
+          << std::endl;
       break;
 
-    case Skema::Solver_Method::PRIMME:
+    case Skema::Solver_Method::PRIMME_SVDS:
+    case Skema::Solver_Method::PRIMME_EIGS:
+      out << "  Solver: PRIMME" << std::endl;
       out << "  PRIMME method = " << primme_method << std::endl;
       out << "  PRIMME methodStage2 = " << primme_methodStage2 << std::endl;
       out << "  PRIMME printLevel = " << primme_printLevel << std::endl;
@@ -175,7 +180,12 @@ void Skema::AlgParams::print(std::ostream& out) const {
     out << "  kernel = " << Skema::Kernel_Map::names[kernel_func] << std::endl;
     out << "  gamma = " << kernel_gamma << std::endl;
   }
-  out << "  Rayleigh-Ritz = " << std::boolalpha << rayleigh_ritz_pass
+  if (rayleigh_ritz_pass) {
+    out << "  Rayleigh-Ritz = " << std::boolalpha << rayleigh_ritz_pass
+        << std::endl;
+  }
+  out << "  history file = "
+      << (!history_filename.empty() ? history_filename.string() : "stdout")
       << std::endl;
 }
 

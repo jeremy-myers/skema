@@ -109,6 +109,7 @@ SketchySVD<MatrixType, DimReduxT>::SketchySVD(AlgParams algParams_)
 template <typename MatrixType, typename DimReduxT>
 auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     -> void {
+  double time{0.0};
   Kokkos::Timer timer;
   size_type wsize{algParams.window};
   range_type idx;
@@ -148,13 +149,16 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
   }
 
   /* Main loop */
-  // window count
-  ordinal_type ucnt{0};
+  time = 0.0;
+  ordinal_type ucnt{0};  // window count
+  const size_type nwindows{static_cast<size_type>(std::ceil(nrow / wsize))};
 
   // Compute svals after every window
   bool compute_svals_iters{algParams.sketch_compute_svals_iters};
-
+  std::cout << "Streaming input" << std::endl;
   for (auto irow = 0; irow < nrow; irow += wsize) {
+    std::cout << "  (" << ucnt + 1 << "/" << nwindows << "): " << std::flush;
+
     if (irow + wsize < nrow) {
       idx = std::make_pair(irow, irow + wsize);
     } else {
@@ -165,8 +169,11 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     timer.reset();
     auto H = window->get(A, idx);
     timings["update"]["window"] += timer.seconds();
+    time += timer.seconds();
 
+    timer.reset();
     std::tie(x, y, z) = update(H, idx);
+    time += timer.seconds();
 
     timings["update"]["upsilon"] += Upsilon.stats.map;
     timings["update"]["omega"] += Omega.stats.map;
@@ -178,22 +185,7 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     axpy(nu, Z, eta, z);
     axpy(nu, Y, eta, y, idx);
     timings["update"]["daxpy"] += timer.seconds();
-
-    if (!algParams.debug_filename.empty()) {
-      std::string fname;
-
-      fname = algParams.debug_filename.filename().stem().string() + "_X.txt" +
-              "." + std::to_string(ucnt);
-      Impl::write(X, fname.c_str());
-
-      fname = algParams.debug_filename.filename().stem().string() + "_Y.txt" +
-              "." + std::to_string(ucnt);
-      Impl::write(Y, fname.c_str());
-
-      fname = algParams.debug_filename.filename().stem().string() + "_Z.txt" +
-              "." + std::to_string(ucnt);
-      Impl::write(Z, fname.c_str());
-    }
+    time += timer.seconds();
 
     if (compute_svals_iters) {
       low_rank_approx(false);
@@ -205,21 +197,9 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
       traces[c]["svals"] = s_window;
     }
 
+    std::cout << " " << time << " sec." << std::endl;
+
     ++ucnt;
-
-    if (algParams.debug) {
-      std::cout << "H = \n";
-      Impl::print(H);
-
-      std::cout << "X = \n";
-      Impl::print(X);
-
-      std::cout << "Y = \n";
-      Impl::print(Y);
-
-      std::cout << "Z = \n";
-      Impl::print(Z);
-    }
   }
 
   if (!algParams.debug_filename.empty()) {
@@ -335,9 +315,8 @@ auto SketchySVD<MatrixType, DimReduxT>::initial_approx(bool update_timers)
 
   /* Compute initial approximation */
   // [P,~] = qr(X^T,0);
-  if (print_level > 0) {
-    std::cout << "SketchSVD::initial_approx: [P,~] = qr(X^T,0)" << std::endl;
-  }
+  std::cout << "  Computing initial approximation" << std::endl;
+  std::cout << "    Computing [P,~] = qr(X^T,0)" << std::endl;
   timer.reset();
   auto P = Impl::transpose(X);
   try {
@@ -358,9 +337,7 @@ auto SketchySVD<MatrixType, DimReduxT>::initial_approx(bool update_timers)
     Impl::write(P, fname.c_str());
   }
 
-  if (print_level > 0) {
-    std::cout << "SketchSVD::initial_approx: [Q,~] = qr(Y,0);" << std::endl;
-  }
+  std::cout << "    Computing [Q,~] = qr(Y,0);" << std::endl;
   // [Q,~] = qr(Y,0);
   timer.reset();
   // matrix_type Q("Q", Y.extent(0), Y.extent(1));
@@ -383,9 +360,7 @@ auto SketchySVD<MatrixType, DimReduxT>::initial_approx(bool update_timers)
     Impl::write(Q, fname.c_str());
   }
 
-  if (print_level > 0) {
-    std::cout << "SketchSVD::initial_approx: Phi*Q" << std::endl;
-  }
+  std::cout << "    Computing Phi*Q" << std::endl;
   // [U1,T1] = qr(Phi*Q,0);
   // [U2,T2] = qr(Psi*P,0);
   // W = T1\(U1'*Z*U2)/T2';
@@ -409,9 +384,7 @@ auto SketchySVD<MatrixType, DimReduxT>::initial_approx(bool update_timers)
     Impl::write(U1, fname.c_str());
   }
 
-  if (print_level > 0) {
-    std::cout << "SketchSVD::initial_approx: Psi*P" << std::endl;
-  }
+  std::cout << "    Computing Psi*P" << std::endl;
   timer.reset();
   try {
     U2 = Psi.apply_left(&one, P, &zero, 'N', 'N');
@@ -430,10 +403,7 @@ auto SketchySVD<MatrixType, DimReduxT>::initial_approx(bool update_timers)
     Impl::write(U2, fname.c_str());
   }
 
-  if (print_level > 0) {
-    std::cout << "SketchSVD::initial_approx: [U2,T2] = qr(Phi*Q,0);"
-              << std::endl;
-  }
+  std::cout << "    [U2,T2] = qr(Phi*Q,0);" << std::endl;
   timer.reset();
   matrix_type T1("T1", range, range);
   try {
@@ -453,10 +423,7 @@ auto SketchySVD<MatrixType, DimReduxT>::initial_approx(bool update_timers)
     Impl::write(T1, fname.c_str());
   }
 
-  if (print_level > 0) {
-    std::cout << "SketchSVD::initial_approx: [U2,T2] = qr(Psi*P,0);"
-              << std::endl;
-  }
+  std::cout << "    Computing [U2,T2] = qr(Psi*P,0);" << std::endl;
   timer.reset();
   matrix_type T2("T2", range, range);
   try {
@@ -478,9 +445,7 @@ auto SketchySVD<MatrixType, DimReduxT>::initial_approx(bool update_timers)
 
   // Z2 = U1'*obj.Z*U2;
   // Z1 = U1'*Ztmp
-  if (print_level > 0) {
-    std::cout << "SketchSVD::initial_approx: Z2 = U1'*obj.Z*U2;" << std::endl;
-  }
+  std::cout << "    Computing Z2 = U1'*obj.Z*U2;" << std::endl;
   timer.reset();
   matrix_type Z1("Z1", range, core);
   try {
@@ -510,9 +475,7 @@ auto SketchySVD<MatrixType, DimReduxT>::initial_approx(bool update_timers)
     timings["approx"]["dgemm"] += timer.seconds();
   }
 
-  if (print_level > 0) {
-    std::cout << "SketchSVD::initial_approx: Z2 = T1\\Z2;" << std::endl;
-  }
+  std::cout << "    Computing Z2 = T1\\Z2;" << std::endl;
   // Z2 = T1\Z2; \ is MATLAB mldivide(T1,Z2);
   timer.reset();
   try {
@@ -527,9 +490,7 @@ auto SketchySVD<MatrixType, DimReduxT>::initial_approx(bool update_timers)
     timings["approx"]["dgels"] += timer.seconds();
   }
 
-  if (print_level > 0) {
-    std::cout << "SketchSVD::initial_approx: W^T = Z2/(T2');" << std::endl;
-  }
+  std::cout << "    Computing W^T = Z2/(T2');" << std::endl;
   // B/A = (A'\B')'.
   // W^T = Z2/(T2'); / is MATLAB mldivide(T2,Z2')'
   timer.reset();
@@ -571,9 +532,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   const int print_level{algParams.print_level};
   const bool debug{algParams.debug};
 
-  if (print_level > 0) {
-    std::cout << "\nComputing fixed-rank approximation" << std::endl;
-  }
+  std::cout << "Computing fixed-rank approximation" << std::endl;
 
   Kokkos::Timer timer;
 
@@ -583,11 +542,8 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   matrix_type P;
   std::tie(Q, C, P) = initial_approx();
 
-  if (print_level > 0) {
-    std::cout << "SketchSVD::fixed_rank_approx: [uu,ss,vv] = svd(Z)"
-              << std::endl;
-  }
   // [uu,ss,vv] = svd(Z)
+  std::cout << "  Computing [uu,ss,vv] = svd(Z)" << std::endl;
   timer.reset();
   matrix_type U("U", range, range);
   vector_type S("S", range);
@@ -612,9 +568,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   Kokkos::resize(svals, rank);
   Kokkos::deep_copy(svals, sr);
 
-  if (print_level > 0) {
-    std::cout << "SketchSVD::fixed_rank_approx: U = Q*U" << std::endl;
-  }
+  std::cout << "  Computing U = Q*U" << std::endl;
   // U = Q*U;
   timer.reset();
   // matrix_type QU("QU", nrow, range);
@@ -631,9 +585,7 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
     timings["approx"]["dgemm"] += timer.seconds();
   }
 
-  if (print_level > 0) {
-    std::cout << "SketchSVD::fixed_rank_approx: V = P*Vt'" << std::endl;
-  }
+  std::cout << "  Computing V = P*Vt'" << std::endl;
   // V = P*Vt';
   timer.reset();
   // matrix_type PV("PV", ncol, range);
@@ -805,12 +757,6 @@ auto sketchy_svd(const matrix_type& matrix, matrix_type& U, vector_type& S,
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
     }
-    if (algParams.rayleigh_ritz_pass) {
-      AlgParams params(algParams);
-      params.primme_maxIter      = 2;
-      params.primme_maxBlockSize = algParams.rank;
-      primme_svds(matrix, U, S, V, params);
-    }
   } else {
     std::cout << "DimRedux: make another selection." << std::endl;
     exit(1);
@@ -849,13 +795,6 @@ auto sketchy_svd(const crs_matrix_type& matrix, matrix_type& U, vector_type& S,
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
     }
-    if (algParams.rayleigh_ritz_pass) {
-      AlgParams params(algParams);
-      params.primme_maxIter      = 2;
-      params.primme_maxBlockSize = algParams.rank;
-      primme_svds(matrix, U, S, V, params);
-    }
-
   } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
     SketchySVD<crs_matrix_type, SparseSignDimRedux> sketch(algParams);
     try {

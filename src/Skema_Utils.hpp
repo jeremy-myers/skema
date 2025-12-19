@@ -41,10 +41,12 @@ struct Matrix_Type {
 };
 
 struct Solver_Method {
-  enum type { ISVD, SKETCH, PRIMME };
-  static constexpr unsigned num_types  = 3;
-  static constexpr type types[]        = {ISVD, SKETCH, PRIMME};
-  static constexpr const char* names[] = {"isvd", "sketch", "primme"};
+  enum type { ISVD, SKETCHY_SVD, SKETCHY_SPD, PRIMME_SVDS, PRIMME_EIGS };
+  static constexpr unsigned num_types = 5;
+  static constexpr type types[] = {ISVD, SKETCHY_SVD, SKETCHY_SPD, PRIMME_SVDS,
+                                   PRIMME_EIGS};
+  static constexpr const char* names[] = {"isvd", "sketchy_svd", "sketchy_spd",
+                                          "primme_svds", "primme_eigs"};
   static constexpr type default_type   = ISVD;
 };
 struct Decomposition_Type {

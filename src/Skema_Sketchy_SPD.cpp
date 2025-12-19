@@ -67,49 +67,40 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     axpy(nu, Y, eta, y);
     timings["update"]["daxpy"] += timer.seconds();
 
-    if (algParams.debug) {
-      std::cout << "H = \n";
-      Impl::print(H);
-
-      std::cout << "Y = \n";
-      Impl::print(Y);
-    }
     return;
   }
 
   /* Main loop */
+  time = 0.0;
   ordinal_type ucnt{0};  // window count
-
-  // Compute svals after every window
-  // bool compute_svals_iters{algParams.sketch_compute_svals_iters};
+  const size_type nwindows{static_cast<size_type>(std::ceil(nrow / wsize))};
+  std::cout << "Streaming input" << std::endl;
   for (auto irow = 0; irow < nrow; irow += wsize) {
+    std::cout << "  (" << ucnt + 1 << "/" << nwindows << "): " << std::flush;
+
     if (irow + wsize < nrow) {
       idx = std::make_pair(irow, irow + wsize);
     } else {
       idx   = std::make_pair(irow, nrow);
       wsize = idx.second - idx.first;
     }
-    // std::cout << "idx.first = " << idx.first << ", idx.second = " <<
-    // idx.second << std::endl;
+
     timer.reset();
     auto H = window->get(A, idx);
     timings["update"]["window"] += timer.seconds();
+    time += timer.seconds();
 
     timer.reset();
     y = update(H);
     timings["update"]["omega"] += timer.seconds();
+    time += timer.seconds();
 
     timer.reset();
     axpy(nu, Y, eta, y, idx);
     timings["update"]["daxpy"] += timer.seconds();
+    time += timer.seconds();
 
-    if (algParams.debug) {
-      std::cout << "H = \n";
-      Impl::print(H);
-
-      std::cout << "Y = \n";
-      Impl::print(Y);
-    }
+    std::cout << " " << time << " sec." << std::endl;
 
     ++ucnt;
   }
@@ -173,7 +164,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   // Numerically stable Fixed-Rank Nyström Approximation. Instead of
   // approximating the psd matrix A directly, we approximate the shifted matrix
   // Aν = A + νI and then remove the shift.
-  std::cout << "\nComputing fixed-rank PSD approximation" << std::endl;
+  std::cout << "Computing fixed-rank PSD approximation" << std::endl;
 
   Kokkos::Timer timer;
   scalar_type time{0.0};
@@ -190,7 +181,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   // Construct the shifted sketch Yν = Y + νΩ.
   // Compute nu = machine_eps * norm(Y)
   // Here copy Y because nrm2 overwrites
-  std::cout << "\nComputing norm(Y)" << std::endl;
+  std::cout << "  Computing norm(Y)" << std::endl;
   matrix_type Y_copy("Y_copy", Y.extent(0), Y.extent(1));
   Kokkos::deep_copy(Y_copy, Y);
   scalar_type shift;
@@ -214,7 +205,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   }
 
   // Construct shifted sketch
-  std::cout << "\nComputing norm(Y)*Omega" << std::endl;
+  std::cout << "  Computing norm(Y)*Omega" << std::endl;
   timer.reset();
   try {
     Omega.scale_and_add(shift, Y);
@@ -233,7 +224,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   }
 
   // Form the matrix B = Ω∗Yν
-  std::cout << "\nComputing B = norm(Y)*Omega^T * Y" << std::endl;
+  std::cout << "  Computing B = norm(Y)*Omega^T * Y" << std::endl;
   timer.reset();
   matrix_type B;
   try {
@@ -254,7 +245,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   }
 
   // Compute a Cholesky decomposition B = CC^*
-  std::cout << "\nComputing C = (B+B^T)/2" << std::endl;
+  std::cout << "  Computing C = (B+B^T)/2" << std::endl;
   timer.reset();
   auto Bt = Impl::transpose(B);
   assert((B.extent(0) == B.extent(1)) && "Axis 0 of B must match axis 1");
@@ -278,17 +269,13 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   }
 
   // C = chol( (B + B^T) / 2)
-  std::cout << "\nComputing LL^T = chol(C)" << std::endl;
+  std::cout << "  Computing LL^T = chol(C)" << std::endl;
   int blaslapack_ret;
   blaslapack_ret = linalg::chol(C);
   if (blaslapack_ret != 0) {
     std::cout << "Skema::sketchyspd::low_rank_approx::chol encountered an "
                  "exception"
               << std::endl;
-    // Impl::write(B, "sketchysvd_chol_failure_B.txt");
-    // Impl::write(C, "sketchysvd_chol_failure_C.txt");
-    // Impl::write(Y, "sketchysvd_chol_failure_Y.txt");
-    exit(EXIT_FAILURE);
   }
   Kokkos::fence();
   if (update_timers) {
@@ -302,7 +289,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   // Compute E = YνC^{−1} by back-substitution
   // Least squares problem Y / C
   // W = Y/C; MATLAB: (C'\Y')'; / is MATLAB mldivide(C',Y')'
-  std::cout << "\nComputing E = Y * C^-1" << std::endl;
+  std::cout << "  Computing E = Y * C^-1" << std::endl;
   timer.reset();
   auto Yt = Impl::transpose(Y);
   try {
@@ -321,7 +308,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   }
 
   // Compute the (thin) singular value decomposition E = UΣV^*
-  std::cout << "\nComputing E = USV^T" << std::endl;
+  std::cout << "  Computing E = USV^T" << std::endl;
   const size_type mw{Y.extent(0)};
   const size_type nw{Y.extent(1)};
   const size_type min_mnw{std::min(mw, nw)};
@@ -343,7 +330,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   }
 
   // Truncate to rank r
-  std::cout << "\nTruncate to rank r" << std::endl;
+  std::cout << "  Truncating to rank r" << std::endl;
   range_type rlargest = std::make_pair<size_type>(0, rank);
   uvecs               = Kokkos::subview(Uwy, Kokkos::ALL(), rlargest);
 
@@ -351,7 +338,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   svals = Kokkos::subview(Swy, rlargest);
 
   // Square to get eigenvalues; remove shift
-  std::cout << "\nRemove shift" << std::endl;
+  std::cout << "  Removing shift" << std::endl;
   for (auto rr = 0; rr < rank; ++rr) {
     scalar_type remove_shift = svals(rr) * svals(rr) - shift;
     svals(rr)                = std::max(0.0, remove_shift);
@@ -417,7 +404,7 @@ auto SketchySPD<MatrixType, DimReduxT>::compute_residuals(const MatrixType& A)
   Kokkos::Timer timer;
   rnrms = residuals(A, uvecs, svals, rank, algParams, window);
   time  = timer.seconds();
-  std::cout << "\nCompute residuals: " << time << std::endl;
+  std::cout << "Compute residuals: " << time << std::endl;
 }
 
 template <typename MatrixType, typename DimReduxT>
@@ -480,6 +467,16 @@ auto sketchy_symm_pos_def(const matrix_type& matrix, matrix_type& U,
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
     }
+    if (algParams.rayleigh_ritz_pass) {
+      AlgParams params(algParams);
+      params.primme_maxIter      = 2;
+      params.primme_maxBlockSize = algParams.rank;
+      try {
+        primme_eigs(matrix, U, S, params);
+      } catch (std::exception& e) {
+        std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
+      }
+    }
   } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
     SketchySPD<matrix_type, SparseSignDimRedux> sketch(algParams);
     try {
@@ -513,7 +510,11 @@ auto sketchy_symm_pos_def(const matrix_type& matrix, matrix_type& U,
       AlgParams params(algParams);
       params.primme_maxIter      = 2;
       params.primme_maxBlockSize = algParams.rank;
-      primme_eigs(matrix, U, S, params);
+      try {
+        primme_eigs(matrix, U, S, params);
+      } catch (std::exception& e) {
+        std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
+      }
     }
   } else {
     std::cout << "DimRedux: make another selection." << std::endl;
@@ -557,7 +558,11 @@ auto sketchy_symm_pos_def(const crs_matrix_type& matrix, matrix_type& U,
       AlgParams params(algParams);
       params.primme_maxIter      = 2;
       params.primme_maxBlockSize = algParams.rank;
-      primme_eigs(matrix, U, S, params);
+      try {
+        primme_eigs(matrix, U, S, params);
+      } catch (std::exception& e) {
+        std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
+      }
     }
   } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
     SketchySPD<crs_matrix_type, SparseSignDimRedux> sketch(algParams);
@@ -592,7 +597,11 @@ auto sketchy_symm_pos_def(const crs_matrix_type& matrix, matrix_type& U,
       AlgParams params(algParams);
       params.primme_maxIter      = 2;
       params.primme_maxBlockSize = algParams.rank;
-      primme_eigs(matrix, U, S, params);
+      try {
+        primme_eigs(matrix, U, S, params);
+      } catch (std::exception& e) {
+        std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
+      }
     }
   } else {
     std::cout << "DimRedux: Invalid option. Make another selection."

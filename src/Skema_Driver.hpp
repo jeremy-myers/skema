@@ -54,38 +54,35 @@ inline auto driver(const MatrixType& matrix, AlgParams algParams)
     exit(EXIT_FAILURE);
   }
 
-  std::cout << "\nMatrix: " << algParams.matrix_m << " x "
-            << algParams.matrix_n;
-  if (algParams.issparse) {
-    std::cout << ", nnz = " << algParams.matrix_nnz << " ("
-              << (scalar_type(algParams.matrix_nnz) /
-                  scalar_type(algParams.matrix_m * algParams.matrix_n)) *
-                     100
-              << "\% dense)";
-  }
-  std::cout << std::endl;
+  std::cout << "\nMatrix: " << algParams.matrix_m << " x " << algParams.matrix_n
+            << ", nnz = " << algParams.matrix_nnz << " ("
+            << (scalar_type(algParams.matrix_nnz) /
+                scalar_type(algParams.matrix_m * algParams.matrix_n)) *
+                   100
+            << "\% dense)" << std::endl;
+
+  std::cout << "Algorithm configuration: " << std::endl;
+  algParams.print(std::cout);
 
   matrix_type u;
   vector_type s;
   matrix_type v;
 
   switch (Skema::Solver_Method::types[algParams.solver]) {
-    case Skema::Solver_Method::PRIMME:
-      if (algParams.issymmetric) {
-        primme_eigs(matrix, u, s, algParams);
-        v = u;
-      } else {
-        primme_svds(matrix, u, s, v, algParams);
-      }
+    case Skema::Solver_Method::PRIMME_EIGS:
+      primme_eigs(matrix, u, s, algParams);
+      v = u;
+      break;
+    case Skema::Solver_Method::PRIMME_SVDS:
+      primme_svds(matrix, u, s, v, algParams);
       break;
     case Skema::Solver_Method::ISVD: isvd(matrix, u, s, v, algParams); break;
-    case Skema::Solver_Method::SKETCH:
-      if ((algParams.issymmetric) && (!algParams.force_three_sketch)) {
-        sketchy_symm_pos_def(matrix, u, s, algParams);
-        v = u;
-      } else {
-        sketchy_svd(matrix, u, s, v, algParams);
-      }
+    case Skema::Solver_Method::SKETCHY_SPD:
+      sketchy_symm_pos_def(matrix, u, s, algParams);
+      v = u;
+      break;
+    case Skema::Solver_Method::SKETCHY_SVD:
+      sketchy_svd(matrix, u, s, v, algParams);
       break;
   }
 
