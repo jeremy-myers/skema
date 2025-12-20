@@ -399,12 +399,13 @@ auto SketchySPD<MatrixT, DimReduxT>::axpy(const double eta, matrix_type& Y,
 
 template <typename MatrixType, typename DimReduxT>
 auto SketchySPD<MatrixType, DimReduxT>::compute_residuals(const MatrixType& A)
-    -> void {  // Compute final residuals
+    -> vector_type {  // Compute final residuals
   double time{0.0};
   Kokkos::Timer timer;
   rnrms = residuals(A, uvecs, svals, rank, algParams, window);
   time  = timer.seconds();
   std::cout << "Compute residuals: " << time << std::endl;
+  return rnrms;
 }
 
 template <typename MatrixType, typename DimReduxT>
@@ -437,7 +438,8 @@ auto SketchySPD<MatrixType, DimReduxT>::save_history(
 // Drivers
 template <>
 auto sketchy_symm_pos_def(const matrix_type& matrix, matrix_type& U,
-                          vector_type& S, AlgParams algParams) -> void {
+                          vector_type& S, vector_type& R, AlgParams algParams)
+    -> void {
   if (algParams.dim_redux == DimRedux_Map::GAUSS) {
     SketchySPD<matrix_type, GaussDimRedux> sketch(algParams);
     try {
@@ -457,7 +459,7 @@ auto sketchy_symm_pos_def(const matrix_type& matrix, matrix_type& U,
       exit(EXIT_FAILURE);
     }
     try {
-      sketch.compute_residuals(matrix);
+      R = sketch.compute_residuals(matrix);
     } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::compute_residuals encountered an "
                    "exception: "
@@ -467,16 +469,16 @@ auto sketchy_symm_pos_def(const matrix_type& matrix, matrix_type& U,
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
     }
-    if (algParams.rayleigh_ritz_pass) {
-      AlgParams params(algParams);
-      params.primme_maxIter      = 2;
-      params.primme_maxBlockSize = algParams.rank;
-      try {
-        primme_eigs(matrix, U, S, params);
-      } catch (std::exception& e) {
-        std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
-      }
-    }
+    // if (algParams.rayleigh_ritz_pass) {
+    //   AlgParams params(algParams);
+    //   params.primme_maxIter      = 2;
+    //   params.primme_maxBlockSize = algParams.rank;
+    //   try {
+    //     primme_eigs(matrix, U, S, params);
+    //   } catch (std::exception& e) {
+    //     std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
+    //   }
+    // }
   } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
     SketchySPD<matrix_type, SparseSignDimRedux> sketch(algParams);
     try {
@@ -496,7 +498,7 @@ auto sketchy_symm_pos_def(const matrix_type& matrix, matrix_type& U,
       exit(EXIT_FAILURE);
     }
     try {
-      sketch.compute_residuals(matrix);
+      R = sketch.compute_residuals(matrix);
     } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::compute_residuals encountered an "
                    "exception: "
@@ -506,16 +508,17 @@ auto sketchy_symm_pos_def(const matrix_type& matrix, matrix_type& U,
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
     }
-    if (algParams.rayleigh_ritz_pass) {
-      AlgParams params(algParams);
-      params.primme_maxIter      = 2;
-      params.primme_maxBlockSize = algParams.rank;
-      try {
-        primme_eigs(matrix, U, S, params);
-      } catch (std::exception& e) {
-        std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
-      }
-    }
+    // if (algParams.rayleigh_ritz_pass) {
+    //   AlgParams params(algParams);
+    //   params.primme_maxIter      = 2;
+    //   params.primme_maxBlockSize = algParams.rank;
+    //   vector_type R_rr;
+    //   try {
+    //     primme_eigs(matrix, U, S, R_rr, params);
+    //   } catch (std::exception& e) {
+    //     std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
+    //   }
+    // }
   } else {
     std::cout << "DimRedux: make another selection." << std::endl;
     exit(1);
@@ -524,7 +527,8 @@ auto sketchy_symm_pos_def(const matrix_type& matrix, matrix_type& U,
 
 template <>
 auto sketchy_symm_pos_def(const crs_matrix_type& matrix, matrix_type& U,
-                          vector_type& S, AlgParams algParams) -> void {
+                          vector_type& S, vector_type& R, AlgParams algParams)
+    -> void {
   if (algParams.dim_redux == DimRedux_Map::GAUSS) {
     SketchySPD<crs_matrix_type, GaussDimRedux> sketch(algParams);
     try {
@@ -544,7 +548,7 @@ auto sketchy_symm_pos_def(const crs_matrix_type& matrix, matrix_type& U,
       exit(EXIT_FAILURE);
     }
     try {
-      sketch.compute_residuals(matrix);
+      R = sketch.compute_residuals(matrix);
     } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::compute_residuals encountered an "
                    "exception: "
@@ -554,16 +558,17 @@ auto sketchy_symm_pos_def(const crs_matrix_type& matrix, matrix_type& U,
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
     }
-    if (algParams.rayleigh_ritz_pass) {
-      AlgParams params(algParams);
-      params.primme_maxIter      = 2;
-      params.primme_maxBlockSize = algParams.rank;
-      try {
-        primme_eigs(matrix, U, S, params);
-      } catch (std::exception& e) {
-        std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
-      }
-    }
+    // if (algParams.rayleigh_ritz_pass) {
+    //   AlgParams params(algParams);
+    //   params.primme_maxIter      = 2;
+    //   params.primme_maxBlockSize = algParams.rank;
+    //   try {
+    //     vector_type R_rr;
+    //     primme_eigs(matrix, U, S, R_rr, params);
+    //   } catch (std::exception& e) {
+    //     std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
+    //   }
+    // }
   } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
     SketchySPD<crs_matrix_type, SparseSignDimRedux> sketch(algParams);
     try {
@@ -583,7 +588,7 @@ auto sketchy_symm_pos_def(const crs_matrix_type& matrix, matrix_type& U,
       exit(EXIT_FAILURE);
     }
     try {
-      sketch.compute_residuals(matrix);
+      R = sketch.compute_residuals(matrix);
     } catch (const std::exception& e) {
       std::cout << "Skema::sketchyspd::compute_residuals encountered an "
                    "exception: "
@@ -593,16 +598,17 @@ auto sketchy_symm_pos_def(const crs_matrix_type& matrix, matrix_type& U,
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
     }
-    if (algParams.rayleigh_ritz_pass) {
-      AlgParams params(algParams);
-      params.primme_maxIter      = 2;
-      params.primme_maxBlockSize = algParams.rank;
-      try {
-        primme_eigs(matrix, U, S, params);
-      } catch (std::exception& e) {
-        std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
-      }
-    }
+    // if (algParams.rayleigh_ritz_pass) {
+    //   AlgParams params(algParams);
+    //   params.primme_maxIter      = 2;
+    //   params.primme_maxBlockSize = algParams.rank;
+    //   try {
+    //     vector_type R_rr;
+    //     primme_eigs(matrix, U, S, R_rr, params);
+    //   } catch (std::exception& e) {
+    //     std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
+    //   }
+    // }
   } else {
     std::cout << "DimRedux: Invalid option. Make another selection."
               << std::endl;

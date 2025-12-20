@@ -11,7 +11,7 @@
 namespace Skema {
 template <typename MatrixType>
 inline auto driver(const MatrixType& matrix, AlgParams algParams)
-    -> std::tuple<matrix_type, vector_type, matrix_type> {
+    -> std::tuple<matrix_type, vector_type, matrix_type, vector_type> {
   /* Fix ups */
   if constexpr (std::is_same_v<MatrixType, matrix_type>) {
     algParams.matrix_m = matrix.extent(0);
@@ -67,25 +67,26 @@ inline auto driver(const MatrixType& matrix, AlgParams algParams)
   matrix_type u;
   vector_type s;
   matrix_type v;
+  vector_type r;
 
   switch (Skema::Solver_Method::types[algParams.solver]) {
     case Skema::Solver_Method::PRIMME_EIGS:
-      primme_eigs(matrix, u, s, algParams);
+      primme_eigs(matrix, u, s, r, algParams);
       v = u;
       break;
     case Skema::Solver_Method::PRIMME_SVDS:
-      primme_svds(matrix, u, s, v, algParams);
+      primme_svds(matrix, u, s, v, r, algParams);
       break;
-    case Skema::Solver_Method::ISVD: isvd(matrix, u, s, v, algParams); break;
+    case Skema::Solver_Method::ISVD: isvd(matrix, u, s, v, r, algParams); break;
     case Skema::Solver_Method::SKETCHY_SPD:
-      sketchy_symm_pos_def(matrix, u, s, algParams);
+      sketchy_symm_pos_def(matrix, u, s, r, algParams);
       v = u;
       break;
     case Skema::Solver_Method::SKETCHY_SVD:
-      sketchy_svd(matrix, u, s, v, algParams);
+      sketchy_svd(matrix, u, s, v, r, algParams);
       break;
   }
 
-  return std::make_tuple(u, s, v);
+  return std::make_tuple(u, s, v, r);
 }
 }  // namespace Skema

@@ -36,7 +36,7 @@ class ISVD {
   ~ISVD() {};
 
   /* Public methods */
-  auto compute_residuals(const MatrixType&) -> void;
+  auto compute_residuals(const MatrixType&) -> vector_type;
   auto save_history(std::filesystem::path) -> void;
   auto solve(const MatrixType&) -> void;
 
@@ -96,5 +96,5 @@ template class ISVD<crs_matrix_type>;
 
 template <typename MatrixType>
 void isvd(const MatrixType&, matrix_type&, vector_type&, matrix_type&,
-          AlgParams);
+          vector_type&, AlgParams);
 }  // namespace Skema

@@ -14,7 +14,7 @@ class SketchySVD {
   SketchySVD(AlgParams);
   ~SketchySVD() {};
 
-  auto compute_residuals(const MatrixType&) -> void;
+  auto compute_residuals(const MatrixType&) -> vector_type;
   auto linear_update(const MatrixType&) -> void;
   auto low_rank_approx(bool update_timers = true)
       -> std::tuple<matrix_type, vector_type, matrix_type>;
@@ -63,7 +63,7 @@ class SketchySVD {
 // Driver
 template <typename MatrixType>
 void sketchy_svd(const MatrixType&, matrix_type&, vector_type&, matrix_type&,
-                 AlgParams);
+                 vector_type&, AlgParams);
 
 // SketchySVD variant for symmetric positive definite matrices
 template <typename MatrixType, typename DimReduxT>
@@ -72,7 +72,7 @@ class SketchySPD {
   SketchySPD(AlgParams);
   ~SketchySPD() {};
 
-  auto compute_residuals(const MatrixType&) -> void;
+  auto compute_residuals(const MatrixType&) -> vector_type;
   auto linear_update(const MatrixType&) -> void;
   auto low_rank_approx(bool update_timers = true)
       -> std::tuple<matrix_type, vector_type>;
@@ -109,5 +109,5 @@ class SketchySPD {
 // Driver
 template <typename MatrixType>
 auto sketchy_symm_pos_def(const MatrixType&, matrix_type&, vector_type&,
-                          AlgParams) -> void;
+                          vector_type&, AlgParams) -> void;
 }  // namespace Skema

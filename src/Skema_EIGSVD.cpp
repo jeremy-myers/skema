@@ -90,7 +90,7 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
   FILE* fp             = fopen(filename.c_str(), "w");
   params.outputFile    = fp;
 
-  if (fp == NULL) {
+  if (fp == nullptr) {
     perror("PRIMME output file failed to open: ");
   }
 
@@ -104,14 +104,29 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
   ret = dprimme(evals.data(), evecs.data(), rnrms.data(), &params);
   Kokkos::fence();
   scalar_type time = timer.seconds();
+  std::cout << "Elapsed time: " << time << std::endl;
 
   if (ret != 0) {
     fprintf(params.outputFile,
             "Error: primme_eigs returned with nonzero exit status: %d \n", ret);
   }
-  if (fp != NULL) {
+  if (fp != nullptr) {
     fclose(fp);
   }
+
+  Kokkos::resize(S, rank);
+  Kokkos::deep_copy(S, evals);
+
+  Kokkos::resize(R, rank);
+  Kokkos::deep_copy(R, rnrms);
+
+  Kokkos::resize(U, nrow, rank);
+  Kokkos::parallel_for(
+      nrow * rank,
+      KOKKOS_LAMBDA(const int i) { U.data()[i] = evecs.data()[i]; });
+
+  Kokkos::fence();
+
   std::filesystem::path json_file =
       (!algParams.primme_outputFile.empty()
            ? algParams.primme_outputFile.filename()
@@ -167,7 +182,7 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   FILE* fp             = fopen(filename.c_str(), "w");
   params.outputFile    = fp;
 
-  if (fp == NULL) perror("PRIMME output file failed to open: ");
+  if (fp == nullptr) perror("PRIMME output file failed to open: ");
 
   primme_set_method(method, &params);
   primme_display_params(params);
@@ -179,6 +194,28 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   ret = dprimme(evals.data(), evecs.data(), rnrms.data(), &params);
   Kokkos::fence();
   scalar_type time = timer.seconds();
+  std::cout << "Elapsed time: " << time << std::endl;
+
+  if (ret != 0) {
+    fprintf(params.outputFile,
+            "Error: primme_eigs returned with nonzero exit status: %d \n", ret);
+  }
+  if (fp != nullptr) {
+    fclose(fp);
+  }
+
+  Kokkos::resize(S, rank);
+  Kokkos::deep_copy(S, evals);
+
+  Kokkos::resize(R, rank);
+  Kokkos::deep_copy(R, rnrms);
+
+  Kokkos::resize(U, nrow, rank);
+  Kokkos::parallel_for(
+      nrow * rank,
+      KOKKOS_LAMBDA(const int i) { U.data()[i] = evecs.data()[i]; });
+
+  Kokkos::fence();
 
   std::filesystem::path json_file =
       (!algParams.primme_outputFile.empty()
@@ -255,7 +292,7 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType& matrix,
   FILE* fp             = fopen(filename.c_str(), "w");
   params.outputFile    = fp;
 
-  if (fp == NULL) perror("PRIMME output file failed to open: ");
+  if (fp == nullptr) perror("PRIMME output file failed to open: ");
 
   primme_svds_set_method(primme_svds_normalequations, methodStage1,
                          methodStage1, &params);
@@ -268,6 +305,37 @@ void PRIMME_SVDS<MatrixType>::compute(const MatrixType& matrix,
   ret = dprimme_svds(svals.data(), svecs.data(), rnrms.data(), &params);
   Kokkos::fence();
   scalar_type time = timer.seconds();
+  std::cout << "Elapsed time: " << time << std::endl;
+
+  if (ret != 0) {
+    fprintf(params.outputFile,
+            "Error: primme_svds returned with nonzero exit status: %d \n", ret);
+  }
+  if (fp != nullptr) {
+    fclose(fp);
+  }
+
+  Kokkos::resize(S, rank);
+  Kokkos::deep_copy(S, svals);
+
+  Kokkos::resize(R, rank);
+  Kokkos::deep_copy(R, rnrms);
+
+  Kokkos::resize(U, nrow, rank);
+  Kokkos::parallel_for(
+      nrow * rank,
+      KOKKOS_LAMBDA(const int i) { U.data()[i] = svecs.data()[i]; });
+
+  Kokkos::resize(V, ncol, rank);
+  Kokkos::parallel_for(
+      ncol * rank, KOKKOS_LAMBDA(const int i) {
+        auto jj = i + nrow * rank;
+        if (jj < (nrow + ncol) * rank) {
+          V.data()[i] = svecs.data()[jj];
+        }
+      });
+
+  Kokkos::fence();
 
   std::filesystem::path json_file =
       (!algParams.primme_outputFile.empty()
@@ -292,10 +360,9 @@ void primme_eigs(const matrix_type& matrix, AlgParams algParams) {
 
 template <>
 void primme_eigs(const matrix_type& matrix, matrix_type& u, vector_type& s,
-                 AlgParams algParams) {
+                 vector_type& r, AlgParams algParams) {
   PRIMME_EIGS<matrix_type> solver(algParams);
   matrix_type v;
-  vector_type r;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
                  u, s, v, r);
 }
@@ -313,10 +380,9 @@ void primme_eigs(const crs_matrix_type& matrix, AlgParams algParams) {
 
 template <>
 void primme_eigs(const crs_matrix_type& matrix, matrix_type& u, vector_type& s,
-                 AlgParams algParams) {
+                 vector_type& r, AlgParams algParams) {
   PRIMME_EIGS<crs_matrix_type> solver(algParams);
   matrix_type v;
-  vector_type r;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
                  u, s, v, r);
 }
@@ -334,9 +400,8 @@ void primme_svds(const matrix_type& matrix, AlgParams algParams) {
 
 template <>
 void primme_svds(const matrix_type& matrix, matrix_type& u, vector_type& s,
-                 matrix_type& v, AlgParams algParams) {
+                 matrix_type& v, vector_type& r, AlgParams algParams) {
   PRIMME_SVDS<matrix_type> solver(algParams);
-  vector_type r;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
                  u, s, v, r);
 }
@@ -355,9 +420,8 @@ void primme_svds(const crs_matrix_type& matrix, AlgParams algParams) {
 
 template <>
 void primme_svds(const crs_matrix_type& matrix, matrix_type& u, vector_type& s,
-                 matrix_type& v, AlgParams algParams) {
+                 matrix_type& v, vector_type& r, AlgParams algParams) {
   PRIMME_SVDS<crs_matrix_type> solver(algParams);
-  vector_type r;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
                  u, s, v, r);
 }

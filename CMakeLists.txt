@@ -124,6 +124,25 @@ set(Skema_SOURCE_LIST
     ${Skema_SOURCE_DIR}/src/Skema_Sketchy_SPD.cpp
     ${Skema_SOURCE_DIR}/src/Skema_Sketchy_SVD.cpp
 )
+set(Skema_HEADER_LIST
+    ${Skema_SOURCE_DIR}/src/Skema_AlgParams.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_BlasLapack.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_Common.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_DimRedux.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_Driver.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_EIGSVD.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_EIGSVD_MatrixMatvec.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_IO.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_ISVD.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_ISVD_MatrixMatvec.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_ISVD_Primme.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_Kernel.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_Residuals.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_Sampler.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_Sketchy.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_Utils.hpp
+    ${Skema_SOURCE_DIR}/src/Skema_Window.hpp
+)
 
 # Future: if add any special libraries or functionality through if/else or macros,
 # append to Skema_SOURCE_LIST as:
@@ -140,17 +159,41 @@ endif()
 target_link_libraries(skemalib PUBLIC Kokkos::kokkos)
 target_link_libraries(skemalib PUBLIC Kokkos::kokkoskernels)
 target_link_libraries(skemalib PUBLIC primme)
-target_link_libraries(skemalib PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(skemalib PUBLIC nlohmann_json::nlohmann_json)
 
-install(TARGETS skemalib
-        EXPORT skema
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+set(SKEMA_INSTALL_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/skema")
+set(SKEMA_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/skema")
+
+target_include_directories(skemalib
+    PUBLIC
+    $<INSTALL_INTERFACE:${SKEMA_INSTALL_INCLUDEDIR}>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
 )
-file(GLOB skema_headers ${Skema_SOURCE_DIR}/*.hpp)
-install(FILES ${skema_headers}
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/skema
+
+set_target_properties(skemalib PROPERTIES PUBLIC_HEADER "${Skema_HEADER_LIST}")
+install(TARGETS skemalib nlohmann_json
+        EXPORT SkemaConfig
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/skema
         PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
-        )
+)
+
+# install(FILES "${Skema_HEADER_LIST}"
+#         DESTINATION "${SKEMA_INSTALL_INCLUDEDIR}"
+#         PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+#         )
+# install(EXPORT skema DESTINATION "${SKEMA_INSTALL_CMAKEDIR}")
+export(TARGETS skemalib kokkos kokkoskernels primme nlohmann_json
+    NAMESPACE Skema::
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/SkemaConfig.cmake"
+)
+install(EXPORT
+    SkemaConfig
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/skema"
+    NAMESPACE Skema::
+)
 
 # Target definitions
 add_executable(skema

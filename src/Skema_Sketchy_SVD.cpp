@@ -658,13 +658,14 @@ auto SketchySVD<MatrixT, DimReduxT>::axpy(const double eta, matrix_type& Y,
 
 template <typename MatrixType, typename DimReduxT>
 auto SketchySVD<MatrixType, DimReduxT>::compute_residuals(const MatrixType& A)
-    -> void {
+    -> vector_type {
   // Compute final residuals
   double time{0.0};
   Kokkos::Timer timer;
   rnrms = residuals(A, uvecs, svals, vvecs, rank, algParams, window);
   time  = timer.seconds();
   std::cout << "\nCompute residuals: " << time << std::endl;
+  return rnrms;
 }
 
 template <typename MatrixType, typename DimReduxT>
@@ -698,7 +699,7 @@ auto SketchySVD<MatrixType, DimReduxT>::save_history(
 // Drivers
 template <>
 auto sketchy_svd(const matrix_type& matrix, matrix_type& U, vector_type& S,
-                 matrix_type& V, AlgParams algParams) -> void {
+                 matrix_type& V, vector_type& R, AlgParams algParams) -> void {
   if (algParams.dim_redux == DimRedux_Map::GAUSS) {
     SketchySVD<matrix_type, GaussDimRedux> sketch(algParams);
     try {
@@ -718,7 +719,7 @@ auto sketchy_svd(const matrix_type& matrix, matrix_type& U, vector_type& S,
       exit(EXIT_FAILURE);
     }
     try {
-      sketch.compute_residuals(matrix);
+      R = sketch.compute_residuals(matrix);
     } catch (const std::exception& e) {
       std::cout << "Skema::sketchysvd::compute_residuals encountered an "
                    "exception: "
@@ -747,7 +748,7 @@ auto sketchy_svd(const matrix_type& matrix, matrix_type& U, vector_type& S,
       exit(EXIT_FAILURE);
     }
     try {
-      sketch.compute_residuals(matrix);
+      R = sketch.compute_residuals(matrix);
     } catch (const std::exception& e) {
       std::cout << "Skema::sketchysvd::compute_residuals encountered an "
                    "exception: "
@@ -765,7 +766,7 @@ auto sketchy_svd(const matrix_type& matrix, matrix_type& U, vector_type& S,
 
 template <>
 auto sketchy_svd(const crs_matrix_type& matrix, matrix_type& U, vector_type& S,
-                 matrix_type& V, AlgParams algParams) -> void {
+                 matrix_type& V, vector_type& R, AlgParams algParams) -> void {
   if (algParams.dim_redux == DimRedux_Map::GAUSS) {
     SketchySVD<crs_matrix_type, GaussDimRedux> sketch(algParams);
     try {
@@ -785,7 +786,7 @@ auto sketchy_svd(const crs_matrix_type& matrix, matrix_type& U, vector_type& S,
       exit(EXIT_FAILURE);
     }
     try {
-      sketch.compute_residuals(matrix);
+      R = sketch.compute_residuals(matrix);
     } catch (const std::exception& e) {
       std::cout << "Skema::sketchysvd::compute_residuals encountered an "
                    "exception: "
@@ -814,7 +815,7 @@ auto sketchy_svd(const crs_matrix_type& matrix, matrix_type& U, vector_type& S,
       exit(EXIT_FAILURE);
     }
     try {
-      sketch.compute_residuals(matrix);
+      R = sketch.compute_residuals(matrix);
     } catch (const std::exception& e) {
       std::cout << "Skema::sketchysvd::compute_residuals encountered an "
                    "exception: "

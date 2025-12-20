@@ -120,7 +120,7 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
 }
 
 template <typename MatrixType>
-auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> void {
+auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> vector_type {
   if (algParams.issymmetric) {
     auto v = Impl::transpose(vtvex);
     rnrms  = residuals(A, v, svals, rank, algParams, window);
@@ -129,6 +129,7 @@ auto ISVD<MatrixType>::compute_residuals(const MatrixType& A) -> void {
     auto v = Impl::transpose(vtvex);
     rnrms  = residuals(A, u, svals, v, rank, algParams, window);
   }
+  return rnrms;
 }
 
 /* Compute U = A*V*Sigma^{-1} */
@@ -235,10 +236,10 @@ auto ISVD<MatrixType>::save_window_history(
 
 template <>
 void isvd(const matrix_type& A, matrix_type& U, vector_type& S, matrix_type& V,
-          AlgParams algParams) {
+          vector_type& R, AlgParams algParams) {
   ISVD<matrix_type> sketch(algParams);
   sketch.solve(A);
-  sketch.compute_residuals(A);
+  R = sketch.compute_residuals(A);
 
   U = sketch.U();
   S = sketch.S();
@@ -251,7 +252,7 @@ void isvd(const matrix_type& A, matrix_type& U, vector_type& S, matrix_type& V,
 
 template <>
 void isvd(const crs_matrix_type& A, matrix_type& U, vector_type& S,
-          matrix_type& V, AlgParams algParams) {
+          matrix_type& V, vector_type& R, AlgParams algParams) {
   double time{0.0};
   Kokkos::Timer timer;
 
@@ -259,7 +260,7 @@ void isvd(const crs_matrix_type& A, matrix_type& U, vector_type& S,
   sketch.solve(A);
 
   timer.reset();
-  sketch.compute_residuals(A);
+  R    = sketch.compute_residuals(A);
   time = timer.seconds();
   std::cout << "Compute residuals: " << time << " sec." << std::endl;
 

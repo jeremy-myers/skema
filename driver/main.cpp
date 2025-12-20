@@ -65,6 +65,7 @@ int main(int argc, char* argv[]) {
       matrix_type U;
       vector_type S;
       matrix_type V;
+      vector_type R;
 
       std::cout << "Reading " << inputfilename << "... " << std::flush;
       Kokkos::Timer timer;
@@ -74,13 +75,14 @@ int main(int argc, char* argv[]) {
         time        = timer.seconds();
         std::cout << "Done: " << time << " s" << std::endl;
 
-        std::tie(U, S, V) = Skema::driver<crs_matrix_type>(matrix, algParams);
+        std::tie(U, S, V, R) =
+            Skema::driver<crs_matrix_type>(matrix, algParams);
       } else {
         auto matrix = Skema::read_matrix<matrix_type>(inputfilename);
         time        = timer.seconds();
         std::cout << "Done: " << time << " s" << std::endl;
 
-        std::tie(U, S, V) = Skema::driver<matrix_type>(matrix, algParams);
+        std::tie(U, S, V, R) = Skema::driver<matrix_type>(matrix, algParams);
       }
 
       auto end             = std::chrono::system_clock::now();
