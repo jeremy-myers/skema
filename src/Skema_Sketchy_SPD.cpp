@@ -469,16 +469,6 @@ auto sketchy_symm_pos_def(const matrix_type& matrix, matrix_type& U,
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
     }
-    // if (algParams.rayleigh_ritz_pass) {
-    //   AlgParams params(algParams);
-    //   params.primme_maxIter      = 2;
-    //   params.primme_maxBlockSize = algParams.rank;
-    //   try {
-    //     primme_eigs(matrix, U, S, params);
-    //   } catch (std::exception& e) {
-    //     std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
-    //   }
-    // }
   } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
     SketchySPD<matrix_type, SparseSignDimRedux> sketch(algParams);
     try {
@@ -508,17 +498,6 @@ auto sketchy_symm_pos_def(const matrix_type& matrix, matrix_type& U,
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
     }
-    // if (algParams.rayleigh_ritz_pass) {
-    //   AlgParams params(algParams);
-    //   params.primme_maxIter      = 2;
-    //   params.primme_maxBlockSize = algParams.rank;
-    //   vector_type R_rr;
-    //   try {
-    //     primme_eigs(matrix, U, S, R_rr, params);
-    //   } catch (std::exception& e) {
-    //     std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
-    //   }
-    // }
   } else {
     std::cout << "DimRedux: make another selection." << std::endl;
     exit(1);
@@ -558,17 +537,6 @@ auto sketchy_symm_pos_def(const crs_matrix_type& matrix, matrix_type& U,
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
     }
-    // if (algParams.rayleigh_ritz_pass) {
-    //   AlgParams params(algParams);
-    //   params.primme_maxIter      = 2;
-    //   params.primme_maxBlockSize = algParams.rank;
-    //   try {
-    //     vector_type R_rr;
-    //     primme_eigs(matrix, U, S, R_rr, params);
-    //   } catch (std::exception& e) {
-    //     std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
-    //   }
-    // }
   } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
     SketchySPD<crs_matrix_type, SparseSignDimRedux> sketch(algParams);
     try {
@@ -598,17 +566,6 @@ auto sketchy_symm_pos_def(const crs_matrix_type& matrix, matrix_type& U,
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
     }
-    // if (algParams.rayleigh_ritz_pass) {
-    //   AlgParams params(algParams);
-    //   params.primme_maxIter      = 2;
-    //   params.primme_maxBlockSize = algParams.rank;
-    //   try {
-    //     vector_type R_rr;
-    //     primme_eigs(matrix, U, S, R_rr, params);
-    //   } catch (std::exception& e) {
-    //     std::cout << "Rayleigh-ritz pass failed: " << e.what() << std::endl;
-    //   }
-    // }
   } else {
     std::cout << "DimRedux: Invalid option. Make another selection."
               << std::endl;
