@@ -36,13 +36,21 @@ SparseSignDimRedux::SparseSignDimRedux(const size_type nrow_,
   // At each step, compute a random permutation of 0,...,k-1, take the
   // first zeta numbers, and assign them to the ii-th block.
   crs_matrix_type::index_type::non_const_type entries("entries", zeta * nrow);
+  // for (auto ii = 0; ii < nrow; ++ii) {
+  //   range_type idx = std::make_pair(ii * zeta, (ii + 1) * zeta);
+  //   auto e = Kokkos::subview(entries, Kokkos::make_pair(idx.first,
+  //   idx.second)); index_type pi("rand indices", zeta);
+  //   Kokkos::fill_random(pi, rand_pool, ncol);
+  //   Kokkos::sort(pi);
+  //   Kokkos::deep_copy(e, pi);
+  // }
+
+  // This is faster
   for (auto ii = 0; ii < nrow; ++ii) {
     range_type idx = std::make_pair(ii * zeta, (ii + 1) * zeta);
     auto e = Kokkos::subview(entries, Kokkos::make_pair(idx.first, idx.second));
-    index_type pi("rand indices", zeta);
-    Kokkos::fill_random(pi, rand_pool, ncol);
-    Kokkos::sort(pi);
-    Kokkos::deep_copy(e, pi);
+    Kokkos::fill_random(e, rand_pool, ncol);
+    Kokkos::sort(e);
   }
 
   // The random values are taken from the Rademacher distribution (in the
