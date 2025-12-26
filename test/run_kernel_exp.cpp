@@ -10,13 +10,18 @@
 #include "Skema_Utils.hpp"
 #include <Kokkos_Core.hpp>
 
-// Fixed xperiment params
-static constexpr size_t NUM_REPS        = 5;
-static constexpr size_t WINDOW_SIZE     = 250;
-static constexpr double PRIMME_TOL      = 1e-4;
-static constexpr int PRIMME_PRINT_LEVEL = 5;
-static const std::vector<size_t> RANKS({5, 10, 50, 100});
-static const std::vector<double> GAMMA({1e-1, 1e0, 1e1, 1e2});
+// Fixed experiment params
+/* static constexpr size_t NUM_REPS          = 5; */
+static constexpr size_t NUM_REPS          = 1;
+static constexpr size_t WINDOW_SIZE       = 10000;
+static constexpr double PRIMME_TOL        = 1e-4;
+static constexpr double PRIMME_REFINE_TOL = 1e4;
+static constexpr int PRIMME_PRINT_LEVEL   = 5;
+static constexpr int PRIMME_MAX_ITER      = 2;
+/* static const std::vector<size_t> RANKS({5, 10, 50, 100}); */
+/* static const std::vector<double> GAMMA({1e-1, 1e0, 1e1, 1e2}); */
+static const std::vector<size_t> RANKS({100});
+static const std::vector<double> GAMMA({1e2});
 
 auto run(const matrix_type& A, const Skema::Solver_Method::type solver,
          std::string label, const size_t rank, const double gamma,
@@ -74,6 +79,7 @@ auto refine(const matrix_type& A, matrix_type& U, vector_type& S,
   params.kernel_gamma      = gamma;
   params.history_filename  = history_filename;
   params.primme_outputFile = primme_outputFile;
+  params.primme_eps        = PRIMME_REFINE_TOL;
 
   Skema::primme_eigs(A, U, S, R, params);
 
@@ -104,6 +110,7 @@ auto refine(const matrix_type& A, matrix_type& U, vector_type& S,
   params.kernel_gamma      = gamma;
   params.history_filename  = history_filename;
   params.primme_outputFile = primme_outputFile;
+  params.primme_eps        = PRIMME_REFINE_TOL;
 
   Skema::primme_svds(A, U, S, V, R, params);
 
@@ -184,47 +191,48 @@ int main(int argc, char* argv[]) {
 
     std::string label;
     std::map<std::string, vector_type> dump = {{"svals", s}, {"rnrms", r}};
+    double anorm;
     for (auto j = 0; j < RANKS.size(); ++j) {
       const auto rank  = RANKS[j];
       const auto gamma = GAMMA[j];
 
       for (auto n = 0; n < NUM_REPS; ++n) {
-        /*********** iSVD and variants **********/
-        // vanilla iSVD
-        label                = "isvd-fd-i" + std::to_string(n);
-        std::tie(u, s, v, r) = run(A, Skema::Solver_Method::type::ISVD, label,
-                                   rank, gamma, isvd_params);
-        dump["svals"]        = s;
-        dump["rnrms"]        = r;
-        write_result(dump, label, rank, gamma);
+        // /*********** iSVD and variants **********/
+        // // vanilla iSVD
+        // label                = "isvd-fd-i" + std::to_string(n);
+        // std::tie(u, s, v, r) = run(A, Skema::Solver_Method::type::ISVD, label,
+        //                            rank, gamma, isvd_params);
+        // dump["svals"]        = s;
+        // dump["rnrms"]        = r;
+        // write_result(dump, label, rank, gamma);
 
-        // iSVD with sampling + convergence test
-        // isvdopt_params.isvd_convtest_skip   = 0; - maybe unused?
-        label = "isvd-opt00-i" + std::to_string(n);
-        isvdopt_params.isvd_rank_add_factor = 0;
-        std::tie(u, s, v, r) = run(A, Skema::Solver_Method::type::ISVD, label,
-                                   rank, gamma, isvdopt_params);
-        dump["svals"]        = s;
-        dump["rnrms"]        = r;
-        write_result(dump, label, rank, gamma);
+        // // iSVD with sampling + convergence test
+        // // isvdopt_params.isvd_convtest_skip   = 0; - maybe unused?
+        // label = "isvd-opt00-i" + std::to_string(n);
+        // isvdopt_params.isvd_rank_add_factor = 0;
+        // std::tie(u, s, v, r) = run(A, Skema::Solver_Method::type::ISVD, label,
+        //                            rank, gamma, isvdopt_params);
+        // dump["svals"]        = s;
+        // dump["rnrms"]        = r;
+        // write_result(dump, label, rank, gamma);
 
-        // plus 5 vectors
-        isvdopt_params.isvd_rank_add_factor = 5;
-        label                = "isvd-opt05-i" + std::to_string(n);
-        std::tie(u, s, v, r) = run(A, Skema::Solver_Method::type::ISVD, label,
-                                   rank, gamma, isvdopt_params);
-        dump["svals"]        = s;
-        dump["rnrms"]        = r;
-        write_result(dump, label, rank, gamma);
+        // // plus 5 vectors
+        // isvdopt_params.isvd_rank_add_factor = 5;
+        // label                = "isvd-opt05-i" + std::to_string(n);
+        // std::tie(u, s, v, r) = run(A, Skema::Solver_Method::type::ISVD, label,
+        //                            rank, gamma, isvdopt_params);
+        // dump["svals"]        = s;
+        // dump["rnrms"]        = r;
+        // write_result(dump, label, rank, gamma);
 
-        // plus 10 vectors
-        isvdopt_params.isvd_rank_add_factor = 10;
-        label                = "isvd-opt10-i" + std::to_string(n);
-        std::tie(u, s, v, r) = run(A, Skema::Solver_Method::type::ISVD, label,
-                                   rank, gamma, isvdopt_params);
-        dump["svals"]        = s;
-        dump["rnrms"]        = r;
-        write_result(dump, label, rank, gamma);
+        // // plus 10 vectors
+        // isvdopt_params.isvd_rank_add_factor = 10;
+        // label                = "isvd-opt10-i" + std::to_string(n);
+        // std::tie(u, s, v, r) = run(A, Skema::Solver_Method::type::ISVD, label,
+        //                            rank, gamma, isvdopt_params);
+        // dump["svals"]        = s;
+        // dump["rnrms"]        = r;
+        // write_result(dump, label, rank, gamma);
 
         /*********** SketchySVD and variants **********/
         // SketchySVD with Gauss DimRedux
@@ -242,7 +250,7 @@ int main(int argc, char* argv[]) {
         label = "sketchysvd-gaussopt-i" + std::to_string(n);
         Skema::AlgParams refine_sketchysvd_gauss_params(
             sketchysvd_gauss_params);
-        refine_sketchysvd_gauss_params.primme_maxIter      = 2;
+        refine_sketchysvd_gauss_params.primme_maxIter      = PRIMME_MAX_ITER;
         refine_sketchysvd_gauss_params.primme_maxBlockSize = rank;
         refine(A, u, s, r, label, rank, gamma, refine_sketchysvd_gauss_params);
         dump["svals"] = s;
@@ -262,7 +270,7 @@ int main(int argc, char* argv[]) {
         label = "sketchyspd-gaussopt-i" + std::to_string(n);
         Skema::AlgParams refine_sketchyspd_gauss_params(
             sketchyspd_gauss_params);
-        refine_sketchyspd_gauss_params.primme_maxIter      = 2;
+        refine_sketchyspd_gauss_params.primme_maxIter      = PRIMME_MAX_ITER;
         refine_sketchyspd_gauss_params.primme_maxBlockSize = rank;
         refine(A, u, s, r, label, rank, gamma, refine_sketchyspd_gauss_params);
         dump["svals"] = s;
@@ -284,7 +292,7 @@ int main(int argc, char* argv[]) {
         label = "sketchysvd-countopt-i" + std::to_string(n);
         Skema::AlgParams refine_sketchysvd_count_params(
             sketchysvd_count_params);
-        refine_sketchysvd_count_params.primme_maxIter      = 2;
+        refine_sketchysvd_count_params.primme_maxIter      = PRIMME_MAX_ITER;
         refine_sketchysvd_count_params.primme_maxBlockSize = rank;
         refine(A, u, s, r, label, rank, gamma, refine_sketchysvd_count_params);
         dump["svals"] = s;
@@ -304,20 +312,20 @@ int main(int argc, char* argv[]) {
         label = "sketchyspd-countopt-i" + std::to_string(n);
         Skema::AlgParams refine_sketchyspd_count_params(
             sketchyspd_count_params);
-        refine_sketchyspd_count_params.primme_maxIter      = 2;
+        refine_sketchyspd_count_params.primme_maxIter      = PRIMME_MAX_ITER;
         refine_sketchyspd_count_params.primme_maxBlockSize = rank;
         refine(A, u, s, r, label, rank, gamma, refine_sketchyspd_count_params);
         dump["svals"] = s;
         dump["rnrms"] = r;
         write_result(dump, label, rank, gamma);
 
-        /********** PRIMME EIGS **********/
-        label                = "primme-eigs-i" + std::to_string(n);
-        std::tie(u, s, v, r) = run(A, Skema::Solver_Method::type::PRIMME_EIGS,
-                                   label, rank, gamma, primmeeigs_params);
-        dump["svals"]        = s;
-        dump["rnrms"]        = r;
-        write_result(dump, label, rank, gamma);
+        // /********** PRIMME EIGS **********/
+        // label                = "primme-eigs-i" + std::to_string(n);
+        // std::tie(u, s, v, r) = run(A, Skema::Solver_Method::type::PRIMME_EIGS,
+        //                            label, rank, gamma, primmeeigs_params);
+        // dump["svals"]        = s;
+        // dump["rnrms"]        = r;
+        // write_result(dump, label, rank, gamma);
       }
     }
 
