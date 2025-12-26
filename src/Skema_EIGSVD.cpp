@@ -48,7 +48,7 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
   Kokkos::Timer timer;
 
   vector_type evals("evals", rank);
-  vector_type evecs("svecs", nrow * rank);
+  vector_type evecs("evecs", nrow * rank);
   vector_type rnrms("rnrms", rank);
 
   /* Initialize primme parameters */
@@ -147,7 +147,7 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   Kokkos::Timer timer;
 
   vector_type evals("evals", rank);
-  vector_type evecs("svecs", nrow * rank);
+  vector_type evecs("evecs", nrow * rank);
   vector_type rnrms("rnrms", rank);
 
   /* Initialize primme parameters */
