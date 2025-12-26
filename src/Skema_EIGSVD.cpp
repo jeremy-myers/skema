@@ -73,6 +73,12 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
     params.matrixMatvec = eigs_kernel_dense_matvec;
   }
 
+  Kokkos::resize(S, rank);
+  Kokkos::deep_copy(evals, S);
+
+  Kokkos::resize(R, rank);
+  Kokkos::deep_copy(rnrms, R);
+
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
         nrow * rank,
@@ -114,10 +120,7 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
     fclose(fp);
   }
 
-  Kokkos::resize(S, rank);
   Kokkos::deep_copy(S, evals);
-
-  Kokkos::resize(R, rank);
   Kokkos::deep_copy(R, rnrms);
 
   Kokkos::resize(U, nrow, rank);
@@ -165,6 +168,12 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
     params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
   }
 
+  Kokkos::resize(S, rank);
+  Kokkos::deep_copy(evals, S);
+
+  Kokkos::resize(R, rank);
+  Kokkos::deep_copy(rnrms, R);
+
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
         nrow * rank,
@@ -204,10 +213,7 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
     fclose(fp);
   }
 
-  Kokkos::resize(S, rank);
   Kokkos::deep_copy(S, evals);
-
-  Kokkos::resize(R, rank);
   Kokkos::deep_copy(R, rnrms);
 
   Kokkos::resize(U, nrow, rank);
@@ -267,12 +273,19 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
     params.matrixMatvec = svds_kernel_dense_matvec;
   }
 
+  Kokkos::resize(S, rank);
+  Kokkos::deep_copy(evals, S);
+
+  Kokkos::resize(R, rank);
+  Kokkos::deep_copy(rnrms, R);
+
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
         nrow * rank,
         KOKKOS_LAMBDA(const int ii) { svecs.data()[ii] = U.data()[ii]; });
     params.initSize = rank;
   }
+
   if (V.extent(0) > 0 && V.extent(1) > 0) {
     Kokkos::parallel_for(
         ncol * rank, KOKKOS_LAMBDA(const int ii) {
@@ -318,10 +331,7 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
     fclose(fp);
   }
 
-  Kokkos::resize(S, rank);
   Kokkos::deep_copy(S, svals);
-
-  Kokkos::resize(R, rank);
   Kokkos::deep_copy(R, rnrms);
 
   Kokkos::resize(U, nrow, rank);
@@ -383,12 +393,19 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
 
   params.matrixMatvec = svds_default_sparse_matvec;
 
+  Kokkos::resize(S, rank);
+  Kokkos::deep_copy(evals, S);
+
+  Kokkos::resize(R, rank);
+  Kokkos::deep_copy(rnrms, R);
+
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
         nrow * rank,
         KOKKOS_LAMBDA(const int ii) { svecs.data()[ii] = U.data()[ii]; });
     params.initSize = rank;
   }
+
   if (V.extent(0) > 0 && V.extent(1) > 0) {
     Kokkos::parallel_for(
         ncol * rank, KOKKOS_LAMBDA(const int ii) {
@@ -434,10 +451,7 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
     fclose(fp);
   }
 
-  Kokkos::resize(S, rank);
   Kokkos::deep_copy(S, svals);
-
-  Kokkos::resize(R, rank);
   Kokkos::deep_copy(R, rnrms);
 
   Kokkos::resize(U, nrow, rank);
