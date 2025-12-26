@@ -274,7 +274,7 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
   }
 
   Kokkos::resize(S, rank);
-  Kokkos::deep_copy(evals, S);
+  Kokkos::deep_copy(svals, S);
 
   Kokkos::resize(R, rank);
   Kokkos::deep_copy(rnrms, R);
@@ -394,7 +394,7 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   params.matrixMatvec = svds_default_sparse_matvec;
 
   Kokkos::resize(S, rank);
-  Kokkos::deep_copy(evals, S);
+  Kokkos::deep_copy(svals, S);
 
   Kokkos::resize(R, rank);
   Kokkos::deep_copy(rnrms, R);
