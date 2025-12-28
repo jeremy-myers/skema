@@ -166,7 +166,7 @@ int main(int argc, char* argv[]) {
     params.window                      = window_size;
     params.print_level                 = 1;
     params.kernel_func                 = Skema::Kernel_Map::GAUSSRBF;
-    params.isvd_compute_residual_iters = true;
+    params.isvd_compute_residual_iters = false;
     params.issymmetric                 = true;
     params.primme_printLevel           = PRIMME_PRINT_LEVEL;
     params.primme_eps                  = PRIMME_TOL;

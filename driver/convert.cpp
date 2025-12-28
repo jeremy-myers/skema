@@ -18,6 +18,13 @@ int convert(const std::string& inputfilename, Skema::AlgParams& algParams) {
   algParams.matrix_nnz = matrix.nnz();
   algParams.issparse   = true;
 
+  std::cout << "\nMatrix: " << algParams.matrix_m << " x " << algParams.matrix_n
+            << ", nnz = " << algParams.matrix_nnz << " ("
+            << (scalar_type(algParams.matrix_nnz) /
+                scalar_type(algParams.matrix_m * algParams.matrix_n)) *
+                   100
+            << "\% dense)" << std::endl;
+
   std::cout << "Writing " << algParams.outputfilename.string() << "... "
             << std::flush;
   timer.reset();

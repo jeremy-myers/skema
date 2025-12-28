@@ -149,13 +149,19 @@ int main(int argc, char* argv[]) {
       rank = RANK;
     }
 
+    auto read_start = std::chrono::system_clock::now();
+    std::cout << "Reading " << inputfilename << "..." << std::flush;
     crs_matrix_type A;
     try {
       A = Skema::read_mtx<crs_matrix_type>(inputfilename);
     } catch (const std::exception& e) {
-      std::cout << "Failed to open file: " << e.what() << std::endl;
+      std::cout << "\n\tFailed to open file: " << e.what() << std::endl;
       std::exit(EXIT_FAILURE);
     }
+    auto read_end             = std::chrono::system_clock::now();
+    std::chrono::duration<double> read_elapsed_seconds = read_end - read_start;
+    std::cout << " " << read_elapsed_seconds.count() << " sec" << std::endl;
+
 
     Skema::AlgParams params;
     params.matrix_m                    = A.numRows();
