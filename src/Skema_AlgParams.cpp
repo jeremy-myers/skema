@@ -44,6 +44,7 @@ Skema::AlgParams::AlgParams()
       primme_printLevel(0),
       primme_maxMatvecs(0),
       primme_maxIter(0),
+      primme_aNorm(0.0),
       primme_locking(false),
       primme_method("PRIMME_DEFAULT_METHOD"),
       primme_methodStage2("PRIMME_DEFAULT_METHOD"),

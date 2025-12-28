@@ -45,6 +45,7 @@ struct AlgParams {
   int primme_printLevel;
   int primme_maxMatvecs;
   int primme_maxIter;
+  double primme_aNorm;
   DimRedux_Map::type dim_redux;
   Kernel_Map::type kernel_func;
   Sampler_Type::type isvd_sampler;

@@ -59,6 +59,7 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
   params.target       = primme_largest;
   params.matrixMatvec = eigs_default_dense_matvec;
   params.monitorFun   = eigs_monitorFun;
+  params.aNorm        = algParams.primme_aNorm;
 
   primme_preset_method method = parse_primme_method(algParams.primme_method);
 
@@ -73,11 +74,11 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
     params.matrixMatvec = eigs_kernel_dense_matvec;
   }
 
-  Kokkos::resize(S, rank);
-  Kokkos::deep_copy(evals, S);
+  /* Kokkos::resize(S, rank); */
+  /* Kokkos::deep_copy(evals, S); */
 
-  Kokkos::resize(R, rank);
-  Kokkos::deep_copy(rnrms, R);
+  /* Kokkos::resize(R, rank); */
+  /* Kokkos::deep_copy(rnrms, R); */
 
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
@@ -120,6 +121,8 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
     fclose(fp);
   }
 
+  Kokkos::resize(S, rank);
+  Kokkos::resize(R, rank);
   Kokkos::deep_copy(S, evals);
   Kokkos::deep_copy(R, rnrms);
 
@@ -161,6 +164,7 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   params.target       = primme_largest;
   params.matrixMatvec = eigs_default_sparse_matvec;
   params.monitorFun   = eigs_monitorFun;
+  params.aNorm        = algParams.primme_aNorm;
 
   primme_preset_method method = parse_primme_method(algParams.primme_method);
 
@@ -168,11 +172,11 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
     params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
   }
 
-  Kokkos::resize(S, rank);
-  Kokkos::deep_copy(evals, S);
+  /* Kokkos::resize(S, rank); */
+  /* Kokkos::deep_copy(evals, S); */
 
-  Kokkos::resize(R, rank);
-  Kokkos::deep_copy(rnrms, R);
+  /* Kokkos::resize(R, rank); */
+  /* Kokkos::deep_copy(rnrms, R); */
 
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
@@ -213,6 +217,8 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
     fclose(fp);
   }
 
+  Kokkos::resize(S, rank);
+  Kokkos::resize(R, rank);
   Kokkos::deep_copy(S, evals);
   Kokkos::deep_copy(R, rnrms);
 
@@ -253,6 +259,7 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
   params.numSvals = rank;
   params.eps      = algParams.primme_eps;
   params.target   = primme_svds_largest;
+  params.aNorm    = algParams.primme_aNorm;
 
   primme_preset_method methodStage1 =
       parse_primme_method(algParams.primme_method);
@@ -273,11 +280,11 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
     params.matrixMatvec = svds_kernel_dense_matvec;
   }
 
-  Kokkos::resize(S, rank);
-  Kokkos::deep_copy(svals, S);
+  /* Kokkos::resize(S, rank); */
+  /* Kokkos::deep_copy(svals, S); */
 
-  Kokkos::resize(R, rank);
-  Kokkos::deep_copy(rnrms, R);
+  /* Kokkos::resize(R, rank); */
+  /* Kokkos::deep_copy(rnrms, R); */
 
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
@@ -331,6 +338,8 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
     fclose(fp);
   }
 
+  Kokkos::resize(S, rank);
+  Kokkos::resize(R, rank);
   Kokkos::deep_copy(S, svals);
   Kokkos::deep_copy(R, rnrms);
 
@@ -380,6 +389,7 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   params.numSvals = rank;
   params.eps      = algParams.primme_eps;
   params.target   = primme_svds_largest;
+  params.aNorm    = algParams.primme_aNorm;
 
   primme_preset_method methodStage1 =
       parse_primme_method(algParams.primme_method);
@@ -393,11 +403,11 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
 
   params.matrixMatvec = svds_default_sparse_matvec;
 
-  Kokkos::resize(S, rank);
-  Kokkos::deep_copy(svals, S);
+  /* Kokkos::resize(S, rank); */
+  /* Kokkos::deep_copy(svals, S); */
 
-  Kokkos::resize(R, rank);
-  Kokkos::deep_copy(rnrms, R);
+  /* Kokkos::resize(R, rank); */
+  /* Kokkos::deep_copy(rnrms, R); */
 
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
@@ -451,6 +461,8 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
     fclose(fp);
   }
 
+  Kokkos::resize(S, rank);
+  Kokkos::resize(R, rank);
   Kokkos::deep_copy(S, svals);
   Kokkos::deep_copy(R, rnrms);
 
