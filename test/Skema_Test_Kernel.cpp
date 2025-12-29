@@ -1,3 +1,4 @@
+#include "Skema_Common.hpp"
 #include "Skema_Kernel.hpp"
 #include "Skema_Utils.hpp"
 #include <gtest/gtest.h>
@@ -27,7 +28,7 @@ class GaussRBFKernelTest : public ::testing::Test {
     kcol = 5;
     feat = 2;
 
-    inputa       = matrix_type("GaussRBFKernelTest::inpua", arow, acol);
+    inputa       = matrix_type("GaussRBFKernelTest::inputa", arow, acol);
     inputa(0, 0) = -9.263802556752374906e-02;
     inputa(1, 0) = -8.072452015544308024e-01;
     inputa(2, 0) = -1.743617320589300468e-01;
@@ -80,20 +81,52 @@ class GaussRBFKernelTest : public ::testing::Test {
   }
 };
 
-// TEST_F(GaussRBFKernelTest, TestCompute) {
-//   constexpr scalar_type gamma{1.0};
-//   GaussRBF<matrix_type> Kernel(gamma);
-//   range_type range{std::make_pair<size_type>(0, arow)};
-//   matrix_type result =
-//       Kernel.compute(inputa, arow, acol, inputb, brow, bcol, feat, range);
-//   ASSERT_EQ(result.extent(0), kernel.extent(0));
-//   ASSERT_EQ(result.extent(1), kernel.extent(1));
-//   for (auto j = 0; j < kcol; ++j) {
-//     for (auto i = 0; i < krow; ++i) {
-//       ASSERT_FLOAT_EQ(result(i, j), kernel(i, j));
-//     }
-//   }
-// }
+TEST_F(GaussRBFKernelTest, TestCompute) {
+  constexpr scalar_type gamma{1.0};
+  GaussRBF<matrix_type> Kernel(inputa.extent(0), inputb.extent(0), gamma);
+  range_type range{std::make_pair<size_type>(0, arow)};
+  matrix_type result =
+      Kernel.compute(inputa, arow, acol, inputb, brow, bcol, feat, range);
+  ASSERT_EQ(result.extent(0), kernel.extent(0));
+  ASSERT_EQ(result.extent(1), kernel.extent(1));
+  for (auto j = 0; j < kcol; ++j) {
+    for (auto i = 0; i < krow; ++i) {
+      ASSERT_FLOAT_EQ(result(i, j), kernel(i, j));
+    }
+  }
+}
+
+TEST_F(GaussRBFKernelTest, TestComputeStream) {
+  constexpr scalar_type gamma{1.0};
+  GaussRBF<matrix_type> Kernel(inputa.extent(0), inputb.extent(0), gamma);
+  size_type window_size{2};
+  range_type range;
+
+  for (auto irow = 0; irow < arow; irow += window_size) {
+    if (irow + window_size < arow) {
+      range = std::make_pair(irow, irow + window_size);
+    } else {
+      range       = std::make_pair(irow, arow);
+      window_size = range.second - range.first;
+    }
+    auto A_sub  = Kokkos::subview(inputa, range, Kokkos::ALL());
+    auto K_sub  = Kokkos::subview(kernel, range, Kokkos::ALL());
+    auto result = Kernel.compute(A_sub, A_sub.extent(0), A_sub.extent(1),
+                                 inputb, brow, bcol, feat, range);
+    ASSERT_EQ(result.extent(0), K_sub.extent(0));
+    ASSERT_EQ(result.extent(1), K_sub.extent(1));
+    std::cout << "Result = " << std::endl;
+    Skema::Impl::print(result);
+
+    std::cout << "K_sub = " << std::endl;
+    Skema::Impl::print(K_sub);
+    for (auto j = 0; j < K_sub.extent(1); ++j) {
+      for (auto i = 0; i < K_sub.extent(0); ++i) {
+        ASSERT_FLOAT_EQ(result(i, j), K_sub(i, j)) << " " << i << ", " << j;
+      }
+    }
+  }
+}
 }  // namespace UnitTests
 
 }  // namespace Skema

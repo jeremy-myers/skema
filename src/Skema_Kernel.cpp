@@ -67,12 +67,12 @@ void GaussRBF<MatrixType>::enforce_unit_diagonal(
   if (mx > 1) {
     size_type jj{0};
     for (auto ii = diag_range_start; ii < diag_range_final; ++ii) {
-      data(ii, jj) = 1.0;
+      data(jj, ii) = 1.0;
       ++jj;
     }
   } else {  // special case
     for (auto ii = diag_range_start; ii < diag_range_final; ++ii) {
-      data(ii, 0) = 1.0;
+      data(0, ii) = 1.0;
     }
   }
 }
