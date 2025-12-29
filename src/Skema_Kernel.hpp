@@ -15,10 +15,10 @@ class Kernel {
  public:
   Kernel() : stats_(std::make_shared<Kernel_stats>()) {};
   virtual ~Kernel() {}
-  virtual MatrixType compute(const MatrixType&, const size_type,
-                             const size_type, const MatrixType&,
-                             const size_type, const size_type, const size_type,
-                             const range_type) = 0;
+  virtual matrix_type compute(const MatrixType&, const size_type,
+                              const size_type, const MatrixType&,
+                              const size_type, const size_type, const size_type,
+                              const range_type) = 0;
 
   virtual std::shared_ptr<Kernel_stats> stats() { return stats_; };
 
@@ -29,19 +29,25 @@ class Kernel {
 template <typename MatrixType>
 class GaussRBF : public Kernel<MatrixType> {
  public:
-  GaussRBF() : gamma(0.0) {};
-  GaussRBF(const scalar_type gamma_) : gamma(gamma_) {};
-  virtual ~GaussRBF() {};
+  GaussRBF(const size_type nrow_, const size_type ncol_,
+           const scalar_type gamma_)
+      : nrow(nrow_), ncol(ncol_), gamma(gamma_) {
+    data = matrix_type("Gauss RBF kernel matrix", nrow, ncol);
+  };
+  ~GaussRBF() {};
 
-  MatrixType compute(const MatrixType&, const size_type, const size_type,
-                     const MatrixType&, const size_type, const size_type,
-                     const size_type, const range_type) override;
-
-  inline void set_gamma(const scalar_type gamma_) { gamma = gamma_; };
+  matrix_type compute(const MatrixType&, const size_type, const size_type,
+                      const MatrixType&, const size_type, const size_type,
+                      const size_type, const range_type) override;
 
  protected:
-  MatrixType data;
+  matrix_type data;
+  size_type nrow;
+  size_type ncol;
   scalar_type gamma;
+
+ private:
+  void enforce_unit_diagonal(const size_type, const size_type, const size_type);
 };
 
 template class GaussRBF<matrix_type>;

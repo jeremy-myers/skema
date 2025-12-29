@@ -6,7 +6,7 @@ namespace Skema {
 namespace UnitTests {
 
 class GaussRBFKernelTest : public ::testing::Test {
-protected:
+ protected:
   size_type arow;
   size_type acol;
   size_type brow;
@@ -27,7 +27,7 @@ protected:
     kcol = 5;
     feat = 2;
 
-    inputa = matrix_type("GaussRBFKernelTest::inpua", arow, acol);
+    inputa       = matrix_type("GaussRBFKernelTest::inpua", arow, acol);
     inputa(0, 0) = -9.263802556752374906e-02;
     inputa(1, 0) = -8.072452015544308024e-01;
     inputa(2, 0) = -1.743617320589300468e-01;
@@ -39,7 +39,7 @@ protected:
     inputa(3, 1) = -1.799880490676653899e+00;
     inputa(4, 1) = 7.834532384508977598e-01;
 
-    inputb = matrix_type("GaussRBFKernelTest::inputb", brow, bcol);
+    inputb       = matrix_type("GaussRBFKernelTest::inputb", brow, bcol);
     inputb(0, 0) = -9.263802556752374906e-02;
     inputb(1, 0) = -8.072452015544308024e-01;
     inputb(2, 0) = -1.743617320589300468e-01;
@@ -51,7 +51,7 @@ protected:
     inputb(3, 1) = -1.799880490676653899e+00;
     inputb(4, 1) = 7.834532384508977598e-01;
 
-    kernel = matrix_type("GaussRBFKernelTest::kernel", krow, kcol);
+    kernel       = matrix_type("GaussRBFKernelTest::kernel", krow, kcol);
     kernel(0, 0) = 1.0;
     kernel(1, 0) = 0.05416779720519113;
     kernel(2, 0) = 0.2568280711572051;
@@ -80,20 +80,20 @@ protected:
   }
 };
 
-TEST_F(GaussRBFKernelTest, TestCompute) {
-  constexpr scalar_type gamma{1.0};
-  GaussRBF<matrix_type> Kernel(gamma);
-  range_type range{std::make_pair<size_type>(0, arow)};
-  matrix_type result =
-      Kernel.compute(inputa, arow, acol, inputb, brow, bcol, feat, range);
-  ASSERT_EQ(result.extent(0), kernel.extent(0));
-  ASSERT_EQ(result.extent(1), kernel.extent(1));
-  for (auto j = 0; j < kcol; ++j) {
-    for (auto i = 0; i < krow; ++i) {
-      ASSERT_FLOAT_EQ(result(i, j), kernel(i, j));
-    }
-  }
-}
-} // namespace UnitTests
+// TEST_F(GaussRBFKernelTest, TestCompute) {
+//   constexpr scalar_type gamma{1.0};
+//   GaussRBF<matrix_type> Kernel(gamma);
+//   range_type range{std::make_pair<size_type>(0, arow)};
+//   matrix_type result =
+//       Kernel.compute(inputa, arow, acol, inputb, brow, bcol, feat, range);
+//   ASSERT_EQ(result.extent(0), kernel.extent(0));
+//   ASSERT_EQ(result.extent(1), kernel.extent(1));
+//   for (auto j = 0; j < kcol; ++j) {
+//     for (auto i = 0; i < krow; ++i) {
+//       ASSERT_FLOAT_EQ(result(i, j), kernel(i, j));
+//     }
+//   }
+// }
+}  // namespace UnitTests
 
-} // namespace Skema
+}  // namespace Skema

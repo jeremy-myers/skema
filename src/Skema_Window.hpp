@@ -80,7 +80,8 @@ class GaussRBFWindow : public WindowBase<MatrixType> {
  public:
   GaussRBFWindow(const AlgParams& algParams_)
       : WindowBase<MatrixType>(algParams_),
-        map(GaussRBF<MatrixType>(algParams_.kernel_gamma)),
+        map(GaussRBF<MatrixType>(algParams_.window, algParams_.matrix_m,
+                                 algParams_.kernel_gamma)),
         helper(Window<MatrixType>(algParams_)) {}
   ~GaussRBFWindow() {};
 
@@ -92,11 +93,10 @@ class GaussRBFWindow : public WindowBase<MatrixType> {
         map.compute(slice, slice.extent(0), slice.extent(1), input,
                     input.extent(0), input.extent(1), input.extent(1), idx);
 
-    auto kstats = map.stats();
-    std::cout << " GaussRBF window: " << kstats->time << ", " << std::flush;
-
     // Update window timers from kernel
     if (update_counters) {
+      auto kstats = map.stats();
+      std::cout << " GaussRBF window: " << kstats->time << ", " << std::flush;
       WindowBase<MatrixType>::stats_->count++;
       WindowBase<MatrixType>::stats_->time += kstats->time;
       WindowBase<MatrixType>::stats_->elapsed_time += kstats->elapsed_time;
