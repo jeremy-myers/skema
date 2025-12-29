@@ -98,7 +98,7 @@ class GaussRBFWindow : public WindowBase<MatrixType> {
       auto kstats = map.stats();
       std::cout << " GaussRBF window: " << kstats->time << ", " << std::flush;
       WindowBase<MatrixType>::stats_->count++;
-      WindowBase<MatrixType>::stats_->time += kstats->time;
+      WindowBase<MatrixType>::stats_->time = kstats->time;
       WindowBase<MatrixType>::stats_->elapsed_time += kstats->elapsed_time;
     }
     return window;
