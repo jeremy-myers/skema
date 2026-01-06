@@ -115,14 +115,9 @@ TEST_F(GaussRBFKernelTest, TestComputeStream) {
                                  inputb, brow, bcol, feat, range);
     ASSERT_EQ(result.extent(0), K_sub.extent(0));
     ASSERT_EQ(result.extent(1), K_sub.extent(1));
-    std::cout << "Result = " << std::endl;
-    Skema::Impl::print(result);
-
-    std::cout << "K_sub = " << std::endl;
-    Skema::Impl::print(K_sub);
     for (auto j = 0; j < K_sub.extent(1); ++j) {
       for (auto i = 0; i < K_sub.extent(0); ++i) {
-        ASSERT_FLOAT_EQ(result(i, j), K_sub(i, j)) << " " << i << ", " << j;
+        ASSERT_FLOAT_EQ(result(i, j), K_sub(i, j));
       }
     }
   }

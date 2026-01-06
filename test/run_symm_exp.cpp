@@ -149,6 +149,12 @@ int main(int argc, char* argv[]) {
       rank = RANK;
     }
 
+    size_t num_reps{0};
+    num_reps = Skema::parse_int(args, "--num-reps", num_reps, 0, 20);
+    if (num_reps == 0) {
+        num_reps = NUM_REPS;
+    }
+
     auto read_start = std::chrono::system_clock::now();
     std::cout << "Reading " << inputfilename << "..." << std::flush;
     crs_matrix_type A;
@@ -202,7 +208,7 @@ int main(int argc, char* argv[]) {
     std::string label;
     std::map<std::string, vector_type> dump = {{"svals", s}, {"rnrms", r}};
     double anorm;
-    for (auto n = 0; n < NUM_REPS; ++n) {
+    for (auto n = 0; n < num_reps; ++n) {
       /*********** iSVD and variants **********/
       // vanilla iSVD
       label = "isvd-fd-i" + std::to_string(n);
