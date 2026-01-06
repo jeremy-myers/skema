@@ -160,7 +160,7 @@ int main(int argc, char* argv[]) {
     }
 
     double gamma{0.0};
-    gamma = parse_real(args, "--gamma", gamma, 0.0,
+    gamma = Skema::parse_real(args, "--gamma", gamma, 0.0,
                        std::numeric_limits<double>::max());
     if (gamma == 0.0) {
       gamma = GAMMA;
