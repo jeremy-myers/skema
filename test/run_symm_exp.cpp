@@ -11,13 +11,14 @@
 #include <Kokkos_Core.hpp>
 
 // Fixed experiment params
-static constexpr size_t NUM_REPS          = 5;
-static constexpr size_t WINDOW_SIZE       = 13225;
+static constexpr size_t NUM_REPS          = 1;
+static constexpr size_t WINDOW_SIZE       = 10000;
 static constexpr double PRIMME_TOL        = 1e-4;
 static constexpr double PRIMME_REFINE_TOL = 1e4;
 static constexpr int PRIMME_PRINT_LEVEL   = 5;
 static constexpr int PRIMME_MAX_ITER      = 2;
-static constexpr size_t RANK              = 5;
+static constexpr size_t RANK              = 1;
+static constexpr bool NORMALIZE           = false;
 
 auto run(const crs_matrix_type& A, const Skema::Solver_Method::type solver,
          std::string label, const size_t rank, Skema::AlgParams params)
@@ -168,6 +169,17 @@ int main(int argc, char* argv[]) {
     std::chrono::duration<double> read_elapsed_seconds = read_end - read_start;
     std::cout << " " << read_elapsed_seconds.count() << " sec" << std::endl;
 
+    double normalize = Skema::parse_real(args, "--normalize", 1.0, std::numeric_limits<double>::epsilon(), std::numeric_limits<double>::max());
+    if (normalize != 1.0) {
+        auto norm_start = std::chrono::system_clock::now();
+        std::cout << "Normalizing input..." << std::flush;
+        Kokkos::parallel_for("normalize matrix", A.nnz(), KOKKOS_LAMBDA(const unsigned int i) {
+                A.values(i) /= normalize;});
+        Kokkos::fence();
+        auto norm_end = std::chrono::system_clock::now();
+        std::chrono::duration<double> norm_elapsed_seconds = norm_end - norm_start;
+        std::cout << " " << norm_elapsed_seconds.count() << " sec" << std::endl;
+    }
 
     Skema::AlgParams params;
     params.matrix_m                    = A.numRows();
