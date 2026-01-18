@@ -54,34 +54,34 @@ auto run(const crs_matrix_type& A, const Skema::Solver_Method::type solver,
   return std::make_tuple(u, s, v, r);
 }
 
-auto refine(const crs_matrix_type& A, matrix_type& U, vector_type& S,
-            vector_type& R, std::string label, const size_t rank,
-            Skema::AlgParams params) -> void {
-  std::cout << "\n**************************************************"
-            << std::endl;
-  std::cout << "*********** Refining " << label << std::endl;
-  std::cout << "**************************************************"
-            << std::endl;
+/* auto refine(const crs_matrix_type& A, matrix_type& U, vector_type& S, matrix_type& V, */
+/*             vector_type& R, std::string label, const size_t rank, */
+/*             Skema::AlgParams params) -> void { */
+/*   std::cout << "\n**************************************************" */
+/*             << std::endl; */
+/*   std::cout << "*********** Refining " << label << std::endl; */
+/*   std::cout << "**************************************************" */
+/*             << std::endl; */
 
-  auto start = std::chrono::system_clock::now();
+/*   auto start = std::chrono::system_clock::now(); */
 
-  std::string history_filename = label + "_" + std::to_string(rank) + ".json";
-  std::string primme_outputFile =
-      label + "_" + std::to_string(rank) + ".primme.txt";
+/*   std::string history_filename = label + "_" + std::to_string(rank) + ".json"; */
+/*   std::string primme_outputFile = */
+/*       label + "_" + std::to_string(rank) + ".primme.txt"; */
 
-  params.rank              = rank;
-  params.history_filename  = history_filename;
-  params.primme_outputFile = primme_outputFile;
-  params.primme_eps        = 2 * S(1);
-  params.primme_aNorm      = 1;
+/*   params.rank              = rank; */
+/*   params.history_filename  = history_filename; */
+/*   params.primme_outputFile = primme_outputFile; */
+/*   params.primme_eps        = 2 * S(1); */
+/*   params.primme_aNorm      = 1; */
 
-  Skema::primme_eigs(A, U, S, R, params);
+/*   Skema::primme_svds(A, U, S, V, R, params); */
 
-  auto end                                   = std::chrono::system_clock::now();
-  std::chrono::duration<double> elapsed_time = end - start;
-  std::cout << "\n*********** Elapsed time: " << elapsed_time.count()
-            << " sec ***********" << std::endl;
-}
+/*   auto end                                   = std::chrono::system_clock::now(); */
+/*   std::chrono::duration<double> elapsed_time = end - start; */
+/*   std::cout << "\n*********** Elapsed time: " << elapsed_time.count() */
+/*             << " sec ***********" << std::endl; */
+/* } */
 
 auto refine(const crs_matrix_type& A, matrix_type& U, vector_type& S,
             matrix_type& V, vector_type& R, std::string label,
@@ -204,7 +204,7 @@ int main(int argc, char* argv[]) {
     Skema::AlgParams sketchysvd_count_params(params);
     Skema::AlgParams sketchyspd_gauss_params(params);
     Skema::AlgParams sketchyspd_count_params(params);
-    Skema::AlgParams primmeeigs_params(params);
+    Skema::AlgParams primmesvds_params(params);
 
     // Fixed parameters
     isvdopt_params.isvd_initial_guess = true;
@@ -214,7 +214,7 @@ int main(int argc, char* argv[]) {
     sketchysvd_count_params.dim_redux = Skema::DimRedux_Map::type::SPARSE_SIGN;
     sketchyspd_count_params.dim_redux = Skema::DimRedux_Map::type::SPARSE_SIGN;
 
-    primmeeigs_params.primme_method = "PRIMME_LOBPCG_OrthoBasis";
+    primmesvds_params.primme_method = "PRIMME_LOBPCG_OrthoBasis";
 
     matrix_type u;
     vector_type s;
@@ -279,7 +279,7 @@ int main(int argc, char* argv[]) {
       Skema::AlgParams refine_sketchysvd_gauss_params(sketchysvd_gauss_params);
       refine_sketchysvd_gauss_params.primme_maxIter      = PRIMME_MAX_ITER;
       refine_sketchysvd_gauss_params.primme_maxBlockSize = rank;
-      refine(A, u, s, r, label, rank, refine_sketchysvd_gauss_params);
+      refine(A, u, s, v, r, label, rank, refine_sketchysvd_gauss_params);
       dump["svals"] = s;
       dump["rnrms"] = r;
       write_result(dump, label, rank);
@@ -300,15 +300,15 @@ int main(int argc, char* argv[]) {
       Skema::AlgParams refine_sketchysvd_count_params(sketchysvd_count_params);
       refine_sketchysvd_count_params.primme_maxIter      = PRIMME_MAX_ITER;
       refine_sketchysvd_count_params.primme_maxBlockSize = rank;
-      refine(A, u, s, r, label, rank, refine_sketchysvd_count_params);
+      refine(A, u, s, v, r, label, rank, refine_sketchysvd_count_params);
       dump["svals"] = s;
       dump["rnrms"] = r;
       write_result(dump, label, rank);
 
-      /********** PRIMME EIGS **********/
-      label                = "primme-eigs-i" + std::to_string(n);
-      std::tie(u, s, v, r) = run(A, Skema::Solver_Method::type::PRIMME_EIGS,
-                                 label, rank, primmeeigs_params);
+      /********** PRIMME SVDS **********/
+      label                = "primme-svds-i" + std::to_string(n);
+      std::tie(u, s, v, r) = run(A, Skema::Solver_Method::type::PRIMME_SVDS,
+                                 label, rank, primmesvds_params);
       dump["svals"]        = s;
       dump["rnrms"]        = r;
       write_result(dump, label, rank);

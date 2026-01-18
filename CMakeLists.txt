@@ -235,6 +235,11 @@ add_executable(run_symm_exp
     ${Skema_SOURCE_DIR}/test/run_symm_exp.cpp
 )
 target_link_libraries(run_symm_exp skemalib)
+
+add_executable(run_nosymm_exp
+    ${Skema_SOURCE_DIR}/test/run_nosymm_exp.cpp
+)
+target_link_libraries(run_nosymm_exp skemalib)
 # # file(COPY ${Skema_SOURCE_DIR}/test/data DESTINATION ${Skema_BINARY_DIR/test})
 # add_custom_command(
 #     TARGET run_kernel_exp POST_BUILD
