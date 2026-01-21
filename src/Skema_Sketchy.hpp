@@ -50,7 +50,8 @@ class SketchySVD {
   std::map<std::string, std::map<std::string, std::vector<scalar_type>>> traces;
 
   auto axpy(const double, matrix_type&, const double, const matrix_type&,
-            const range_type = std::make_pair<size_type>(0, 0)) -> void;
+            const bool transp = false,
+            const range_type  = std::make_pair<size_type>(0, 0)) -> void;
 
   auto initial_approx(bool update_timers = true)
       -> std::tuple<matrix_type, matrix_type, matrix_type>;

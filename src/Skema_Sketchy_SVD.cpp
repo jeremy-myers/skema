@@ -10,6 +10,7 @@
 #include "Skema_Residuals.hpp"
 #include "Skema_Utils.hpp"
 #include "Skema_Window.hpp"
+#include <type_traits>
 
 namespace Skema {
 
@@ -125,6 +126,21 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
   matrix_type x;
   matrix_type y;
   matrix_type z;
+  bool transpx{false};
+  bool transpy{false};
+  bool transpz{false};
+
+  // Determine if axpy is called with transp == true for LHS
+  if constexpr ((std::is_same_v<MatrixType, crs_matrix_type>) &&
+                (std::is_same_v<DimReduxT, SparseSignDimRedux>)) {
+    transpx = true;
+    transpy = true;
+    transpz = true;
+  } else if constexpr ((std::is_same_v<MatrixType, crs_matrix_type>) &&
+                       (std::is_same_v<DimReduxT, GaussDimRedux>)) {
+    transpx = true;
+  }
+
   if (wsize == nrow) {
     idx = std::make_pair(0, nrow);
 
@@ -140,9 +156,9 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     timings["update"]["psi"] += Psi.stats.map;
 
     timer.reset();
-    axpy(nu, X, eta, x);
-    axpy(nu, Z, eta, z);
-    axpy(nu, Y, eta, y);
+    axpy(nu, X, eta, x, transpx);
+    axpy(nu, Z, eta, z, transpz);
+    axpy(nu, Y, eta, y, transpy);
     timings["update"]["daxpy"] += timer.seconds();
 
     return;
@@ -181,9 +197,9 @@ auto SketchySVD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     timings["update"]["psi"] += Psi.stats.map;
 
     timer.reset();
-    axpy(nu, X, eta, x);
-    axpy(nu, Z, eta, z);
-    axpy(nu, Y, eta, y, idx);
+    axpy(nu, X, eta, x, transpx);
+    axpy(nu, Z, eta, z, transpz);
+    axpy(nu, Y, eta, y, transpy, idx);
     timings["update"]["daxpy"] += timer.seconds();
     time += timer.seconds();
 
@@ -250,14 +266,10 @@ auto SketchySVD<matrix_type, SparseSignDimRedux>::update(
   // free up space
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  auto At = Impl::transpose(A);
-  auto yt = Omega.apply_left(&one, At, &zero, 'N', 'N');
-  auto y  = Impl::transpose(yt);
-  auto x  = Upsilon.apply_left(&one, A, &zero, 'N', 'N', row_idxs);
-  auto w  = Phi.apply_left(&one, A, &zero, 'N', 'N', row_idxs);
-  auto wt = Impl::transpose(w);
-  auto zt = Psi.apply_left(&one, wt, &zero, 'N', 'N');
-  auto z  = Impl::transpose(zt);
+  auto y = Omega.apply_left(&one, A, &zero, 'T', 'N');
+  auto x = Upsilon.apply_left(&one, A, &zero, 'N', 'N', row_idxs);
+  auto w = Phi.apply_left(&one, A, &zero, 'N', 'N', row_idxs);
+  auto z = Psi.apply_left(&one, w, &zero, 'T', 'N');
   return std::tuple(x, y, z);
 }
 
@@ -275,11 +287,10 @@ auto SketchySVD<crs_matrix_type, GaussDimRedux>::update(
   // free up space
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  auto xt = Upsilon.apply_right(&one, A, &zero, 'T', 'N', row_idxs);
-  auto x  = Impl::transpose(xt);
-  auto y  = Omega.apply_right(&one, A, &zero, 'N', 'N');
-  auto wt = Phi.apply_right(&one, A, &zero, 'T', 'N', row_idxs);
-  auto z  = Psi.apply_right(&one, wt, &zero, 'T', 'N');
+  auto x = Upsilon.apply_right(&one, A, &zero, 'T', 'N', row_idxs);
+  auto y = Omega.apply_right(&one, A, &zero, 'N', 'N');
+  auto w = Phi.apply_right(&one, A, &zero, 'T', 'N', row_idxs);
+  auto z = Psi.apply_right(&one, w, &zero, 'T', 'N');
   return std::tuple(x, y, z);
 }
 
@@ -607,51 +618,100 @@ auto SketchySVD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
 };
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::axpy(const double eta, matrix_type& Y,
-                                          const double nu, const matrix_type& A,
+auto SketchySVD<MatrixT, DimReduxT>::axpy(const double beta, matrix_type& C,
+                                          const double alpha,
+                                          const matrix_type& A,
+                                          const bool transp,
                                           const range_type idx) -> void {
-  if (idx.first == idx.second) {
-    assert(Y.extent(0) == A.extent(0));
-    assert(Y.extent(1) == A.extent(1));
+  if (transp) {                     // A is transposed
+    if (idx.first == idx.second) {  // Handling X or Z: update entire matrix
+      assert(C.extent(0) == A.extent(1));
+      assert(C.extent(1) == A.extent(0));
 
-    const size_type nrow{Y.extent(0)};
-    const size_type ncol{Y.extent(1)};
+      const size_type nrow{C.extent(0)};  // == A.extent(1), jj in loop
+      const size_type ncol{C.extent(1)};  // == A.extent(0), ii in loop
 
-    const size_type league_size{ncol};
-    Kokkos::TeamPolicy<> policy(league_size, Kokkos::AUTO());
-    typedef Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>::member_type
-        member_type;
+      const size_type league_size{ncol};
+      Kokkos::TeamPolicy<> policy(league_size, Kokkos::AUTO());
+      typedef Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>::member_type
+          member_type;
 
-    Kokkos::parallel_for(
-        policy, KOKKOS_LAMBDA(member_type team_member) {
-          auto jj = team_member.league_rank();
-          Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, nrow),
-                               [&](auto& ii) {
-                                 scalar_type kij;
-                                 Y(ii, jj) = eta * Y(ii, jj) + nu * A(ii, jj);
-                               });
-        });
-  } else {
-    assert((idx.second - idx.first) == A.extent(0));
-    assert(Y.extent(1) == A.extent(1));
+      Kokkos::parallel_for(
+          policy, KOKKOS_LAMBDA(member_type team_member) {
+            auto jj = team_member.league_rank();
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(team_member, nrow), [&](auto& ii) {
+                  scalar_type kij;
+                  C(ii, jj) = beta * C(ii, jj) + alpha * A(jj, ii);
+                });
+          });
+    } else {  // Handling sketchy Y: update window
+      assert((idx.second - idx.first) == A.extent(0));
+      assert(C.extent(0) == A.extent(1));
 
-    const size_type nrow{idx.second - idx.first};
-    const size_type ncol{Y.extent(1)};
+      const size_type nrow{idx.second -
+                           idx.first};    // == A.extent(1), jj in loop
+      const size_type ncol{C.extent(1)};  // == A.extent(0), ii in loop
 
-    const size_type league_size{ncol};
-    Kokkos::TeamPolicy<> policy(league_size, Kokkos::AUTO());
-    typedef Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>::member_type
-        member_type;
+      const size_type league_size{ncol};
+      Kokkos::TeamPolicy<> policy(league_size, Kokkos::AUTO());
+      typedef Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>::member_type
+          member_type;
 
-    Kokkos::parallel_for(
-        policy, KOKKOS_LAMBDA(member_type team_member) {
-          auto jj = team_member.league_rank();
-          Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, nrow),
-                               [&](auto& ii) {
-                                 const auto ix{ii + idx.first};
-                                 Y(ix, jj) = eta * Y(ix, jj) + nu * A(ii, jj);
-                               });
-        });
+      Kokkos::parallel_for(
+          policy, KOKKOS_LAMBDA(member_type team_member) {
+            auto jj = team_member.league_rank();
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(team_member, nrow), [&](auto& ii) {
+                  const auto ix{ii + idx.first};
+                  C(ix, jj) = beta * C(ix, jj) + alpha * A(jj, ii);
+                });
+          });
+    }
+  } else {                          // A is notransp
+    if (idx.first == idx.second) {  // Handling X or Z: update entire matrix
+      assert(C.extent(0) == A.extent(0));
+      assert(C.extent(1) == A.extent(1));
+
+      const size_type nrow{C.extent(0)};
+      const size_type ncol{C.extent(1)};
+
+      const size_type league_size{ncol};
+      Kokkos::TeamPolicy<> policy(league_size, Kokkos::AUTO());
+      typedef Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>::member_type
+          member_type;
+
+      Kokkos::parallel_for(
+          policy, KOKKOS_LAMBDA(member_type team_member) {
+            auto jj = team_member.league_rank();
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(team_member, nrow), [&](auto& ii) {
+                  scalar_type kij;
+                  C(ii, jj) = beta * C(ii, jj) + alpha * A(ii, jj);
+                });
+          });
+    } else {  // Handling sketchy Y: update window
+      assert((idx.second - idx.first) == A.extent(0));
+      assert(C.extent(1) == A.extent(1));
+
+      const size_type nrow{idx.second - idx.first};
+      const size_type ncol{C.extent(1)};
+
+      const size_type league_size{ncol};
+      Kokkos::TeamPolicy<> policy(league_size, Kokkos::AUTO());
+      typedef Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>::member_type
+          member_type;
+
+      Kokkos::parallel_for(
+          policy, KOKKOS_LAMBDA(member_type team_member) {
+            auto jj = team_member.league_rank();
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(team_member, nrow), [&](auto& ii) {
+                  const auto ix{ii + idx.first};
+                  C(ix, jj) = beta * C(ix, jj) + alpha * A(ii, jj);
+                });
+          });
+    }
   }
   Kokkos::fence();
 }
