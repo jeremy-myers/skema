@@ -7,15 +7,24 @@
 #include <map>
 
 namespace Skema {
+
+// template <typename SketchT>
+// auto custom_axpy(const double, SketchT&, const double, const SketchT&,
+//                  const bool) -> void;
+
+// template <typename SketchT>
+// auto custom_axpy(const double, SketchT&, const double, const SketchT&,
+//                  const bool, const range_type) -> void;
+
 // SketchySVD for general matrices
-template <typename MatrixType, typename DimReduxT>
+template <typename MatrixT, typename DimReduxT, typename SketchT = matrix_type>
 class SketchySVD {
  public:
   SketchySVD(AlgParams);
   ~SketchySVD() {};
 
-  auto compute_residuals(const MatrixType&) -> vector_type;
-  auto linear_update(const MatrixType&) -> void;
+  auto compute_residuals(const MatrixT&) -> vector_type;
+  auto linear_update(const MatrixT&) -> void;
   auto low_rank_approx(bool update_timers = true)
       -> std::tuple<matrix_type, vector_type, matrix_type>;
   auto save_history(std::filesystem::path) -> void;
@@ -38,7 +47,7 @@ class SketchySVD {
   const scalar_type eta;
   const scalar_type nu;
   const AlgParams algParams;
-  std::unique_ptr<WindowBase<MatrixType>> window;
+  std::unique_ptr<WindowBase<MatrixT>> window;
 
   // DimRedux
   DimReduxT Upsilon;
@@ -49,32 +58,64 @@ class SketchySVD {
   std::map<std::string, std::map<std::string, scalar_type>> timings;
   std::map<std::string, std::map<std::string, std::vector<scalar_type>>> traces;
 
-  auto axpy(const double, matrix_type&, const double, const matrix_type&,
-            const bool transp = false,
-            const range_type  = std::make_pair<size_type>(0, 0)) -> void;
+  template <typename V = SketchT>
+  std::enable_if_t<std::is_same_v<V, matrix_type>, void> axpy(const double,
+                                                              SketchT&,
+                                                              const double,
+                                                              const SketchT&);
+
+  template <typename V = SketchT>
+  std::enable_if_t<std::is_same_v<V, matrix_type>, void> axpy(
+      const double, SketchT&, const double, const SketchT&, const range_type);
+
+  template <typename V = SketchT>
+  std::enable_if_t<std::is_same_v<V, crs_matrix_type>, void> axpy(
+      const double, SketchT&, const double, const SketchT&);
+
+  template <typename V = SketchT>
+  std::enable_if_t<std::is_same_v<V, crs_matrix_type>, void> axpy(
+      const double, SketchT&, const double, const SketchT&, const range_type);
 
   auto initial_approx(bool update_timers = true)
       -> std::tuple<matrix_type, matrix_type, matrix_type>;
 
-  auto update(const MatrixType&,
+  auto update(const MatrixT&,
               const range_type idx = std::make_pair<size_type>(0, 0))
-      -> std::tuple<matrix_type, matrix_type, matrix_type>;
+      -> std::tuple<SketchT, SketchT, SketchT>;
+
+  template <typename V = SketchT>
+  std::enable_if_t<std::is_same_v<V, matrix_type>, void>
+  initialize_auxiliary_sketch(const std::string, V&, const size_t, const size_t,
+                              const bool);
+
+  template <typename V = SketchT>
+  std::enable_if_t<std::is_same_v<V, crs_matrix_type>, void>
+  initialize_auxiliary_sketch(const std::string, V&, const size_t, const size_t,
+                              const bool);
+
+  template <typename V = SketchT>
+  std::enable_if_t<std::is_same_v<V, matrix_type>, void> set_dense_sketch(
+      matrix_type&, const V&, const bool);
+
+  template <typename V = SketchT>
+  std::enable_if_t<std::is_same_v<V, crs_matrix_type>, void> set_dense_sketch(
+      matrix_type&, const V&, const bool);
 };
 
 // Driver
-template <typename MatrixType>
-void sketchy_svd(const MatrixType&, matrix_type&, vector_type&, matrix_type&,
+template <typename MatrixT>
+void sketchy_svd(const MatrixT&, matrix_type&, vector_type&, matrix_type&,
                  vector_type&, AlgParams);
 
 // SketchySVD variant for symmetric positive definite matrices
-template <typename MatrixType, typename DimReduxT>
+template <typename MatrixT, typename DimReduxT, typename SketchT = matrix_type>
 class SketchySPD {
  public:
   SketchySPD(AlgParams);
   ~SketchySPD() {};
 
-  auto compute_residuals(const MatrixType&) -> vector_type;
-  auto linear_update(const MatrixType&) -> void;
+  auto compute_residuals(const MatrixT&) -> vector_type;
+  auto linear_update(const MatrixT&) -> void;
   auto low_rank_approx(bool update_timers = true)
       -> std::tuple<matrix_type, vector_type>;
   auto save_history(std::filesystem::path) -> void;
@@ -93,7 +134,7 @@ class SketchySPD {
   const scalar_type eta;
   const scalar_type nu;
   const AlgParams algParams;
-  std::unique_ptr<WindowBase<MatrixType>> window;
+  std::unique_ptr<WindowBase<MatrixT>> window;
 
   // DimRedux
   DimReduxT Omega;
@@ -104,11 +145,11 @@ class SketchySPD {
   auto axpy(const double, matrix_type&, const double, const matrix_type&,
             const range_type = std::make_pair<size_type>(0, 0)) -> void;
 
-  auto update(const MatrixType&) -> matrix_type;
+  auto update(const MatrixT&) -> SketchT;
 };
 
 // Driver
-template <typename MatrixType>
-auto sketchy_symm_pos_def(const MatrixType&, matrix_type&, vector_type&,
+template <typename MatrixT>
+auto sketchy_symm_pos_def(const MatrixT&, matrix_type&, vector_type&,
                           vector_type&, AlgParams) -> void;
 }  // namespace Skema

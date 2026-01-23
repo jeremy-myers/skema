@@ -7,6 +7,7 @@
 #include <random>
 #include "Skema_Common.hpp"
 #include "Skema_Utils.hpp"
+#include <variant>
 
 using RNG = std::mt19937;
 
@@ -68,23 +69,16 @@ class DimRedux {
   DimRedux& operator=(DimRedux&&)      = default;
   ~DimRedux()                          = default;
 
-  template <typename InputMatrixT>
-  inline auto apply_left(const scalar_type* alpha, const InputMatrixT& B,
-                         const scalar_type* beta, char transA = 'N',
-                         char transB          = 'N',
-                         const range_type idx = std::make_pair<size_type>(0, 0))
-      -> matrix_type {
-    return self().lmap(alpha, B, beta, transA, transB, idx);
+  using result_t = std::variant<matrix_type, crs_matrix_type>;
+
+  template <typename... Args>
+  inline auto apply_left(Args&&... args) -> result_t {
+    return self().lmap(std::forward<Args>(args)...);
   };
 
-  template <typename InputMatrixT>
-  inline auto apply_right(const scalar_type* alpha, const InputMatrixT& A,
-                          const scalar_type* beta, char transA = 'N',
-                          char transB          = 'T',
-                          const range_type idx = std::make_pair<size_type>(0,
-                                                                           0))
-      -> matrix_type {
-    return self().rmap(alpha, A, beta, transA, transB, idx);
+  template <typename... Args>
+  inline auto apply_right(Args&&... args) -> result_t {
+    return self().rmap(std::forward<Args>(args)...);
   };
 
   inline auto issparse() noexcept -> bool { return self().issparse(); };
@@ -185,13 +179,13 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
   auto lmap(const scalar_type* alpha, const InputMatrixT& B,
             const scalar_type* beta, char transA = 'N', char transB = 'N',
             const range_type idx = std::make_pair<size_type>(0, 0))
-      -> matrix_type;
+      -> InputMatrixT;
 
   template <typename InputMatrixT>
   auto rmap(const scalar_type* alpha, const InputMatrixT& A,
             const scalar_type* beta, char transA = 'N', char transB = 'T',
             const range_type idx = std::make_pair<size_type>(0, 0))
-      -> matrix_type;
+      -> InputMatrixT;
 
   auto write(const std::filesystem::path filename = "") -> void;
 };

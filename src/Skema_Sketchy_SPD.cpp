@@ -14,8 +14,8 @@
 namespace Skema {
 
 // SketchySVD variant for symmetric positive definite matrices
-template <typename MatrixType, typename DimReduxT>
-SketchySPD<MatrixType, DimReduxT>::SketchySPD(AlgParams algParams_)
+template <typename MatrixT, typename DimReduxT, typename SketchT>
+SketchySPD<MatrixT, DimReduxT, SketchT>::SketchySPD(AlgParams algParams_)
     : nrow(algParams_.matrix_m),
       ncol(algParams_.matrix_n),
       rank(algParams_.rank),
@@ -26,7 +26,7 @@ SketchySPD<MatrixType, DimReduxT>::SketchySPD(AlgParams algParams_)
       nu(algParams_.sketch_nu),
       algParams(algParams_),
       Omega(DimReduxT(ncol, range, algParams.seeds[0], "Omega")),
-      window(getWindow<MatrixType>(algParams)) {
+      window(getWindow<MatrixT>(algParams)) {
   timings["init"]["omega"]    = 0.0;
   timings["update"]["omega"]  = 0.0;
   timings["update"]["window"] = 0.0;
@@ -40,8 +40,8 @@ SketchySPD<MatrixType, DimReduxT>::SketchySPD(AlgParams algParams_)
   timings["approx"]["dgesvd"] = 0.0;
 };
 
-template <typename MatrixType, typename DimReduxT>
-auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
+template <typename MatrixT, typename DimReduxT, typename SketchT>
+auto SketchySPD<MatrixT, DimReduxT, SketchT>::linear_update(const MatrixT& A)
     -> void {
   double time{0.0};
   Kokkos::Timer timer;
@@ -51,7 +51,6 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
   timings["init"]["omega"] += Omega.stats.initialize;
 
   Y = matrix_type("Y", nrow, range);
-  matrix_type y;
   if (wsize == nrow) {
     idx = std::make_pair<size_type>(0, nrow);
 
@@ -60,11 +59,11 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     timings["update"]["window"] += timer.seconds();
 
     timer.reset();
-    y = update(H);
+    auto y = update(H);
     timings["update"]["omega"] += timer.seconds();
 
     timer.reset();
-    axpy(nu, Y, eta, y);
+    // axpy(nu, Y, eta, y);
     timings["update"]["daxpy"] += timer.seconds();
 
     return;
@@ -91,12 +90,12 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     time += timer.seconds();
 
     timer.reset();
-    y = update(H);
+    auto y = update(H);
     timings["update"]["omega"] += timer.seconds();
     time += timer.seconds();
 
     timer.reset();
-    axpy(nu, Y, eta, y, idx);
+    // axpy(nu, Y, eta, y, idx);
     timings["update"]["daxpy"] += timer.seconds();
     time += timer.seconds();
 
@@ -120,47 +119,47 @@ auto SketchySPD<MatrixType, DimReduxT>::linear_update(const MatrixType& A)
     2. Sparse-Sparse operations do not support either operand to be transposed
 */
 template <>
-auto SketchySPD<matrix_type, GaussDimRedux>::update(const matrix_type& A)
-    -> matrix_type {
+auto SketchySPD<matrix_type, GaussDimRedux, matrix_type>::update(
+    const matrix_type& A) -> matrix_type {
   // Dense-Dense operations, no constraints on operator order or transpose mode,
   // do Y update as desired.
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  return Omega.apply_right(&one, A, &zero, 'N', 'N');
+  return std::get<matrix_type>(Omega.apply_right(&one, A, &zero, 'N', 'N'));
 }
 
 template <>
-auto SketchySPD<matrix_type, SparseSignDimRedux>::update(const matrix_type& A)
-    -> matrix_type {
+auto SketchySPD<matrix_type, SparseSignDimRedux, matrix_type>::update(
+    const matrix_type& A) -> matrix_type {
   // Y = H * Omega^T = (Omega * H^T)^T
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
   auto At  = Impl::transpose(A);
-  auto ret = Omega.apply_left(&one, At, &zero, 'T', 'N');
+  auto ret = std::get<matrix_type>(Omega.apply_left(&one, At, &zero, 'T', 'N'));
   return Impl::transpose(ret);
 }
 
 template <>
-auto SketchySPD<crs_matrix_type, GaussDimRedux>::update(
+auto SketchySPD<crs_matrix_type, GaussDimRedux, matrix_type>::update(
     const crs_matrix_type& A) -> matrix_type {
   // Sparse-Dense operation, DimRedux is in Normal mode ("N") no constraints on
   // operator order or transpose mode, do Y update as desired.
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  return Omega.apply_right(&one, A, &zero, 'N', 'N');
+  return std::get<matrix_type>(Omega.apply_right(&one, A, &zero, 'N', 'N'));
 }
 
 template <>
-auto SketchySPD<crs_matrix_type, SparseSignDimRedux>::update(
-    const crs_matrix_type& A) -> matrix_type {
+auto SketchySPD<crs_matrix_type, SparseSignDimRedux, crs_matrix_type>::update(
+    const crs_matrix_type& A) -> crs_matrix_type {
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  return Omega.apply_right(&one, A, &zero, 'N', 'N');
+  return std::get<crs_matrix_type>(Omega.apply_right(&one, A, &zero, 'N', 'N'));
 }
 
-template <typename MatrixType, typename DimReduxT>
-auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
-    -> std::tuple<matrix_type, vector_type> {
+template <typename MatrixT, typename DimReduxT, typename SketchT>
+auto SketchySPD<MatrixT, DimReduxT, SketchT>::low_rank_approx(
+    bool update_timers) -> std::tuple<matrix_type, vector_type> {
   // Numerically stable Fixed-Rank Nyström Approximation. Instead of
   // approximating the psd matrix A directly, we approximate the shifted matrix
   // Aν = A + νI and then remove the shift.
@@ -228,7 +227,7 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   timer.reset();
   matrix_type B;
   try {
-    B = Omega.apply_left(&one, Y, &zero, 'T', 'N');
+    B = std::get<matrix_type>(Omega.apply_left(&one, Y, &zero, 'T', 'N'));
   } catch (const std::exception& e) {
     std::cout
         << "Skema::sketchyspd::low_rank_approx::apply_left encountered an "
@@ -347,10 +346,13 @@ auto SketchySPD<MatrixType, DimReduxT>::low_rank_approx(bool update_timers)
   return std::tuple<matrix_type, vector_type>(uvecs, svals);
 };
 
-template <typename MatrixT, typename DimReduxT>
-auto SketchySPD<MatrixT, DimReduxT>::axpy(const double eta, matrix_type& Y,
-                                          const double nu, const matrix_type& A,
-                                          const range_type idx) -> void {
+template <typename MatrixT, typename DimReduxT, typename SketchT>
+auto SketchySPD<MatrixT, DimReduxT, SketchT>::axpy(const double eta,
+                                                   matrix_type& Y,
+                                                   const double nu,
+                                                   const matrix_type& A,
+                                                   const range_type idx)
+    -> void {
   if (idx.first == idx.second) {
     assert(Y.extent(0) == A.extent(0));
     assert(Y.extent(1) == A.extent(1));
@@ -397,9 +399,9 @@ auto SketchySPD<MatrixT, DimReduxT>::axpy(const double eta, matrix_type& Y,
   Kokkos::fence();
 }
 
-template <typename MatrixType, typename DimReduxT>
-auto SketchySPD<MatrixType, DimReduxT>::compute_residuals(const MatrixType& A)
-    -> vector_type {  // Compute final residuals
+template <typename MatrixT, typename DimReduxT, typename SketchT>
+auto SketchySPD<MatrixT, DimReduxT, SketchT>::compute_residuals(
+    const MatrixT& A) -> vector_type {  // Compute final residuals
   double time{0.0};
   Kokkos::Timer timer;
   rnrms = residuals(A, uvecs, svals, rank, algParams, window);
@@ -408,8 +410,8 @@ auto SketchySPD<MatrixType, DimReduxT>::compute_residuals(const MatrixType& A)
   return rnrms;
 }
 
-template <typename MatrixType, typename DimReduxT>
-auto SketchySPD<MatrixType, DimReduxT>::save_history(
+template <typename MatrixT, typename DimReduxT, typename SketchT>
+auto SketchySPD<MatrixT, DimReduxT, SketchT>::save_history(
     std::filesystem::path fname) -> void {
   // Write the final history to file or stdout
   nlohmann::json hist({{"timings", timings}, {"traces", traces}});
@@ -538,7 +540,8 @@ auto sketchy_symm_pos_def(const crs_matrix_type& matrix, matrix_type& U,
       sketch.save_history(algParams.history_filename);
     }
   } else if (algParams.dim_redux == DimRedux_Map::SPARSE_SIGN) {
-    SketchySPD<crs_matrix_type, SparseSignDimRedux> sketch(algParams);
+    SketchySPD<crs_matrix_type, SparseSignDimRedux, crs_matrix_type> sketch(
+        algParams);
     try {
       sketch.linear_update(matrix);
     } catch (const std::exception& e) {

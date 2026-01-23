@@ -114,59 +114,86 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha, const matrix_type& A,
   return Impl::transpose(C);
 }
 
+// template <>
+// auto SparseSignDimRedux::lmap(const scalar_type* alpha,
+//                               const crs_matrix_type& B, const scalar_type*
+//                               beta, char transA, char transB, const
+//                               range_type idx)
+//     -> matrix_type {
+//   Kokkos::Timer timer;
+//   crs_matrix_type C;
+//   crs_matrix_type data_(data);
+//   if (idx.first != idx.second) data_ = col_subview(data, idx);
+//   Impl::mm(&transA, alpha, data_, B, beta, C);
+
+//   Kokkos::fence();
+//   stats.map = timer.seconds();
+
+//   // Output dense matrix
+//   matrix_type C_full("SparseSignDimRedux::lmap::C_full", C.numRows(),
+//                      C.numCols());
+//   Kokkos::parallel_for(
+//       C.numRows(), KOKKOS_LAMBDA(const int ii) {
+//         auto crow = C.row(ii);
+//         for (auto jj = 0; jj < crow.length; ++jj) {
+//           C_full(ii, crow.colidx(jj)) = crow.value(jj);
+//         }
+//       });
+//   Kokkos::fence();
+//   return C_full;
+// }
+
 template <>
 auto SparseSignDimRedux::lmap(const scalar_type* alpha,
                               const crs_matrix_type& B, const scalar_type* beta,
                               char transA, char transB, const range_type idx)
-    -> matrix_type {
+    -> crs_matrix_type {
   Kokkos::Timer timer;
   crs_matrix_type C;
   crs_matrix_type data_(data);
   if (idx.first != idx.second) data_ = col_subview(data, idx);
   Impl::mm(&transA, alpha, data_, B, beta, C);
-
-  Kokkos::fence();
   stats.map = timer.seconds();
-
-  // Output dense matrix
-  matrix_type C_full("SparseSignDimRedux::lmap::C_full", C.numRows(),
-                     C.numCols());
-  Kokkos::parallel_for(
-      C.numRows(), KOKKOS_LAMBDA(const int ii) {
-        auto crow = C.row(ii);
-        for (auto jj = 0; jj < crow.length; ++jj) {
-          C_full(ii, crow.colidx(jj)) = crow.value(jj);
-        }
-      });
-  Kokkos::fence();
-  return C_full;
+  return C;
 }
+
+// template <>
+// auto SparseSignDimRedux::rmap(const scalar_type* alpha,
+//                               const crs_matrix_type& A, const scalar_type*
+//                               beta, char transA, char transB, const
+//                               range_type idx)
+//     -> matrix_type {
+//   Kokkos::Timer timer;
+
+//   crs_matrix_type C;
+//   Impl::mm(&transA, alpha, A, data, beta, C);
+
+//   stats.map = timer.seconds();
+
+//   // Dense output
+//   matrix_type C_full("SparseSignDimRedux::rmap::C_full", C.numRows(),
+//                      C.numCols());
+//   Kokkos::parallel_for(
+//       C.numRows(), KOKKOS_LAMBDA(const int ii) {
+//         auto crow = C.row(ii);
+//         for (auto jj = 0; jj < crow.length; ++jj) {
+//           C_full(ii, crow.colidx(jj)) = crow.value(jj);
+//         }
+//       });
+//   Kokkos::fence();
+//   return C_full;
+// }
 
 template <>
 auto SparseSignDimRedux::rmap(const scalar_type* alpha,
                               const crs_matrix_type& A, const scalar_type* beta,
                               char transA, char transB, const range_type idx)
-    -> matrix_type {
+    -> crs_matrix_type {
   Kokkos::Timer timer;
-
   crs_matrix_type C;
   Impl::mm(&transA, alpha, A, data, beta, C);
-
-  Kokkos::fence();
   stats.map = timer.seconds();
-
-  // Dense output
-  matrix_type C_full("SparseSignDimRedux::rmap::C_full", C.numRows(),
-                     C.numCols());
-  Kokkos::parallel_for(
-      C.numRows(), KOKKOS_LAMBDA(const int ii) {
-        auto crow = C.row(ii);
-        for (auto jj = 0; jj < crow.length; ++jj) {
-          C_full(ii, crow.colidx(jj)) = crow.value(jj);
-        }
-      });
-  Kokkos::fence();
-  return C_full;
+  return C;
 }
 
 template <>
