@@ -9,6 +9,9 @@
 
 namespace Skema {
 
+template <typename>
+inline constexpr bool dependent_false_v = false;
+
 // Sparse sketch: exactly crs_matrix_type + SparseSignDimRedux
 template <typename MatrixT, typename DimReduxT>
 concept SparseSketch = std::is_same_v<MatrixT, crs_matrix_type> &&
@@ -149,22 +152,29 @@ template <typename MatrixT>
 void sketchy_svd(const MatrixT&, matrix_type&, vector_type&, matrix_type&,
                  vector_type&, AlgParams);
 
-template class SketchySVD<crs_matrix_type, SparseSignDimRedux>;
 template class SketchySVD<matrix_type, GaussDimRedux>;
 template class SketchySVD<crs_matrix_type, GaussDimRedux>;
 template class SketchySVD<matrix_type, SparseSignDimRedux>;
+template class SketchySVD<crs_matrix_type, SparseSignDimRedux>;
 
 // SketchySVD variant for symmetric positive definite matrices
-template <typename MatrixT, typename DimReduxT, typename SketchT = matrix_type>
+template <typename MatrixT, typename DimReduxT>
 class SketchySPD {
+  static_assert(SparseSketch<MatrixT, DimReduxT> ||
+                    DenseSketch<MatrixT, DimReduxT>,
+                "Unsupported SketchySPD combination");
+
  public:
   SketchySPD(AlgParams);
   ~SketchySPD() {};
 
   auto compute_residuals(const MatrixT&) -> vector_type;
+
   auto linear_update(const MatrixT&) -> void;
+
   auto low_rank_approx(bool update_timers = true)
       -> std::tuple<matrix_type, vector_type>;
+
   auto save_history(std::filesystem::path) -> void;
 
  private:
@@ -180,6 +190,9 @@ class SketchySPD {
   const size_type range;
   const scalar_type eta;
   const scalar_type nu;
+  size_type Y_nrow;
+  size_type Y_ncol;
+  bool transpy;
   const AlgParams algParams;
   std::unique_ptr<WindowBase<MatrixT>> window;
 
@@ -189,11 +202,67 @@ class SketchySPD {
   std::map<std::string, std::map<std::string, double>> timings;
   std::map<std::string, std::map<std::string, std::vector<scalar_type>>> traces;
 
-  auto axpy(const double, matrix_type&, const double, const matrix_type&,
-            const range_type = std::make_pair<size_type>(0, 0)) -> void;
+  auto axpy(const double, matrix_type&, const double, const matrix_type&)
+      -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
 
-  auto update(const MatrixT&) -> SketchT;
+  auto axpy(const double, matrix_type&, const double, const matrix_type&,
+            const range_type, const bool transp = false) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto axpy(const double, crs_matrix_type&, const double,
+            const crs_matrix_type&) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto axpy(const double, crs_matrix_type&, const double,
+            const crs_matrix_type&, const range_type, const bool transp = false)
+      -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto axpy_impl(const double, matrix_type&, const double, const matrix_type&,
+                 const size_type, const size_type, const size_type,
+                 const size_type) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto axpy_impl(const double, crs_matrix_type&, const double,
+                 const crs_matrix_type&) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto linear_update_impl(const MatrixT&) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto linear_update_full_impl(const MatrixT&) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto linear_update_stream_impl(const MatrixT&) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto linear_update_impl(const MatrixT&) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto linear_update_full_impl(const MatrixT&) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto linear_update_stream_impl(const MatrixT&) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto set_sketch(matrix_type&, matrix_type&, const bool) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto set_sketch(matrix_type&, crs_matrix_type&, const bool) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto update(const MatrixT&) -> matrix_type
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto update(const MatrixT&) -> crs_matrix_type
+    requires SparseSketch<MatrixT, DimReduxT>;
 };
+
+template class SketchySPD<matrix_type, GaussDimRedux>;
+template class SketchySPD<crs_matrix_type, GaussDimRedux>;
+template class SketchySPD<matrix_type, SparseSignDimRedux>;
+template class SketchySPD<crs_matrix_type, SparseSignDimRedux>;
 
 // Driver
 template <typename MatrixT>

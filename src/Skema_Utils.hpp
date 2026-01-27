@@ -74,7 +74,7 @@ struct DimRedux_Map {
   enum type { GAUSS, SPARSE_SIGN };
   static constexpr unsigned num_types  = 2;
   static constexpr type types[]        = {GAUSS, SPARSE_SIGN};
-  static constexpr const char* names[] = {"gauss", "sparse-sign"};
+  static constexpr const char* names[] = {"gauss", "count"};
   static constexpr type default_type   = GAUSS;
 };
 

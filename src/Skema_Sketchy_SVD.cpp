@@ -370,7 +370,7 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update(const MatrixT& A) -> void {
   } else if constexpr (SparseSketch<MatrixT, DimReduxT>) {
     linear_update_impl(A);
   }
-};
+}
 
 /*
   Here, we specialize the linear update for dense/sparse inputs and
