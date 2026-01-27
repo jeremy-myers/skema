@@ -80,60 +80,67 @@ class SketchySVD {
   std::map<std::string, std::map<std::string, scalar_type>> timings;
   std::map<std::string, std::map<std::string, std::vector<scalar_type>>> traces;
 
-  auto linear_update_dense_sketch_impl(const MatrixT&) -> void;
-  auto linear_update_dense_sketch_full_impl(const MatrixT&) -> void;
-  auto linear_update_dense_sketch_stream_impl(const MatrixT&) -> void;
-  auto linear_update_sparse_sketch_impl(const MatrixT&) -> void;
-  auto linear_update_sparse_sketch_full_impl(const MatrixT&) -> void;
-  auto linear_update_sparse_sketch_stream_impl(const MatrixT&) -> void;
-
-  auto axpy_dense_sketch(const double, matrix_type&, const double,
-                         const matrix_type&) -> void
-    requires DenseSketch<MatrixT, DimReduxT>;
-
-  auto axpy_dense_sketch(const double, matrix_type&, const double,
-                         const matrix_type&, const range_type,
-                         const bool transp = false) -> void
-    requires DenseSketch<MatrixT, DimReduxT>;
-
-  auto axpy_dense_sketch_impl(const double, matrix_type&, const double,
-                              const matrix_type&, const size_type,
-                              const size_type, const size_type, const size_type)
+  auto axpy(const double, matrix_type&, const double, const matrix_type&)
       -> void
     requires DenseSketch<MatrixT, DimReduxT>;
 
-  auto axpy_sparse_sketch(const double, crs_matrix_type&, const double,
-                          const crs_matrix_type&) -> void
+  auto axpy(const double, matrix_type&, const double, const matrix_type&,
+            const range_type, const bool transp = false) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto axpy(const double, crs_matrix_type&, const double,
+            const crs_matrix_type&) -> void
     requires SparseSketch<MatrixT, DimReduxT>;
 
-  auto axpy_sparse_sketch(const double, crs_matrix_type&, const double,
-                          const crs_matrix_type&, const range_type,
-                          const bool transp = false) -> void
+  auto axpy(const double, crs_matrix_type&, const double,
+            const crs_matrix_type&, const range_type, const bool transp = false)
+      -> void
     requires SparseSketch<MatrixT, DimReduxT>;
 
-  auto axpy_sparse_sketch_impl(const double, crs_matrix_type&, const double,
-                               const crs_matrix_type&) -> void
+  auto axpy_impl(const double, matrix_type&, const double, const matrix_type&,
+                 const size_type, const size_type, const size_type,
+                 const size_type) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto axpy_impl(const double, crs_matrix_type&, const double,
+                 const crs_matrix_type&) -> void
     requires SparseSketch<MatrixT, DimReduxT>;
 
   auto initial_approx(bool update_timers = true)
       -> std::tuple<matrix_type, matrix_type, matrix_type>;
 
-  auto update_dense_sketch(const MatrixT&,
-                           const range_type idx = std::make_pair<size_type>(0,
-                                                                            0))
+  auto linear_update_impl(const MatrixT&) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto linear_update_full_impl(const MatrixT&) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto linear_update_stream_impl(const MatrixT&) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto linear_update_impl(const MatrixT&) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto linear_update_full_impl(const MatrixT&) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto linear_update_stream_impl(const MatrixT&) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto set_sketch(matrix_type&, matrix_type&, const bool) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto set_sketch(matrix_type&, crs_matrix_type&, const bool) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto update(const MatrixT&,
+              const range_type idx = std::make_pair<size_type>(0, 0))
       -> std::tuple<matrix_type, matrix_type, matrix_type>
     requires DenseSketch<MatrixT, DimReduxT>;
 
-  auto update_sparse_sketch(const MatrixT&,
-                            const range_type idx = std::make_pair<size_type>(0,
-                                                                             0))
+  auto update(const MatrixT&,
+              const range_type idx = std::make_pair<size_type>(0, 0))
       -> std::tuple<crs_matrix_type, crs_matrix_type, crs_matrix_type>
-    requires SparseSketch<MatrixT, DimReduxT>;
-
-  auto set_dense_sketch(matrix_type&, matrix_type&, const bool) -> void
-    requires DenseSketch<MatrixT, DimReduxT>;
-
-  auto set_dense_sketch(matrix_type&, crs_matrix_type&, const bool) -> void
     requires SparseSketch<MatrixT, DimReduxT>;
 };
 

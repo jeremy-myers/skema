@@ -15,9 +15,6 @@
 
 namespace Skema {
 
-template <typename>
-inline constexpr bool dependent_false_v = false;
-
 // SketchySVD for general matrices
 template <typename MatrixT, typename DimReduxT>
 SketchySVD<MatrixT, DimReduxT>::SketchySVD(AlgParams algParams_)
@@ -156,11 +153,13 @@ SketchySVD<MatrixT, DimReduxT>::SketchySVD(AlgParams algParams_)
   timings["init"]["omega"] += Omega.stats.initialize;
   timings["init"]["phi"] += Phi.stats.initialize;
   timings["init"]["psi"] += Psi.stats.initialize;
-};
+}
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::linear_update_dense_sketch_full_impl(
-    const MatrixT& A) -> void {
+auto SketchySVD<MatrixT, DimReduxT>::linear_update_full_impl(const MatrixT& A)
+    -> void
+  requires DenseSketch<MatrixT, DimReduxT>
+{
   Kokkos::Timer timer;
   range_type idx{std::make_pair(0, nrow)};
 
@@ -168,7 +167,7 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_dense_sketch_full_impl(
   auto H = window->get(A, idx);
   timings["update"]["window"] += timer.seconds();
 
-  const auto [x, y, z] = update_dense_sketch(H);
+  const auto [x, y, z] = update(H);
 
   timings["update"]["upsilon"] += Upsilon.stats.map;
   timings["update"]["omega"] += Omega.stats.map;
@@ -180,19 +179,21 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_dense_sketch_full_impl(
   matrix_type Z_("Z_", Z_nrow, Z_ncol);
 
   timer.reset();
-  axpy_dense_sketch(nu, X_, eta, x);
-  axpy_dense_sketch(nu, Z_, eta, z);
-  axpy_dense_sketch(nu, Y_, eta, y);
+  axpy(nu, X_, eta, x);
+  axpy(nu, Z_, eta, z);
+  axpy(nu, Y_, eta, y);
   timings["update"]["daxpy"] += timer.seconds();
 
-  set_dense_sketch(X, X_, transpx);
-  set_dense_sketch(Y, Y_, transpy);
-  set_dense_sketch(Z, Z_, transpz);
-};
+  set_sketch(X, X_, transpx);
+  set_sketch(Y, Y_, transpy);
+  set_sketch(Z, Z_, transpz);
+}
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::linear_update_dense_sketch_stream_impl(
-    const MatrixT& A) -> void {
+auto SketchySVD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
+    -> void
+  requires DenseSketch<MatrixT, DimReduxT>
+{
   double time{0.0};
   Kokkos::Timer timer;
   ordinal_type ucnt{0};  // window count
@@ -221,7 +222,7 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_dense_sketch_stream_impl(
     time += timer.seconds();
 
     timer.reset();
-    const auto [x, y, z] = update_dense_sketch(H, idx);
+    const auto [x, y, z] = update(H, idx);
     time += timer.seconds();
 
     timings["update"]["upsilon"] += Upsilon.stats.map;
@@ -230,9 +231,9 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_dense_sketch_stream_impl(
     timings["update"]["psi"] += Psi.stats.map;
 
     timer.reset();
-    axpy_dense_sketch(nu, X_, eta, x);
-    axpy_dense_sketch(nu, Z_, eta, z);
-    axpy_dense_sketch(nu, Y_, eta, y, idx, transpy);
+    axpy(nu, X_, eta, x);
+    axpy(nu, Z_, eta, z);
+    axpy(nu, Y_, eta, y, idx, transpy);
     timings["update"]["daxpy"] += timer.seconds();
     time += timer.seconds();
 
@@ -241,14 +242,16 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_dense_sketch_stream_impl(
     ++ucnt;
   }
 
-  set_dense_sketch(X, X_, transpx);
-  set_dense_sketch(Y, Y_, transpy);
-  set_dense_sketch(Z, Z_, transpz);
+  set_sketch(X, X_, transpx);
+  set_sketch(Y, Y_, transpy);
+  set_sketch(Z, Z_, transpz);
 }
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::linear_update_sparse_sketch_full_impl(
-    const MatrixT& A) -> void {
+auto SketchySVD<MatrixT, DimReduxT>::linear_update_full_impl(const MatrixT& A)
+    -> void
+  requires SparseSketch<MatrixT, DimReduxT>
+{
   Kokkos::Timer timer;
   range_type idx{std::make_pair(0, nrow)};
 
@@ -256,7 +259,7 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_sparse_sketch_full_impl(
   auto H = window->get(A, idx);
   timings["update"]["window"] += timer.seconds();
 
-  const auto [x, y, z] = update_sparse_sketch(H);
+  const auto [x, y, z] = update(H);
 
   timings["update"]["upsilon"] += Upsilon.stats.map;
   timings["update"]["omega"] += Omega.stats.map;
@@ -268,54 +271,21 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_sparse_sketch_full_impl(
   crs_matrix_type Z_;
 
   timer.reset();
-  axpy_sparse_sketch(nu, X_, eta, x);
-  axpy_sparse_sketch(nu, Z_, eta, z);
-  axpy_sparse_sketch(nu, Y_, eta, y);
+  axpy(nu, X_, eta, x);
+  axpy(nu, Z_, eta, z);
+  axpy(nu, Y_, eta, y);
   timings["update"]["daxpy"] += timer.seconds();
 
-  set_dense_sketch(X, X_, transpx);
-  set_dense_sketch(Y, Y_, transpy);
-  set_dense_sketch(Z, Z_, transpz);
-
-  // if (!algParams.debug_filename.empty()) {
-  //   std::string fname;
-
-  //   fname = algParams.debug_filename.filename().stem().string() + "_x.mtx";
-  //   Impl::write(x, fname.c_str());
-
-  //   fname = algParams.debug_filename.filename().stem().string() + "_y.mtx";
-  //   Impl::write(y, fname.c_str());
-
-  //   fname = algParams.debug_filename.filename().stem().string() + "_z.mtx";
-  //   Impl::write(z, fname.c_str());
-
-  //   fname = algParams.debug_filename.filename().stem().string() + "_X.mtx";
-  //   Impl::write(X_, fname.c_str());
-
-  //   fname = algParams.debug_filename.filename().stem().string() + "_Y.mtx";
-  //   Impl::write(Y_, fname.c_str());
-
-  //   fname = algParams.debug_filename.filename().stem().string() + "_Z.mtx";
-  //   Impl::write(Z_, fname.c_str());
-
-  //   fname = algParams.debug_filename.filename().stem().string() +
-  //   "_Omega.mtx"; Omega.save(fname);
-
-  //   fname =
-  //       algParams.debug_filename.filename().stem().string() + "_Upsilon.mtx";
-  //   Upsilon.save(fname);
-
-  //   fname = algParams.debug_filename.filename().stem().string() + "_Phi.mtx";
-  //   Phi.save(fname);
-
-  //   fname = algParams.debug_filename.filename().stem().string() + "_Psi.mtx";
-  //   Psi.save(fname);
-  // }
-};
+  set_sketch(X, X_, transpx);
+  set_sketch(Y, Y_, transpy);
+  set_sketch(Z, Z_, transpz);
+}
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::linear_update_sparse_sketch_stream_impl(
-    const MatrixT& A) -> void {
+auto SketchySVD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
+    -> void
+  requires SparseSketch<MatrixT, DimReduxT>
+{
   double time{0.0};
   Kokkos::Timer timer;
   ordinal_type ucnt{0};  // window count
@@ -344,7 +314,7 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_sparse_sketch_stream_impl(
     time += timer.seconds();
 
     timer.reset();
-    const auto [x, y, z] = update_sparse_sketch(H, idx);
+    const auto [x, y, z] = update(H, idx);
     time += timer.seconds();
 
     timings["update"]["upsilon"] += Upsilon.stats.map;
@@ -353,101 +323,52 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_sparse_sketch_stream_impl(
     timings["update"]["psi"] += Psi.stats.map;
 
     timer.reset();
-    axpy_sparse_sketch(nu, X_, eta, x);
-    axpy_sparse_sketch(nu, Z_, eta, z);
-    axpy_sparse_sketch(nu, Y_, eta, y, idx, transpy);
+    axpy(nu, X_, eta, x);
+    axpy(nu, Z_, eta, z);
+    axpy(nu, Y_, eta, y, idx, transpy);
     timings["update"]["daxpy"] += timer.seconds();
     time += timer.seconds();
 
     std::cout << " " << time << " sec." << std::endl;
 
-    // if (!algParams.debug_filename.empty()) {
-    //   std::string fname;
-
-    //   fname = algParams.debug_filename.filename().stem().string() +
-    //           std::to_string(ucnt) + "_x.mtx";
-    //   Impl::write(x, fname.c_str());
-
-    //   fname = algParams.debug_filename.filename().stem().string() +
-    //           std::to_string(ucnt) + "_y.mtx";
-    //   Impl::write(y, fname.c_str());
-
-    //   fname = algParams.debug_filename.filename().stem().string() +
-    //           std::to_string(ucnt) + "_z.mtx";
-    //   Impl::write(z, fname.c_str());
-
-    //   fname = algParams.debug_filename.filename().stem().string() +
-    //           std::to_string(ucnt) + "_X.mtx";
-    //   Impl::write(X_, fname.c_str());
-
-    //   fname = algParams.debug_filename.filename().stem().string() +
-    //           std::to_string(ucnt) + "_Y.mtx";
-    //   Impl::write(Y_, fname.c_str());
-
-    //   fname = algParams.debug_filename.filename().stem().string() +
-    //           std::to_string(ucnt) + "_Z.mtx";
-    //   Impl::write(Z_, fname.c_str());
-    // }
-
     ++ucnt;
   }
 
-  // if (!algParams.debug_filename.empty()) {
-  //   std::string fname;
-  //   fname = algParams.debug_filename.filename().stem().string() + "_X.mtx";
-  //   Impl::write(X_, fname.c_str());
-
-  //   fname = algParams.debug_filename.filename().stem().string() + "_Y.mtx";
-  //   Impl::write(Y_, fname.c_str());
-
-  //   fname = algParams.debug_filename.filename().stem().string() + "_Z.mtx";
-  //   Impl::write(Z_, fname.c_str());
-
-  //   fname = algParams.debug_filename.filename().stem().string() +
-  //   "_Omega.mtx"; Omega.save(fname);
-
-  //   fname =
-  //       algParams.debug_filename.filename().stem().string() + "_Upsilon.mtx";
-  //   Upsilon.save(fname);
-
-  //   fname = algParams.debug_filename.filename().stem().string() + "_Phi.mtx";
-  //   Phi.save(fname);
-
-  //   fname = algParams.debug_filename.filename().stem().string() + "_Psi.mtx";
-  //   Psi.save(fname);
-  // }
-
-  set_dense_sketch(X, X_, transpx);
-  set_dense_sketch(Y, Y_, transpy);
-  set_dense_sketch(Z, Z_, transpz);
+  set_sketch(X, X_, transpx);
+  set_sketch(Y, Y_, transpy);
+  set_sketch(Z, Z_, transpz);
 }
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::linear_update_dense_sketch_impl(
-    const MatrixT& A) -> void {
+auto SketchySVD<MatrixT, DimReduxT>::linear_update_impl(const MatrixT& A)
+    -> void
+  requires DenseSketch<MatrixT, DimReduxT>
+{
   if ((algParams.window == 0) || (algParams.window == nrow)) {
-    linear_update_dense_sketch_full_impl(A);
+    linear_update_full_impl(A);
   } else {
-    linear_update_dense_sketch_stream_impl(A);
+    linear_update_stream_impl(A);
   }
 }
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::linear_update_sparse_sketch_impl(
-    const MatrixT& A) -> void {
+auto SketchySVD<MatrixT, DimReduxT>::linear_update_impl(const MatrixT& A)
+    -> void
+  requires SparseSketch<MatrixT, DimReduxT>
+{
   if ((algParams.window == 0) || (algParams.window == nrow)) {
-    linear_update_sparse_sketch_full_impl(A);
+    linear_update_full_impl(A);
   } else {
-    linear_update_sparse_sketch_stream_impl(A);
+    linear_update_stream_impl(A);
   }
 }
 
 template <typename MatrixT, typename DimReduxT>
 auto SketchySVD<MatrixT, DimReduxT>::linear_update(const MatrixT& A) -> void {
   if constexpr (DenseSketch<MatrixT, DimReduxT>) {
-    linear_update_dense_sketch_impl(A);
+    linear_update_impl(A);
   } else if constexpr (SparseSketch<MatrixT, DimReduxT>) {
-    linear_update_sparse_sketch_impl(A);
+    linear_update_impl(A);
   }
 };
 
@@ -461,8 +382,8 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update(const MatrixT& A) -> void {
        transposed
 */
 template <>
-auto SketchySVD<matrix_type, GaussDimRedux>::update_dense_sketch(
-    const matrix_type& A, const range_type row_idxs)
+auto SketchySVD<matrix_type, GaussDimRedux>::update(const matrix_type& A,
+                                                    const range_type row_idxs)
     -> std::tuple<matrix_type, matrix_type, matrix_type> {
   // Dense-Dense operations, no constraints on operator order or transpose
   // mode, do X,Y,W,Z update as desired.
@@ -479,7 +400,7 @@ auto SketchySVD<matrix_type, GaussDimRedux>::update_dense_sketch(
 }
 
 template <>
-auto SketchySVD<matrix_type, SparseSignDimRedux>::update_dense_sketch(
+auto SketchySVD<matrix_type, SparseSignDimRedux>::update(
     const matrix_type& A, const range_type row_idxs)
     -> std::tuple<matrix_type, matrix_type, matrix_type> {
   // X = Upsilon(:,row_idxs) * H
@@ -502,7 +423,7 @@ auto SketchySVD<matrix_type, SparseSignDimRedux>::update_dense_sketch(
 }
 
 template <>
-auto SketchySVD<crs_matrix_type, GaussDimRedux>::update_dense_sketch(
+auto SketchySVD<crs_matrix_type, GaussDimRedux>::update(
     const crs_matrix_type& A, const range_type row_idxs)
     -> std::tuple<matrix_type, matrix_type, matrix_type> {
   // Here, we initialized all DimRedux maps to be transposed
@@ -523,7 +444,7 @@ auto SketchySVD<crs_matrix_type, GaussDimRedux>::update_dense_sketch(
 }
 
 template <>
-auto SketchySVD<crs_matrix_type, SparseSignDimRedux>::update_sparse_sketch(
+auto SketchySVD<crs_matrix_type, SparseSignDimRedux>::update(
     const crs_matrix_type& A, const range_type row_idxs)
     -> std::tuple<crs_matrix_type, crs_matrix_type, crs_matrix_type> {
   // Here, we initialized Omega & Psi DimRedux maps to be transposed
@@ -849,41 +770,39 @@ auto SketchySVD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
 };
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::axpy_dense_sketch(const double beta,
-                                                       matrix_type& C,
-                                                       const double alpha,
-                                                       const matrix_type& A)
-    -> void
+auto SketchySVD<MatrixT, DimReduxT>::axpy(const double beta, matrix_type& C,
+                                          const double alpha,
+                                          const matrix_type& A) -> void
   requires DenseSketch<MatrixT, DimReduxT>
 {
   assert((C.extent(0)) == A.extent(0));
   assert((C.extent(1)) == A.extent(1));
-  axpy_dense_sketch_impl(beta, C, alpha, A, C.extent(0), C.extent(1), 0, 0);
+  axpy_impl(beta, C, alpha, A, C.extent(0), C.extent(1), 0, 0);
 }
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::axpy_dense_sketch(
-    const double beta, matrix_type& C, const double alpha, const matrix_type& A,
-    const range_type idx, const bool transp) -> void
+auto SketchySVD<MatrixT, DimReduxT>::axpy(const double beta, matrix_type& C,
+                                          const double alpha,
+                                          const matrix_type& A,
+                                          const range_type idx,
+                                          const bool transp) -> void
   requires DenseSketch<MatrixT, DimReduxT>
 {
   if (!transp) {
     assert((C.extent(1) == A.extent(1)));
     assert((idx.second - idx.first) == A.extent(0));
     assert((idx.second <= C.extent(0)));
-    axpy_dense_sketch_impl(beta, C, alpha, A, A.extent(0), C.extent(1),
-                           idx.first, 0);
+    axpy_impl(beta, C, alpha, A, A.extent(0), C.extent(1), idx.first, 0);
   } else {
     assert((C.extent(0) == A.extent(0)));
     assert((idx.second - idx.first) == A.extent(1));
     assert((idx.second <= C.extent(1)));
-    axpy_dense_sketch_impl(beta, C, alpha, A, C.extent(0), A.extent(1), 0,
-                           idx.first);
+    axpy_impl(beta, C, alpha, A, C.extent(0), A.extent(1), 0, idx.first);
   }
 }
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::axpy_dense_sketch_impl(
+auto SketchySVD<MatrixT, DimReduxT>::axpy_impl(
     const double beta, matrix_type& C, const double alpha, const matrix_type& A,
     const size_type team_thread_range, const size_type league_size,
     const size_type row_offset, const size_type col_offset) -> void
@@ -906,16 +825,16 @@ auto SketchySVD<MatrixT, DimReduxT>::axpy_dense_sketch_impl(
 }
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::axpy_sparse_sketch(
-    const double beta, crs_matrix_type& C, const double alpha,
-    const crs_matrix_type& A) -> void
+auto SketchySVD<MatrixT, DimReduxT>::axpy(const double beta, crs_matrix_type& C,
+                                          const double alpha,
+                                          const crs_matrix_type& A) -> void
   requires SparseSketch<MatrixT, DimReduxT>
 {
-  axpy_sparse_sketch_impl(beta, C, alpha, A);
+  axpy_impl(beta, C, alpha, A);
 }
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::axpy_sparse_sketch(
+auto SketchySVD<MatrixT, DimReduxT>::axpy(
     const double beta, crs_matrix_type& output, const double alpha,
     const crs_matrix_type& A, const range_type idx, const bool transp) -> void
   requires SparseSketch<MatrixT, DimReduxT>
@@ -936,7 +855,7 @@ auto SketchySVD<MatrixT, DimReduxT>::axpy_sparse_sketch(
       (output.nnz()) != 0) { /* output is initialized */
 
     crs_matrix_type C;
-    axpy_sparse_sketch_impl(beta, C, alpha, A);
+    axpy_impl(beta, C, alpha, A);
 
     /* C must be updated manually since new rows are being inserted */
     assert((idx.second - idx.first) == A.numRows());
@@ -956,9 +875,6 @@ auto SketchySVD<MatrixT, DimReduxT>::axpy_sparse_sketch(
 
     // Add the new row pointers
     size_type begin{output.graph.row_map.extent(0)};
-    // auto c_rowmap = Kokkos::subview(
-    //     c.graph.row_map,
-    //     Kokkos::make_pair<size_type>(1, c.graph.row_map.extent(0)));
 
     auto output_add_rowmap_ = Kokkos::subview(
         output_row_map, Kokkos::make_pair(begin, begin + C.numRows()));
@@ -1018,12 +934,6 @@ auto SketchySVD<MatrixT, DimReduxT>::axpy_sparse_sketch(
 
     auto output_nnz = output_values.extent(0);
 
-    // assert((output_old_ncol_ == range) && "Y_ must have range number of
-    // columns"); assert((C.numCols() == range) && "y must have range number
-    // of
-    // columns"); assert((output_old_ncol_ == C.numCols()) &&
-    //        "Y_ must have the same number of columns as y");
-
     output = crs_matrix_type(
         "sketchysvd_crs_axpy_output", output_old_nrow_ + C.numRows(),
         C.numCols(), output_nnz, output_values, output_row_map, output_entries);
@@ -1048,9 +958,10 @@ auto SketchySVD<MatrixT, DimReduxT>::axpy_sparse_sketch(
 }
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::axpy_sparse_sketch_impl(
-    const double beta, crs_matrix_type& C, const double alpha,
-    const crs_matrix_type& A) -> void
+auto SketchySVD<MatrixT, DimReduxT>::axpy_impl(const double beta,
+                                               crs_matrix_type& C,
+                                               const double alpha,
+                                               const crs_matrix_type& A) -> void
   requires SparseSketch<MatrixT, DimReduxT>
 {
   using device_type = typename Kokkos::Device<
@@ -1118,10 +1029,9 @@ auto SketchySVD<MatrixT, DimReduxT>::axpy_sparse_sketch_impl(
 }
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::set_dense_sketch(matrix_type& dst,
-                                                      matrix_type& src,
-                                                      const bool transp_src)
-    -> void
+auto SketchySVD<MatrixT, DimReduxT>::set_sketch(matrix_type& dst,
+                                                matrix_type& src,
+                                                const bool transp_src) -> void
   requires DenseSketch<MatrixT, DimReduxT>
 {
   if (transp_src) {
@@ -1132,10 +1042,9 @@ auto SketchySVD<MatrixT, DimReduxT>::set_dense_sketch(matrix_type& dst,
 }
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySVD<MatrixT, DimReduxT>::set_dense_sketch(matrix_type& dst,
-                                                      crs_matrix_type& src,
-                                                      const bool transp_src)
-    -> void
+auto SketchySVD<MatrixT, DimReduxT>::set_sketch(matrix_type& dst,
+                                                crs_matrix_type& src,
+                                                const bool transp_src) -> void
   requires SparseSketch<MatrixT, DimReduxT>
 {
   if (transp_src) {
