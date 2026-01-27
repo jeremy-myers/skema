@@ -2,31 +2,44 @@
 #pragma once
 #include "Skema_AlgParams.hpp"
 #include "Skema_Common.hpp"
+#include "Skema_DimRedux.hpp"
 #include "Skema_Utils.hpp"
 #include "Skema_Window.hpp"
 #include <map>
 
 namespace Skema {
 
-// template <typename SketchT>
-// auto custom_axpy(const double, SketchT&, const double, const SketchT&,
-//                  const bool) -> void;
+// Sparse sketch: exactly crs_matrix_type + SparseSignDimRedux
+template <typename MatrixT, typename DimReduxT>
+concept SparseSketch = std::is_same_v<MatrixT, crs_matrix_type> &&
+                       std::is_same_v<DimReduxT, SparseSignDimRedux>;
 
-// template <typename SketchT>
-// auto custom_axpy(const double, SketchT&, const double, const SketchT&,
-//                  const bool, const range_type) -> void;
+// Dense sketch: any of three combinations
+template <typename MatrixT, typename DimReduxT>
+concept DenseSketch = (std::is_same_v<MatrixT, matrix_type> &&
+                       std::is_same_v<DimReduxT, GaussDimRedux>) ||
+                      (std::is_same_v<MatrixT, crs_matrix_type> &&
+                       std::is_same_v<DimReduxT, GaussDimRedux>) ||
+                      (std::is_same_v<MatrixT, matrix_type> &&
+                       std::is_same_v<DimReduxT, SparseSignDimRedux>);
 
-// SketchySVD for general matrices
-template <typename MatrixT, typename DimReduxT, typename SketchT = matrix_type>
+template <typename MatrixT, typename DimReduxT>
 class SketchySVD {
+  static_assert(SparseSketch<MatrixT, DimReduxT> ||
+                    DenseSketch<MatrixT, DimReduxT>,
+                "Unsupported SketchySVD combination");
+
  public:
   SketchySVD(AlgParams);
   ~SketchySVD() {};
 
   auto compute_residuals(const MatrixT&) -> vector_type;
+
   auto linear_update(const MatrixT&) -> void;
+
   auto low_rank_approx(bool update_timers = true)
       -> std::tuple<matrix_type, vector_type, matrix_type>;
+
   auto save_history(std::filesystem::path) -> void;
 
  private:
@@ -46,6 +59,15 @@ class SketchySVD {
   const size_type core;
   const scalar_type eta;
   const scalar_type nu;
+  size_type X_nrow;
+  size_type X_ncol;
+  size_type Y_nrow;
+  size_type Y_ncol;
+  size_type Z_nrow;
+  size_type Z_ncol;
+  bool transpx;
+  bool transpy;
+  bool transpz;
   const AlgParams algParams;
   std::unique_ptr<WindowBase<MatrixT>> window;
 
@@ -58,54 +80,72 @@ class SketchySVD {
   std::map<std::string, std::map<std::string, scalar_type>> timings;
   std::map<std::string, std::map<std::string, std::vector<scalar_type>>> traces;
 
-  template <typename V = SketchT>
-  std::enable_if_t<std::is_same_v<V, matrix_type>, void> axpy(const double,
-                                                              SketchT&,
-                                                              const double,
-                                                              const SketchT&);
+  auto linear_update_dense_sketch_impl(const MatrixT&) -> void;
+  auto linear_update_dense_sketch_full_impl(const MatrixT&) -> void;
+  auto linear_update_dense_sketch_stream_impl(const MatrixT&) -> void;
+  auto linear_update_sparse_sketch_impl(const MatrixT&) -> void;
+  auto linear_update_sparse_sketch_full_impl(const MatrixT&) -> void;
+  auto linear_update_sparse_sketch_stream_impl(const MatrixT&) -> void;
 
-  template <typename V = SketchT>
-  std::enable_if_t<std::is_same_v<V, matrix_type>, void> axpy(
-      const double, SketchT&, const double, const SketchT&, const range_type);
+  auto axpy_dense_sketch(const double, matrix_type&, const double,
+                         const matrix_type&) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
 
-  template <typename V = SketchT>
-  std::enable_if_t<std::is_same_v<V, crs_matrix_type>, void> axpy(
-      const double, SketchT&, const double, const SketchT&);
+  auto axpy_dense_sketch(const double, matrix_type&, const double,
+                         const matrix_type&, const range_type,
+                         const bool transp = false) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
 
-  template <typename V = SketchT>
-  std::enable_if_t<std::is_same_v<V, crs_matrix_type>, void> axpy(
-      const double, SketchT&, const double, const SketchT&, const range_type);
+  auto axpy_dense_sketch_impl(const double, matrix_type&, const double,
+                              const matrix_type&, const size_type,
+                              const size_type, const size_type, const size_type)
+      -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto axpy_sparse_sketch(const double, crs_matrix_type&, const double,
+                          const crs_matrix_type&) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto axpy_sparse_sketch(const double, crs_matrix_type&, const double,
+                          const crs_matrix_type&, const range_type,
+                          const bool transp = false) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto axpy_sparse_sketch_impl(const double, crs_matrix_type&, const double,
+                               const crs_matrix_type&) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
 
   auto initial_approx(bool update_timers = true)
       -> std::tuple<matrix_type, matrix_type, matrix_type>;
 
-  auto update(const MatrixT&,
-              const range_type idx = std::make_pair<size_type>(0, 0))
-      -> std::tuple<SketchT, SketchT, SketchT>;
+  auto update_dense_sketch(const MatrixT&,
+                           const range_type idx = std::make_pair<size_type>(0,
+                                                                            0))
+      -> std::tuple<matrix_type, matrix_type, matrix_type>
+    requires DenseSketch<MatrixT, DimReduxT>;
 
-  template <typename V = SketchT>
-  std::enable_if_t<std::is_same_v<V, matrix_type>, void>
-  initialize_auxiliary_sketch(const std::string, V&, const size_t, const size_t,
-                              const bool);
+  auto update_sparse_sketch(const MatrixT&,
+                            const range_type idx = std::make_pair<size_type>(0,
+                                                                             0))
+      -> std::tuple<crs_matrix_type, crs_matrix_type, crs_matrix_type>
+    requires SparseSketch<MatrixT, DimReduxT>;
 
-  template <typename V = SketchT>
-  std::enable_if_t<std::is_same_v<V, crs_matrix_type>, void>
-  initialize_auxiliary_sketch(const std::string, V&, const size_t, const size_t,
-                              const bool);
+  auto set_dense_sketch(matrix_type&, matrix_type&, const bool) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
 
-  template <typename V = SketchT>
-  std::enable_if_t<std::is_same_v<V, matrix_type>, void> set_dense_sketch(
-      matrix_type&, const V&, const bool);
-
-  template <typename V = SketchT>
-  std::enable_if_t<std::is_same_v<V, crs_matrix_type>, void> set_dense_sketch(
-      matrix_type&, const V&, const bool);
+  auto set_dense_sketch(matrix_type&, crs_matrix_type&, const bool) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
 };
 
 // Driver
 template <typename MatrixT>
 void sketchy_svd(const MatrixT&, matrix_type&, vector_type&, matrix_type&,
                  vector_type&, AlgParams);
+
+template class SketchySVD<crs_matrix_type, SparseSignDimRedux>;
+template class SketchySVD<matrix_type, GaussDimRedux>;
+template class SketchySVD<crs_matrix_type, GaussDimRedux>;
+template class SketchySVD<matrix_type, SparseSignDimRedux>;
 
 // SketchySVD variant for symmetric positive definite matrices
 template <typename MatrixT, typename DimReduxT, typename SketchT = matrix_type>
