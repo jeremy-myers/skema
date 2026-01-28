@@ -52,22 +52,22 @@ class SketchySVD {
   vector_type rnrms;
 
   // Sketch
-  matrix_type X;
-  matrix_type Y;
-  matrix_type Z;
-  const size_type nrow;
-  const size_type ncol;
+  matrix_type corange_sketch_X;
+  matrix_type range_sketch_Y;
+  matrix_type core_sketch_Z;
+  const size_type input_nrow;
+  const size_type input_ncol;
   const size_type rank;
-  const size_type range;
-  const size_type core;
-  const scalar_type eta;
-  const scalar_type nu;
-  size_type X_nrow;
-  size_type X_ncol;
-  size_type Y_nrow;
-  size_type Y_ncol;
-  size_type Z_nrow;
-  size_type Z_ncol;
+  const size_type sketch_range_size;
+  const size_type sketch_core_size;
+  const scalar_type sketch_scaling_factor;
+  const scalar_type input_scaling_factor;
+  size_type sketch_X_nrow;
+  size_type sketch_X_ncol;
+  size_type sketch_Y_nrow;
+  size_type sketch_Y_ncol;
+  size_type sketch_Z_nrow;
+  size_type sketch_Z_ncol;
   bool transpx;
   bool transpy;
   bool transpz;
@@ -75,10 +75,10 @@ class SketchySVD {
   std::unique_ptr<WindowBase<MatrixT>> window;
 
   // DimRedux
-  DimReduxT Upsilon;
-  DimReduxT Omega;
-  DimReduxT Phi;
-  DimReduxT Psi;
+  DimReduxT DR_Upsilon;
+  DimReduxT DR_Omega;
+  DimReduxT DR_Phi;
+  DimReduxT DR_Psi;
 
   std::map<std::string, std::map<std::string, scalar_type>> timings;
   std::map<std::string, std::map<std::string, std::vector<scalar_type>>> traces;
@@ -183,21 +183,22 @@ class SketchySPD {
   vector_type rnrms;
 
   // Sketch
-  matrix_type Y;
-  const size_type nrow;
-  const size_type ncol;
+  matrix_type range_sketch_Y;
+  size_type sketch_Y_nrow;
+  size_type sketch_Y_ncol;
+  const size_type input_nrow;
+  const size_type input_ncol;
   const size_type rank;
-  const size_type range;
-  const scalar_type eta;
-  const scalar_type nu;
-  size_type Y_nrow;
-  size_type Y_ncol;
+  const size_type sketch_range_size;
+  const scalar_type sketch_scaling_factor;
+  const scalar_type input_scaling_factor;
+
   bool transpy;
   const AlgParams algParams;
   std::unique_ptr<WindowBase<MatrixT>> window;
 
   // DimRedux
-  DimReduxT Omega;
+  DimReduxT DR_Omega;
 
   std::map<std::string, std::map<std::string, double>> timings;
   std::map<std::string, std::map<std::string, std::vector<scalar_type>>> traces;

@@ -61,6 +61,7 @@ struct AlgParams {
   bool force_three_sketch;
   bool sketch_compute_svals_iters;
   bool isvd_sampling;
+  Decomposition_Type::type norm2_solver;
 
   // Constructor initializing values to defaults
   AlgParams();

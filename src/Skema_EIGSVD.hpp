@@ -51,6 +51,11 @@ class XVDS {
   XVDS() {};
   virtual ~XVDS() {};
 
+  // Compute for values only
+  virtual void compute(const MatrixType&, const size_type, const size_type,
+                       const size_type, vector_type&) = 0;
+
+  // Compute for all pairs/triplets + residuals
   virtual void compute(const MatrixType&, const size_type, const size_type,
                        const size_type, matrix_type&, vector_type&,
                        matrix_type&, vector_type&) = 0;
@@ -72,6 +77,9 @@ class PRIMME_EIGS : public XVDS<MatrixType> {
     primme_free(&params);
     params.monitorFun = eigs_monitorFun;
   };
+
+  void compute(const MatrixType&, const size_type, const size_type,
+               const size_type, vector_type&) override;
 
   void compute(const MatrixType&, const size_type, const size_type,
                const size_type, matrix_type&, vector_type&, matrix_type&,
@@ -107,6 +115,9 @@ class PRIMME_SVDS : public XVDS<MatrixType> {
   };
 
   ~PRIMME_SVDS() { primme_svds_free(&params); };
+
+  void compute(const MatrixType&, const size_type, const size_type,
+               const size_type, vector_type&) override;
 
   void compute(const MatrixType&, const size_type, const size_type,
                const size_type, matrix_type&, vector_type&, matrix_type&,

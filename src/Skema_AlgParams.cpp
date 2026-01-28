@@ -57,7 +57,8 @@ Skema::AlgParams::AlgParams()
       dim_redux(Skema::DimRedux_Map::default_type),
       seeds({0, 1, 2, 3}),
       kernel_func(Skema::Kernel_Map::default_type),
-      kernel_gamma(1.0) {}
+      kernel_gamma(1.0),
+      norm2_solver(Skema::Decomposition_Type::default_type /* SVDS*/) {}
 
 void Skema::error(std::string s) {
   std::cerr << "FATAL ERROR: " << s << std::endl;
@@ -293,7 +294,7 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
                  "--sketch-compute-svals-iters-off", false);
 
   // iSVD solver options
-  isvd_dense_solver = parse_bool(args, "--svd", "--svds", false);
+  // isvd_dense_solver = parse_bool(args, "--svd", "--svds", false);
   isvd_compute_residual_iters =
       parse_bool(args, "--isvd-compute-residual-iters",
                  "--isvd-compute-residual-iters-off", false);
@@ -335,6 +336,11 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
                             Skema::Kernel_Map::types, Skema::Kernel_Map::names);
   kernel_gamma = parse_real(args, "--gamma", kernel_gamma, 0.0,
                             std::numeric_limits<double>::max());
+
+  norm2_solver = parse_enum(
+      args, "--norm-solver", Skema::Decomposition_Type::default_type,
+      Skema::Decomposition_Type::num_types, Skema::Decomposition_Type::types,
+      Skema::Decomposition_Type::names);
 
   if (isvd_num_samples > 0) isvd_sampling = true;
 }

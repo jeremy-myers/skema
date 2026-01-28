@@ -1,4 +1,5 @@
 #pragma once
+#include "Skema_EIGSVD.hpp"
 #include "Skema_Utils.hpp"
 #include <cstdlib>
 #include <stdexcept>
@@ -122,6 +123,14 @@ inline scalar_type nrm2(const matrix_type& A) {
   vector_type S("S", k);
   svd(A, nrow, ncol, S);
   return S(0);
+}
+
+// Compute ||A||_2 with PRIMME SVDS
+inline scalar_type nrm2_svds(const matrix_type& A, const AlgParams& algParams) {
+  vector_type s("linalg::nrm2", 1);
+  PRIMME_SVDS<matrix_type> solver(algParams);
+  solver.compute(A, A.extent(0), A.extent(1), 1, s);
+  return s(0);
 }
 
 inline void qr(matrix_type& Q, const size_type nrow, const size_type ncol) {

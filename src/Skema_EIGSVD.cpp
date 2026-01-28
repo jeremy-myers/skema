@@ -37,6 +37,15 @@ auto save_primme_stats(const std::filesystem::path fname, const VectorT& svals,
   }
 }
 
+template <typename MatrixType>
+void PRIMME_EIGS<MatrixType>::compute(const MatrixType& matrix,
+                                      const size_type nrow,
+                                      const size_type ncol,
+                                      const size_type rank, vector_type& S) {
+  std::cout << "PRIMME_EIGS::compute() not implemented yet for values only"
+            << std::endl;
+}
+
 // EIGS: Requires explicit specialization for kernel
 template <>
 void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
@@ -237,6 +246,169 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
                  .string()
            : "primme.json");
   save_primme_stats(json_file, evals, rnrms, &params.stats);
+}
+
+/* SVDS for values only */
+template <>
+void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
+                                       const size_type nrow,
+                                       const size_type ncol,
+                                       const size_type rank,
+                                       vector_type& svals) {
+  Kokkos::Timer timer;
+
+  assert(svals.extent(0) == rank);
+
+  vector_type svals_internal("PRIMME_SVDS::compute svals_internal", rank);
+  vector_type svecs_internal("PRIMME_SVDS::compute svecs_internal",
+                             (nrow + ncol) * rank);
+  vector_type rnrms_internal("PRIMME_SVDS::compute rnrms_internal", rank);
+
+  /* Initialize primme parameters */
+  params.matrix   = &(const_cast<matrix_type&>(matrix));
+  params.m        = nrow;
+  params.n        = ncol;
+  params.numSvals = rank;
+  params.eps      = algParams.primme_eps;
+  params.target   = primme_svds_largest;
+  params.aNorm    = algParams.primme_aNorm;
+
+  primme_preset_method methodStage1 =
+      parse_primme_method(algParams.primme_method);
+  primme_preset_method methodStage2 =
+      parse_primme_method(algParams.primme_methodStage2);
+
+  for (auto i = 0; i < 4; ++i) {
+    params.iseed[i]        = static_cast<PRIMME_INT>(algParams.seeds[i]);
+    params.primme.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
+  }
+
+  params.matrixMatvec = svds_default_dense_matvec;
+
+  std::string filename = !algParams.primme_outputFile.empty()
+                             ? algParams.primme_outputFile.filename().string()
+                             : "primme.txt";
+  FILE* fp             = fopen(filename.c_str(), "w");
+  params.outputFile    = fp;
+
+  if (fp == nullptr) perror("PRIMME output file failed to open: ");
+
+  primme_svds_set_method(primme_svds_normalequations, methodStage1,
+                         methodStage2, &params);
+  primme_svds_display_params(params);
+
+  /* Call primme_svds  */
+  std::cout << "Computing low-rank approximation" << std::endl;
+  timer.reset();
+  int ret;
+  ret = dprimme_svds(svals_internal.data(), svecs_internal.data(),
+                     rnrms_internal.data(), &params);
+  Kokkos::fence();
+  scalar_type time = timer.seconds();
+  std::cout << "Elapsed time: " << time << std::endl;
+
+  if (ret != 0) {
+    fprintf(params.outputFile,
+            "Error: primme_svds returned with nonzero exit status: %d \n", ret);
+  }
+  if (fp != nullptr) {
+    fclose(fp);
+  }
+
+  Kokkos::deep_copy(svals, svals_internal);
+
+  std::filesystem::path json_file =
+      (!algParams.primme_outputFile.empty()
+           ? algParams.primme_outputFile.filename()
+                 .stem()
+                 .replace_extension("json")
+                 .string()
+           : "primme.json");
+  save_primme_stats(json_file, svals_internal, rnrms_internal, &params.stats);
+}
+
+template <>
+void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
+                                           const size_type nrow,
+                                           const size_type ncol,
+                                           const size_type rank,
+                                           vector_type& svals) {
+  Kokkos::Timer timer;
+
+  assert(svals.extent(0) == rank);
+
+  vector_type svals_internal("PRIMME_SVDS::compute svals_internal", rank);
+  vector_type svecs_internal("PRIMME_SVDS::compute svecs_internal",
+                             (nrow + ncol) * rank);
+  vector_type rnrms_internal("PRIMME_SVDS::compute rnrms_internal", rank);
+
+  /* Initialize primme parameters */
+  params.matrix       = &(const_cast<crs_matrix_type&>(matrix));
+  params.m            = nrow;
+  params.n            = ncol;
+  params.numSvals     = rank;
+  params.eps          = algParams.primme_eps;
+  params.target       = primme_svds_largest;
+  params.aNorm        = algParams.primme_aNorm;
+  params.maxBlockSize = 1;
+
+  primme_preset_method methodStage1 =
+      parse_primme_method(algParams.primme_method);
+  primme_preset_method methodStage2 =
+      parse_primme_method(algParams.primme_method);
+
+  for (auto i = 0; i < 4; ++i) {
+    params.iseed[i]        = static_cast<PRIMME_INT>(algParams.seeds[i]);
+    params.primme.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
+  }
+
+  params.matrixMatvec = svds_default_sparse_matvec;
+
+  params.primme.maxOuterIterations =
+      algParams.primme_maxIter > 0 ? algParams.primme_maxIter : 0;
+  params.primme.maxBlockSize =
+      algParams.primme_maxBlockSize > 0 ? algParams.primme_maxBlockSize : 0;
+
+  std::string filename = !algParams.primme_outputFile.empty()
+                             ? algParams.primme_outputFile.filename().string()
+                             : "primme.txt";
+  FILE* fp             = fopen(filename.c_str(), "w");
+  params.outputFile    = fp;
+
+  if (fp == nullptr) perror("PRIMME output file failed to open: ");
+
+  primme_svds_set_method(primme_svds_normalequations, methodStage1,
+                         methodStage1, &params);
+  primme_svds_display_params(params);
+
+  /* Call primme_svds  */
+  std::cout << "Computing low-rank approximation" << std::endl;
+  timer.reset();
+  int ret;
+  ret = dprimme_svds(svals_internal.data(), svecs_internal.data(),
+                     rnrms_internal.data(), &params);
+  Kokkos::fence();
+  scalar_type time = timer.seconds();
+  std::cout << "Elapsed time: " << time << std::endl;
+
+  if (ret != 0) {
+    fprintf(params.outputFile,
+            "Error: primme_svds returned with nonzero exit status: %d \n", ret);
+  }
+  if (fp != nullptr) {
+    fclose(fp);
+  }
+
+  Kokkos::deep_copy(svals, svals_internal);
+
+  std::filesystem::path json_file =
+      (!algParams.primme_outputFile.empty()
+           ? algParams.primme_outputFile.filename()
+                 .stem()
+                 .replace_extension("json")
+                 .string()
+           : "primme.json");
+  save_primme_stats(json_file, svals_internal, rnrms_internal, &params.stats);
 }
 
 template <>

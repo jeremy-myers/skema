@@ -16,20 +16,21 @@ namespace Skema {
 // SketchySPD variant for symmetric positive definite matrices
 template <typename MatrixT, typename DimReduxT>
 SketchySPD<MatrixT, DimReduxT>::SketchySPD(AlgParams algParams_)
-    : nrow(algParams_.matrix_m),
-      ncol(algParams_.matrix_n),
+    : input_nrow(algParams_.matrix_m),
+      input_ncol(algParams_.matrix_n),
       rank(algParams_.rank),
-      range(algParams_.sketch_range < algParams_.rank
-                ? 4 * algParams_.rank + 1
-                : algParams_.sketch_range),
-      eta(algParams_.sketch_eta),
-      nu(algParams_.sketch_nu),
+      sketch_range_size(algParams_.sketch_range < algParams_.rank
+                            ? 4 * algParams_.rank + 1
+                            : algParams_.sketch_range),
+      sketch_scaling_factor(algParams_.sketch_eta),
+      input_scaling_factor(algParams_.sketch_nu),
       algParams(algParams_),
-      Omega(DimReduxT(ncol, range, algParams.seeds[0], "Omega",
-                      (!algParams_.issparse &&
-                       algParams_.dim_redux == DimRedux_Map::SPARSE_SIGN))),
+      DR_Omega(DimReduxT(input_ncol, sketch_range_size, algParams.seeds[0],
+                         "Omega",
+                         (!algParams_.issparse &&
+                          algParams_.dim_redux == DimRedux_Map::SPARSE_SIGN))),
       window(getWindow<MatrixT>(algParams)) {
-  Y = matrix_type("Y", nrow, range);
+  range_sketch_Y = matrix_type("Y", input_nrow, sketch_range_size);
 
   // Determine if axpy is called with transp == true for LHS
   // Enumerate all options here
@@ -50,8 +51,8 @@ SketchySPD<MatrixT, DimReduxT>::SketchySPD(AlgParams algParams_)
                   "Unsupported SketchySPD combination.");
   }
 
-  Y_nrow = (transpy ? range : nrow);
-  Y_ncol = (transpy ? nrow : range);
+  sketch_Y_nrow = (transpy ? sketch_range_size : input_nrow);
+  sketch_Y_ncol = (transpy ? input_nrow : sketch_range_size);
 
   timings["init"]["omega"]    = 0.0;
   timings["update"]["omega"]  = 0.0;
@@ -65,7 +66,7 @@ SketchySPD<MatrixT, DimReduxT>::SketchySPD(AlgParams algParams_)
   timings["approx"]["dgels"]  = 0.0;
   timings["approx"]["dgesvd"] = 0.0;
 
-  timings["init"]["omega"] += Omega.stats.initialize;
+  timings["init"]["omega"] += DR_Omega.stats.initialize;
 }
 
 template <typename MatrixT, typename DimReduxT>
@@ -73,7 +74,7 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_impl(const MatrixT& A)
     -> void
   requires DenseSketch<MatrixT, DimReduxT>
 {
-  if ((algParams.window == 0) || (algParams.window == nrow)) {
+  if ((algParams.window == 0) || (algParams.window == input_nrow)) {
     linear_update_full_impl(A);
   } else {
     linear_update_stream_impl(A);
@@ -85,7 +86,7 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_impl(const MatrixT& A)
     -> void
   requires SparseSketch<MatrixT, DimReduxT>
 {
-  if ((algParams.window == 0) || (algParams.window == nrow)) {
+  if ((algParams.window == 0) || (algParams.window == input_nrow)) {
     linear_update_full_impl(A);
   } else {
     linear_update_stream_impl(A);
@@ -111,7 +112,7 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_full_impl(const MatrixT& A)
   size_type wsize{algParams.window};
   range_type idx;
 
-  idx = std::make_pair<size_type>(0, nrow);
+  idx = std::make_pair<size_type>(0, input_nrow);
 
   timer.reset();
   const auto H = window->get(A, idx);
@@ -121,19 +122,19 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_full_impl(const MatrixT& A)
   const auto y = update(H);
   timings["update"]["omega"] += timer.seconds();
 
-  matrix_type Y_("Y_", Y_nrow, Y_ncol);
+  matrix_type Y_("Y_", sketch_Y_nrow, sketch_Y_ncol);
 
   timer.reset();
-  axpy(nu, Y_, eta, y);
+  axpy(input_scaling_factor, Y_, sketch_scaling_factor, y);
   timings["update"]["daxpy"] += timer.seconds();
 
-  set_sketch(Y, Y_, transpy);
+  set_sketch(range_sketch_Y, Y_, transpy);
 
-  // if (!algParams.debug_filename.empty()) {
-  //   std::string fname;
-  //   fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
-  //   Impl::write(Y, fname.c_str());
-  // }
+  if (!algParams.debug_filename.empty()) {
+    std::string fname;
+    fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
+    Impl::write(range_sketch_Y, fname.c_str());
+  }
 }
 
 template <typename MatrixT, typename DimReduxT>
@@ -145,19 +146,20 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
   Kokkos::Timer timer;
   ordinal_type ucnt{0};  // window count
   size_type wsize{algParams.window};
-  const size_type nwindows{static_cast<size_type>(std::ceil(nrow / wsize))};
+  const size_type nwindows{
+      static_cast<size_type>(std::ceil(input_nrow / wsize))};
 
-  matrix_type Y_("Y_", Y_nrow, Y_ncol);
+  matrix_type Y_("Y_", sketch_Y_nrow, sketch_Y_ncol);
 
   std::cout << "Streaming input" << std::endl;
   range_type idx;
-  for (auto irow = 0; irow < nrow; irow += wsize) {
+  for (auto irow = 0; irow < input_nrow; irow += wsize) {
     std::cout << "  (" << ucnt + 1 << "/" << nwindows << "): " << std::flush;
 
-    if (irow + wsize < nrow) {
+    if (irow + wsize < input_nrow) {
       idx = std::make_pair(irow, irow + wsize);
     } else {
-      idx   = std::make_pair(irow, nrow);
+      idx   = std::make_pair(irow, input_nrow);
       wsize = idx.second - idx.first;
     }
 
@@ -172,7 +174,7 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
     time += timer.seconds();
 
     timer.reset();
-    axpy(nu, Y_, eta, y, idx);
+    axpy(input_scaling_factor, Y_, sketch_scaling_factor, y, idx);
     timings["update"]["daxpy"] += timer.seconds();
     time += timer.seconds();
 
@@ -181,13 +183,13 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
     ++ucnt;
   }
 
-  set_sketch(Y, Y_, transpy);
+  set_sketch(range_sketch_Y, Y_, transpy);
 
-  // if (!algParams.debug_filename.empty()) {
-  //   std::string fname;
-  //   fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
-  //   Impl::write(Y, fname.c_str());
-  // }
+  if (!algParams.debug_filename.empty()) {
+    std::string fname;
+    fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
+    Impl::write(range_sketch_Y, fname.c_str());
+  }
 }
 
 template <typename MatrixT, typename DimReduxT>
@@ -200,7 +202,7 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_full_impl(const MatrixT& A)
   size_type wsize{algParams.window};
   range_type idx;
 
-  idx = std::make_pair<size_type>(0, nrow);
+  idx = std::make_pair<size_type>(0, input_nrow);
 
   timer.reset();
   const auto H = window->get(A, idx);
@@ -213,16 +215,16 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_full_impl(const MatrixT& A)
   crs_matrix_type Y_;
 
   timer.reset();
-  axpy(nu, Y_, eta, y);
+  axpy(input_scaling_factor, Y_, sketch_scaling_factor, y);
   timings["update"]["daxpy"] += timer.seconds();
 
-  set_sketch(Y, Y_, transpy);
+  set_sketch(range_sketch_Y, Y_, transpy);
 
-  // if (!algParams.debug_filename.empty()) {
-  //   std::string fname;
-  //   fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
-  //   Impl::write(Y, fname.c_str());
-  // }
+  if (!algParams.debug_filename.empty()) {
+    std::string fname;
+    fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
+    Impl::write(range_sketch_Y, fname.c_str());
+  }
 }
 
 template <typename MatrixT, typename DimReduxT>
@@ -234,19 +236,20 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
   Kokkos::Timer timer;
   ordinal_type ucnt{0};  // window count
   size_type wsize{algParams.window};
-  const size_type nwindows{static_cast<size_type>(std::ceil(nrow / wsize))};
+  const size_type nwindows{
+      static_cast<size_type>(std::ceil(input_nrow / wsize))};
 
   crs_matrix_type Y_;
 
   std::cout << "Streaming input" << std::endl;
   range_type idx;
-  for (auto irow = 0; irow < nrow; irow += wsize) {
+  for (auto irow = 0; irow < input_nrow; irow += wsize) {
     std::cout << "  (" << ucnt + 1 << "/" << nwindows << "): " << std::flush;
 
-    if (irow + wsize < nrow) {
+    if (irow + wsize < input_nrow) {
       idx = std::make_pair(irow, irow + wsize);
     } else {
-      idx   = std::make_pair(irow, nrow);
+      idx   = std::make_pair(irow, input_nrow);
       wsize = idx.second - idx.first;
     }
 
@@ -261,7 +264,7 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
     time += timer.seconds();
 
     timer.reset();
-    axpy(nu, Y_, eta, y, idx, transpy);
+    axpy(input_scaling_factor, Y_, sketch_scaling_factor, y, idx, transpy);
     timings["update"]["daxpy"] += timer.seconds();
     time += timer.seconds();
 
@@ -270,13 +273,13 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
     ++ucnt;
   }
 
-  set_sketch(Y, Y_, transpy);
+  set_sketch(range_sketch_Y, Y_, transpy);
 
-  // if (!algParams.debug_filename.empty()) {
-  //   std::string fname;
-  //   fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
-  //   Impl::write(Y, fname.c_str());
-  // }
+  if (!algParams.debug_filename.empty()) {
+    std::string fname;
+    fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
+    Impl::write(range_sketch_Y, fname.c_str());
+  }
 }
 
 /*
@@ -293,7 +296,7 @@ auto SketchySPD<matrix_type, GaussDimRedux>::update(const matrix_type& A)
   // do Y update as desired.
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  return std::get<matrix_type>(Omega.apply_right(&one, A, &zero, 'N', 'N'));
+  return std::get<matrix_type>(DR_Omega.apply_right(&one, A, &zero, 'N', 'N'));
 }
 
 template <>
@@ -304,9 +307,9 @@ auto SketchySPD<matrix_type, SparseSignDimRedux>::update(const matrix_type& A)
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
   // auto At  = Impl::transpose(A);
-  // auto ret = std::get<matrix_type>(Omega.apply_left(&one, At, &zero, 'T',
+  // auto ret = std::get<matrix_type>(DR_Omega.apply_left(&one, At, &zero, 'T',
   // 'N')); return Impl::transpose(ret);
-  return std::get<matrix_type>(Omega.apply_right(&one, A, &zero, 'N', 'N'));
+  return std::get<matrix_type>(DR_Omega.apply_right(&one, A, &zero, 'N', 'N'));
 }
 
 template <>
@@ -316,7 +319,7 @@ auto SketchySPD<crs_matrix_type, GaussDimRedux>::update(
   // operator order or transpose mode, do Y update as desired.
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  return std::get<matrix_type>(Omega.apply_right(&one, A, &zero, 'N', 'N'));
+  return std::get<matrix_type>(DR_Omega.apply_right(&one, A, &zero, 'N', 'N'));
 }
 
 template <>
@@ -324,7 +327,8 @@ auto SketchySPD<crs_matrix_type, SparseSignDimRedux>::update(
     const crs_matrix_type& A) -> crs_matrix_type {
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  return std::get<crs_matrix_type>(Omega.apply_right(&one, A, &zero, 'N', 'N'));
+  return std::get<crs_matrix_type>(
+      DR_Omega.apply_right(&one, A, &zero, 'N', 'N'));
 }
 
 template <typename MatrixT, typename DimReduxT>
@@ -345,24 +349,30 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   const scalar_type zero{0.0};
   const int print_level{algParams.print_level};
   const bool debug{algParams.debug};
-  constexpr scalar_type mu{std::numeric_limits<scalar_type>::epsilon()};
+  constexpr scalar_type machine_eps{
+      std::numeric_limits<scalar_type>::epsilon()};
 
   // Construct the shifted sketch Yν = Y + νΩ.
   // Compute nu = machine_eps * norm(Y)
-  // Here copy Y because nrm2 overwrites
   std::cout << "  Computing norm(Y)" << std::endl;
-  matrix_type Y_copy("Y_copy", Y.extent(0), Y.extent(1));
-  Kokkos::deep_copy(Y_copy, Y);
-  scalar_type shift;
-  scalar_type ynorm;
-  timer.reset();
-  try {
-    ynorm = linalg::nrm2(Y_copy);
-    shift = mu * ynorm;
-  } catch (const std::exception& e) {
-    std::cout << "Skema::sketchyspd::low_rank_approx::norm2 encountered an "
-                 "exception: "
-              << e.what() << std::endl;
+  scalar_type shift{1.0};
+  scalar_type ynorm{1.0};
+
+  if (algParams.norm2_solver == Skema::Decomposition_Type::SVD) {
+    // Here copy Y because nrm2 with dgesvd overwrites
+    matrix_type sketch_Y_copy("sketch_Y_copy", range_sketch_Y.extent(0),
+                              range_sketch_Y.extent(1));
+    Kokkos::deep_copy(sketch_Y_copy, range_sketch_Y);
+    timer.reset();
+    try {
+      ynorm = linalg::nrm2(sketch_Y_copy);
+    } catch (const std::exception& e) {
+      std::cout << "Skema::sketchyspd::low_rank_approx::norm2 encountered an "
+                   "exception: "
+                << e.what() << std::endl;
+    }
+  } else {
+    ynorm = linalg::nrm2_svds(range_sketch_Y, algParams);
   }
   Kokkos::fence();
   if (update_timers) {
@@ -372,12 +382,13 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
     std::cout << std::setprecision(16) << "norm(Y) = " << ynorm
               << ", shift = " << shift << std::endl;
   }
+  shift = machine_eps * ynorm;
 
   // Construct shifted sketch
   std::cout << "  Computing norm(Y)*Omega" << std::endl;
   timer.reset();
   try {
-    Omega.scale_and_add(shift, Y);
+    DR_Omega.scale_and_add(shift, range_sketch_Y);
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::axpy encountered an "
                  "exception: "
@@ -389,7 +400,7 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   }
   if (debug) {
     std::cout << "Y = Y + shift Omega" << std::endl;
-    Impl::print(Y);
+    Impl::print(range_sketch_Y);
   }
 
   // Form the matrix B = Ω∗Yν
@@ -397,7 +408,8 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   timer.reset();
   matrix_type B;
   try {
-    B = std::get<matrix_type>(Omega.apply_left(&one, Y, &zero, 'T', 'N'));
+    B = std::get<matrix_type>(
+        DR_Omega.apply_left(&one, range_sketch_Y, &zero, 'T', 'N'));
   } catch (const std::exception& e) {
     std::cout
         << "Skema::sketchyspd::low_rank_approx::apply_left encountered an "
@@ -420,7 +432,7 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   assert((B.extent(0) == B.extent(1)) && "Axis 0 of B must match axis 1");
 
   // Force symmetry
-  matrix_type C("C", range, range);
+  matrix_type C("C", sketch_range_size, sketch_range_size);
   try {
     KokkosBlas::update(0.5, B, 0.5, Bt, 0.0, C);
   } catch (const std::exception& e) {
@@ -460,9 +472,9 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   // W = Y/C; MATLAB: (C'\Y')'; / is MATLAB mldivide(C',Y')'
   std::cout << "  Computing E = Y * C^-1" << std::endl;
   timer.reset();
-  auto Yt = Impl::transpose(Y);
+  auto Yt = Impl::transpose(range_sketch_Y);
   try {
-    linalg::ls(&T, C, Yt, range, range, Yt.extent(1));
+    linalg::ls(&T, C, Yt, sketch_range_size, sketch_range_size, Yt.extent(1));
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::ls encountered an "
                  "exception: "
@@ -470,16 +482,16 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   }
   Kokkos::fence();
 
-  Y    = Impl::transpose(Yt);
-  time = timer.seconds();
+  range_sketch_Y = Impl::transpose(Yt);
+  time           = timer.seconds();
   if (update_timers) {
     timings["approx"]["dgels"] += timer.seconds();
   }
 
   // Compute the (thin) singular value decomposition E = UΣV^*
   std::cout << "  Computing E = USV^T" << std::endl;
-  const size_type mw{Y.extent(0)};
-  const size_type nw{Y.extent(1)};
+  const size_type mw{range_sketch_Y.extent(0)};
+  const size_type nw{range_sketch_Y.extent(1)};
   const size_type min_mnw{std::min(mw, nw)};
 
   matrix_type Uwy("Uwy", mw, min_mnw);
@@ -487,7 +499,7 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   matrix_type Vwy("Vwy", min_mnw, nw);  // transpose
   timer.reset();
   try {
-    linalg::svd(Y, mw, nw, Uwy, Swy, Vwy);
+    linalg::svd(range_sketch_Y, mw, nw, Uwy, Swy, Vwy);
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::svd encountered an "
                  "exception: "
