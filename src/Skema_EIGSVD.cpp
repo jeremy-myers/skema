@@ -83,12 +83,6 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
     params.matrixMatvec = eigs_kernel_dense_matvec;
   }
 
-  /* Kokkos::resize(S, rank); */
-  /* Kokkos::deep_copy(evals, S); */
-
-  /* Kokkos::resize(R, rank); */
-  /* Kokkos::deep_copy(rnrms, R); */
-
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
         nrow * rank,
@@ -181,12 +175,6 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
     params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
   }
 
-  /* Kokkos::resize(S, rank); */
-  /* Kokkos::deep_copy(evals, S); */
-
-  /* Kokkos::resize(R, rank); */
-  /* Kokkos::deep_copy(rnrms, R); */
-
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
         nrow * rank,
@@ -265,7 +253,7 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
   vector_type rnrms_internal("PRIMME_SVDS::compute rnrms_internal", rank);
 
   /* Initialize primme parameters */
-  params.matrix   = &(const_cast<matrix_type&>(matrix));
+  params.matrix   = (void*)matrix.data();
   params.m        = nrow;
   params.n        = ncol;
   params.numSvals = rank;
@@ -425,7 +413,7 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
   vector_type rnrms("rnrms", rank);
 
   /* Initialize primme parameters */
-  params.matrix   = &(const_cast<matrix_type&>(matrix));
+  params.matrix   = (void*)matrix.data();
   params.m        = nrow;
   params.n        = ncol;
   params.numSvals = rank;
@@ -451,12 +439,6 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
     params.matrix       = &kernel;
     params.matrixMatvec = svds_kernel_dense_matvec;
   }
-
-  /* Kokkos::resize(S, rank); */
-  /* Kokkos::deep_copy(svals, S); */
-
-  /* Kokkos::resize(R, rank); */
-  /* Kokkos::deep_copy(rnrms, R); */
 
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
@@ -574,12 +556,6 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   }
 
   params.matrixMatvec = svds_default_sparse_matvec;
-
-  /* Kokkos::resize(S, rank); */
-  /* Kokkos::deep_copy(svals, S); */
-
-  /* Kokkos::resize(R, rank); */
-  /* Kokkos::deep_copy(rnrms, R); */
 
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
