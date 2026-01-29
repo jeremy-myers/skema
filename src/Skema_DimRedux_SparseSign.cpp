@@ -90,8 +90,6 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
   matrix_type C("SparseSignDimRedux::lmap::C", m, n);
   crs_matrix_type data_(data);
   Impl::mm(&transA, &transB, alpha, data_, B, beta, C);
-
-  Kokkos::fence();
   stats.map = timer.seconds();
   return C;
 }
@@ -110,8 +108,6 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
   crs_matrix_type data_(data);
   if (idx.first != idx.second) data_ = col_subview(data, idx);
   Impl::mm(&transA, &transB, alpha, data_, B, beta, C);
-
-  Kokkos::fence();
   stats.map = timer.seconds();
   return C;
 }
@@ -127,8 +123,6 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha, const matrix_type& A,
   auto At = Impl::transpose(A);
   matrix_type C("SparseSignDimRedux::rmap::C", m, n);
   Impl::mm(&transB, &transA, alpha, data, At, beta, C);
-
-  Kokkos::fence();
   stats.map = timer.seconds();
   return Impl::transpose(C);
 }
@@ -144,8 +138,6 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha, const matrix_type& A,
   auto At = Impl::transpose(A);
   matrix_type C("SparseSignDimRedux::rmap::C", m, n);
   Impl::mm(&transB, &transA, alpha, data, At, beta, C);
-
-  Kokkos::fence();
   stats.map = timer.seconds();
   return Impl::transpose(C);
 }

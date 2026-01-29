@@ -347,7 +347,6 @@ auto SketchySPD<MatrixT, DimReduxT>::compute_sketch_2norm(const SketchT& sketch)
     -> scalar_type
   requires std::is_same_v<SketchT, crs_matrix_type>
 {
-  // TODO may need transpose here?
   return linalg::nrm2_svds(sketch, algParams);
 }
 
@@ -393,8 +392,6 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
-
   timings["approx"]["daxpy"] += timer.seconds();
 
   if constexpr (debug) {
@@ -414,8 +411,6 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
            "exception: "
         << e.what() << std::endl;
   }
-  Kokkos::fence();
-
   timings["approx"]["omega"] += timer.seconds();
 
   if constexpr (debug) {
@@ -437,8 +432,6 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
-
   timings["approx"]["update"] += timer.seconds();
 
   if constexpr (debug) {
@@ -468,8 +461,11 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
       std::numeric_limits<scalar_type>::epsilon()};
   std::cout << "  Computing norm(Y)" << std::endl;
 
+  timer.reset();
   scalar_type ynorm = compute_sketch_2norm(sketch);
-  *shift            = machine_eps * ynorm;
+  timings["approx"]["norm2"] += timer.seconds();
+
+  *shift = machine_eps * ynorm;
 
   if constexpr (debug) {
     std::cout << std::setprecision(16) << "norm(Y) = " << ynorm
@@ -486,8 +482,6 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
-
   timings["approx"]["daxpy"] += timer.seconds();
 
   if constexpr (debug) {
@@ -507,8 +501,6 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
            "exception: "
         << e.what() << std::endl;
   }
-  Kokkos::fence();
-
   timings["approx"]["omega"] += timer.seconds();
 
   if constexpr (debug) {
@@ -529,8 +521,6 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
-
   timings["approx"]["update"] += timer.seconds();
 
   if constexpr (debug) {
@@ -586,8 +576,6 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
                  "exception"
               << std::endl;
   }
-  Kokkos::fence();
-
   timings["approx"]["dpotrf"] = timer.seconds();
 
   if constexpr (debug) {
@@ -612,8 +600,6 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
-
   set_sketch(range_sketch_Yd, Yt, true);
   time = timer.seconds();
 
@@ -636,8 +622,6 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
-
   timings["approx"]["dgesvd"] += timer.seconds();
 
   // Truncate to rank r
@@ -711,6 +695,7 @@ auto SketchySPD<MatrixT, DimReduxT>::axpy_impl(
                   alpha * A(ii, jj);
             });
       });
+  Kokkos::fence();
 }
 
 template <typename MatrixT, typename DimReduxT>
@@ -812,6 +797,7 @@ auto SketchySPD<MatrixT, DimReduxT>::axpy(
     Kokkos::parallel_for(
         output_old_values_.extent(0),
         KOKKOS_LAMBDA(const size_type i) { output_old_values_(i) *= beta; });
+    Kokkos::fence();
     // Add the new data
     auto output_add_values_ = Kokkos::subview(
         output_values, Kokkos::make_pair(output.nnz(), output.nnz() + C.nnz()));
@@ -820,6 +806,7 @@ auto SketchySPD<MatrixT, DimReduxT>::axpy(
     Kokkos::parallel_for(
         output_add_values_.extent(0),
         KOKKOS_LAMBDA(const size_type i) { output_add_values_(i) *= alpha; });
+    Kokkos::fence();
 
     auto output_nnz = output_values.extent(0);
 
@@ -839,6 +826,7 @@ auto SketchySPD<MatrixT, DimReduxT>::axpy(
     Kokkos::parallel_for(
         values.extent(0),
         KOKKOS_LAMBDA(const size_type i) { values(i) *= beta; });
+    Kokkos::fence();
 
     output = crs_matrix_type("sketchysvd_crs_axpy_output", num_rows, num_cols,
                              values.extent(0), values, row_map, entries);

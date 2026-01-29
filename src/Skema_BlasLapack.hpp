@@ -58,6 +58,7 @@ inline void svd(const matrix_type& A, const size_type nrow,
 
   ::dgesvd(&jobu, &jobv, &m, &n, A.data(), &lda, S.data(), U.data(), &ldu,
            V.data(), &ldv, superb.data(), &lwork, &info);
+  Kokkos::fence();
 #endif
 }
 
@@ -85,6 +86,7 @@ inline void svd(const matrix_type& A, const size_type nrow,
   std::vector<double> V(min_mn * ncol);
   ::dgesvd(&jobu, &jobu, &m, &n, A.data(), &lda, S.data(), U.data(), &ldu,
            V.data(), &ldv, superb.data(), &lwork, &info);
+  Kokkos::fence();
 #endif
 }
 
@@ -112,6 +114,7 @@ inline void svd(const matrix_type& A, const size_type nrow,
   std::vector<double> V(ncol * min_mn);
   ::dgesvd(&jobu, &jobu, &m, &n, A.data(), &lda, S.data(), U.data(), &ldu,
            V.data(), &ldv, superb.data(), &lwork, &info);
+  Kokkos::fence();
 #endif
 }
 
@@ -121,7 +124,7 @@ inline scalar_type nrm2(const matrix_type& A) {
   const auto ncol{A.extent(1)};
   const auto k{std::min(nrow, ncol)};
   vector_type S("S", k);
-  svd(A, nrow, ncol, S);
+  svd(A, nrow, ncol, S);  // blocking call
   return S(0);
 }
 
@@ -129,7 +132,7 @@ inline scalar_type nrm2(const matrix_type& A) {
 inline scalar_type nrm2_svds(const matrix_type& A, const AlgParams& algParams) {
   vector_type s("linalg::nrm2", 1);
   PRIMME_SVDS<matrix_type> solver(algParams);
-  solver.compute(A, A.extent(0), A.extent(1), 1, s);
+  solver.compute(A, A.extent(0), A.extent(1), 1, s);  // blocking call
   return s(0);
 }
 
@@ -137,7 +140,7 @@ inline scalar_type nrm2_svds(const crs_matrix_type& A,
                              const AlgParams& algParams) {
   vector_type s("linalg::nrm2", 1);
   PRIMME_SVDS<crs_matrix_type> solver(algParams);
-  solver.compute(A, A.numRows(), A.numCols(), 1, s);
+  solver.compute(A, A.numRows(), A.numCols(), 1, s);  // blocking call
   return s(0);
 }
 
@@ -156,8 +159,12 @@ inline void qr(matrix_type& Q, const size_type nrow, const size_type ncol) {
   lapack_int info{0};
 
   ::dgeqrf(&m, &n, Q.data(), &lda, tau.data(), work.data(), &lwork, &info);
+  Kokkos::fence();
+
   ::dorgqr(&m, &n, &rank, Q.data(), &lda, tau.data(), work.data(), &lwork,
            &info);
+  Kokkos::fence();
+
 #endif
 }
 
@@ -177,6 +184,7 @@ inline void qr(matrix_type& Q, matrix_type& R, const size_type nrow,
   lapack_int info{0};
 
   ::dgeqrf(&m, &n, Q.data(), &lda, tau.data(), work.data(), &lwork, &info);
+  Kokkos::fence();
 
   // The elements on and above the diagonal of the array contain the
   // min(M,N)-by-N upper trapezoidal matrix R (R is upper triangular if m >=n)
@@ -187,6 +195,7 @@ inline void qr(matrix_type& Q, matrix_type& R, const size_type nrow,
   }
   ::dorgqr(&m, &n, &rank, Q.data(), &lda, tau.data(), work.data(), &lwork,
            &info);
+  Kokkos::fence();
 #endif
 }
 
@@ -210,6 +219,7 @@ inline void ls(const char* trans, matrix_type& A, matrix_type& B,
 
   ::dgels(transp, &m, &n, &p, A.data(), &lda, B.data(), &ldb, work.data(),
           &lwork, &info);
+  Kokkos::fence();
 #endif
 }
 
@@ -224,6 +234,7 @@ inline int chol(matrix_type& A) {
   lapack_int info{0};
 
   ::dpotrf(&uplo, &m, A.data(), &lda, &info);
+  Kokkos::fence();
 
   if (info > 0) {
     std::string msg = "dpotrf: the leading minor of order ";

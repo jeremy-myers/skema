@@ -414,7 +414,7 @@ auto SketchySVD<matrix_type, SparseSignDimRedux>::update(
   // Deviate from X,Y,W,Z order
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
-  auto At = Impl::transpose(A);
+  auto At = Impl::transpose(A);  // TODO refactor to avoid if possible
   auto yt =
       std::get<matrix_type>(DR_Omega.apply_left(&one, At, &zero, 'N', 'N'));
   auto x = std::get<matrix_type>(
@@ -494,8 +494,6 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
-  // X = Pt;
   if (update_timers) {
     timings["approx"]["dgeqrf"] += timer.seconds();
   }
@@ -506,8 +504,6 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   std::cout << "    Computing [Q,~] = qr(Y,0);" << std::endl;
   // [Q,~] = qr(Y,0);
   timer.reset();
-  // matrix_type Q("Q", Y.extent(0), Y.extent(1));
-  // Kokkos::deep_copy(Q, Y);
   auto Q = range_sketch_Y;
   try {
     linalg::qr(Q, input_nrow, sketch_range_size);
@@ -516,7 +512,6 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
   if (update_timers) {
     timings["approx"]["dgeqrf"] += timer.seconds();
   }
@@ -538,7 +533,6 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
   if (update_timers) {
     timings["approx"]["phi"] = timer.seconds();
   }
@@ -555,7 +549,6 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
   if (update_timers) {
     timings["approx"]["psi"] = timer.seconds();
   }
@@ -573,7 +566,6 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
   if (update_timers) {
     timings["approx"]["dgeqrf"] += timer.seconds();
   }
@@ -591,7 +583,6 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
   if (update_timers) {
     timings["approx"]["dgeqrf"] += timer.seconds();
   }
@@ -611,7 +602,6 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
   if (update_timers) {
     timings["approx"]["dgemm"] += timer.seconds();
   }
@@ -626,7 +616,6 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
   if (update_timers) {
     timings["approx"]["dgemm"] += timer.seconds();
   }
@@ -642,7 +631,6 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
   if (update_timers) {
     timings["approx"]["dgels"] += timer.seconds();
   }
@@ -660,7 +648,6 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
   if (update_timers) {
     timings["approx"]["dgels"] += timer.seconds();
   }
@@ -668,6 +655,7 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   auto C = Impl::transpose(Z2t);
 
   Kokkos::fence();
+
   return std::tuple<matrix_type, matrix_type, matrix_type>(Q, C, P);
 };
 
@@ -712,7 +700,6 @@ auto SketchySVD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
   if (update_timers) {
     timings["approx"]["dgesvd"] += timer.seconds();
   }
@@ -728,7 +715,6 @@ auto SketchySVD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   std::cout << "  Computing U = Q*U" << std::endl;
   // U = Q*U;
   timer.reset();
-  // matrix_type QU("QU", nrow, range);
   Kokkos::resize(uvecs, input_nrow, rank);
   try {
     Impl::mm(&N, &N, &one, Q, Ur, &zero, uvecs);
@@ -737,7 +723,6 @@ auto SketchySVD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
   if (update_timers) {
     timings["approx"]["dgemm"] += timer.seconds();
   }
@@ -745,7 +730,6 @@ auto SketchySVD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   std::cout << "  Computing V = P*Vt'" << std::endl;
   // V = P*Vt';
   timer.reset();
-  // matrix_type PV("PV", ncol, range);
   Kokkos::resize(vvecs, input_ncol, rank);
   try {
     Impl::mm(&N, &T, &one, P, Vr, &zero, vvecs);
@@ -754,10 +738,10 @@ auto SketchySVD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
                  "exception: "
               << e.what() << std::endl;
   }
-  Kokkos::fence();
   if (update_timers) {
     timings["approx"]["dgemm"] += timer.seconds();
   }
+
   Kokkos::fence();
 
   return std::tuple<matrix_type, vector_type, matrix_type>(uvecs, svals, vvecs);
