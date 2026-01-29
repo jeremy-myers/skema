@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <iomanip>
 #include <ostream>
+#include <string_view>
 #include "KokkosSparse_IOUtils.hpp"
 #include "Skema_Utils.hpp"
 #include "json.hpp"
@@ -167,8 +168,13 @@ inline void print(const crs_matrix_type& A) {
 }
 
 inline void write(const vector_type& input, const char* filename) {
+  std::string filename_(filename);
+  if (std::string_view(filename).find(".txt") == std::string_view::npos) {
+    filename_ += ".txt";
+  }
+
   FILE* fp;
-  fp = fopen(filename, "w");
+  fp = fopen(filename_.c_str(), "w");
 
   for (auto i = 0; i < input.extent(0); ++i) {
     fprintf(fp, "%.16f\n", input(i));
@@ -177,8 +183,13 @@ inline void write(const vector_type& input, const char* filename) {
 }
 
 inline void write(const matrix_type& input, const char* filename) {
+  std::string filename_(filename);
+  if (std::string_view(filename).find(".txt") == std::string_view::npos) {
+    filename_ += ".txt";
+  }
+
   FILE* fp;
-  fp = fopen(filename, "w");
+  fp = fopen(filename_.c_str(), "w");
 
   for (auto i = 0; i < input.extent(0); ++i) {
     for (auto j = 0; j < input.extent(1); ++j) {
@@ -190,6 +201,11 @@ inline void write(const matrix_type& input, const char* filename) {
 }
 
 inline void write(const crs_matrix_type& A, const char* filename) {
+  if (std::string_view{filename}.find(".mtx") == std::string_view::npos) {
+    std::string filename_{std::string(filename) + ".mtx"};
+    KokkosSparse::Impl::write_kokkos_crst_matrix(A, filename_.c_str());
+    return;
+  }
   KokkosSparse::Impl::write_kokkos_crst_matrix(A, filename);
 }
 }  // namespace Impl
@@ -206,7 +222,4 @@ struct IsNegative {
   bool operator()(const ValueType val) const { return (val < 0); }
 };
 
-// inline void crs2ccs(const crs_matrix_type& A) -> ccs_matrix_type {
-//   return KokkosSparse::crs2ccs(A);
-// }
 }  // namespace Skema

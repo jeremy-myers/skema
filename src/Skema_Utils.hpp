@@ -5,6 +5,14 @@
 #include <cstddef>
 #include <cstdlib>
 
+// TODO elevate to cmakefiles
+static constexpr bool debug =
+#ifdef NDEBUG
+    false;
+#else
+    true;
+#endif
+
 /* Typedefs */
 using scalar_type  = double;
 using ordinal_type = int;

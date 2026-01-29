@@ -14,7 +14,6 @@ Skema::AlgParams::AlgParams()
       outputfilename(""),
       history_filename(""),
       primme_outputFile(""),
-      debug_filename(""),
       issparse(false),
       issymmetric(false),
       matrix_m(0),
@@ -22,7 +21,6 @@ Skema::AlgParams::AlgParams()
       rank(1),
       num_passes(1),
       print_level(0),
-      debug(false),
       window(1),
       hist(true),
       rayleigh_ritz_pass(false),
@@ -255,7 +253,6 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
   // Generic options
   inputfilename    = parse_filepath(args, "--input", "");
   outputfilename   = parse_filepath(args, "--output", "");
-  debug_filename   = parse_filepath(args, "--debug-file", "");
   history_filename = parse_filepath(args, "--history-file", "");
   issparse         = parse_bool(args, "--sparse", "--dense", false);
   issymmetric      = parse_bool(args, "--symmetric", "--asymmetric", false);
@@ -267,7 +264,6 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
                            Skema::Solver_Method::num_types,
                            Skema::Solver_Method::types, Skema::Solver_Method::names);
   print_level = parse_int(args, "--print-level", print_level, 0, 5);
-  debug       = parse_bool(args, "--debug", "--debug-off", false);
   rayleigh_ritz_pass = parse_bool(args, "--rr", "--rr-off", false);
   normalize_matrix   = parse_real(args, "--normalize-matrix", 0.0, 0.0,
                                   std::numeric_limits<double>::max());

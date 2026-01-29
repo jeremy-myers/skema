@@ -94,25 +94,17 @@ int main(int argc, char* argv[]) {
                   << std::endl;
       }
 
-      if (!algParams.debug_filename.empty()) {
-        std::string fname;
-
+      if (debug) {
         if (U.extent(0) > 0 && U.extent(1) > 0) {
-          fname =
-              algParams.debug_filename.filename().stem().string() + "_U.txt";
-          Skema::Impl::write(U, fname.c_str());
+          Skema::Impl::write(U, "U");
         }
 
         if (S.extent(0) > 0) {
-          fname =
-              algParams.debug_filename.filename().stem().string() + "_S.txt";
-          Skema::Impl::write(S, fname.c_str());
+          Skema::Impl::write(S, "S");
         }
 
         if (V.extent(0) > 0 && V.extent(1) > 0) {
-          fname =
-              algParams.debug_filename.filename().stem().string() + "_V.txt";
-          Skema::Impl::write(V, fname.c_str());
+          Skema::Impl::write(V, "V");
         }
       }
     }

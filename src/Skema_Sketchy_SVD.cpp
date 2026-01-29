@@ -478,7 +478,6 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   const scalar_type one{1.0};
   const scalar_type zero{0.0};
   const int print_level{algParams.print_level};
-  const bool debug{algParams.debug};
 
   Kokkos::Timer timer;
 
@@ -500,10 +499,8 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   if (update_timers) {
     timings["approx"]["dgeqrf"] += timer.seconds();
   }
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-    fname = algParams.debug_filename.filename().stem().string() + "_P.txt";
-    Impl::write(P, fname.c_str());
+  if constexpr (debug) {
+    Impl::write(P, "debug_P");
   }
 
   std::cout << "    Computing [Q,~] = qr(Y,0);" << std::endl;
@@ -523,10 +520,8 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   if (update_timers) {
     timings["approx"]["dgeqrf"] += timer.seconds();
   }
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-    fname = algParams.debug_filename.filename().stem().string() + "_Q.txt";
-    Impl::write(Q, fname.c_str());
+  if constexpr (debug) {
+    Impl::write(Q, "debug_Q");
   }
 
   std::cout << "    Computing Phi*Q" << std::endl;
@@ -547,10 +542,8 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   if (update_timers) {
     timings["approx"]["phi"] = timer.seconds();
   }
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-    fname = algParams.debug_filename.filename().stem().string() + "_PhiQ.txt";
-    Impl::write(U1, fname.c_str());
+  if constexpr (debug) {
+    Impl::write(U1, "debug_PhiQ");
   }
 
   std::cout << "    Computing Psi*P" << std::endl;
@@ -566,10 +559,8 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   if (update_timers) {
     timings["approx"]["psi"] = timer.seconds();
   }
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-    fname = algParams.debug_filename.filename().stem().string() + "_PsiP.txt";
-    Impl::write(U2, fname.c_str());
+  if constexpr (debug) {
+    Impl::write(U2, "debug_PsiP");
   }
 
   std::cout << "    [U2,T2] = qr(Phi*Q,0);" << std::endl;
@@ -586,10 +577,8 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   if (update_timers) {
     timings["approx"]["dgeqrf"] += timer.seconds();
   }
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-    fname = algParams.debug_filename.filename().stem().string() + "_T1.txt";
-    Impl::write(T1, fname.c_str());
+  if constexpr (debug) {
+    Impl::write(T1, "debug_T1");
   }
 
   std::cout << "    Computing [U2,T2] = qr(Psi*P,0);" << std::endl;
@@ -606,10 +595,8 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   if (update_timers) {
     timings["approx"]["dgeqrf"] += timer.seconds();
   }
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-    fname = algParams.debug_filename.filename().stem().string() + "_T2.txt";
-    Impl::write(T2, fname.c_str());
+  if constexpr (debug) {
+    Impl::write(T2, "debug_T2");
   }
 
   // Z2 = U1'*obj.Z*U2;
@@ -701,7 +688,6 @@ auto SketchySVD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   const scalar_type one{1.0};
   const scalar_type zero{0.0};
   const int print_level{algParams.print_level};
-  const bool debug{algParams.debug};
 
   std::cout << "Computing fixed-rank approximation" << std::endl;
 

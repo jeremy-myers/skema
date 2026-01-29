@@ -130,10 +130,8 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_full_impl(const MatrixT& A)
 
   set_sketch(range_sketch_Yd, Y_, transpy);
 
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-    fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
-    Impl::write(range_sketch_Yd, fname.c_str());
+  if constexpr (debug) {
+    Impl::write(range_sketch_Ys, "debug_sketch");
   }
 }
 
@@ -185,10 +183,8 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
 
   set_sketch(range_sketch_Yd, Y_, transpy);
 
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-    fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
-    Impl::write(range_sketch_Yd, fname.c_str());
+  if constexpr (debug) {
+    Impl::write(range_sketch_Ys, "debug_sketch");
   }
 }
 
@@ -212,18 +208,12 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_full_impl(const MatrixT& A)
   const auto y = update(H);
   timings["update"]["omega"] += timer.seconds();
 
-  // crs_matrix_type Y_;
-
   timer.reset();
   axpy(input_scaling_factor, range_sketch_Ys, sketch_scaling_factor, y);
   timings["update"]["daxpy"] += timer.seconds();
 
-  // set_sketch(range_sketch_Yd, Y_, transpy);
-
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-    fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
-    Impl::write(range_sketch_Yd, fname.c_str());
+  if constexpr (debug) {
+    Impl::write(range_sketch_Ys, "debug_sketch");
   }
 }
 
@@ -238,8 +228,6 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
   size_type wsize{algParams.window};
   const size_type nwindows{
       static_cast<size_type>(std::ceil(input_nrow / wsize))};
-
-  // crs_matrix_type Y_;
 
   std::cout << "Streaming input" << std::endl;
   range_type idx;
@@ -274,12 +262,8 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
     ++ucnt;
   }
 
-  // set_sketch(range_sketch_Yd, Y_, transpy);
-
-  if (!algParams.debug_filename.empty()) {
-    std::string fname;
-    fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
-    Impl::write(range_sketch_Yd, fname.c_str());
+  if constexpr (debug) {
+    Impl::write(range_sketch_Ys, "debug_sketch");
   }
 }
 
@@ -376,7 +360,6 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
 {
   Kokkos::Timer timer;
   scalar_type time{0.0};
-  const bool debug{algParams.debug};
   const scalar_type one{1.0};
   const scalar_type zero{0.0};
 
@@ -395,9 +378,9 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
 
   *shift = machine_eps * ynorm;
 
-  if (debug) {
+  if constexpr (debug) {
     std::cout << std::setprecision(16) << "norm(Y) = " << ynorm
-              << ", shift = " << shift << std::endl;
+              << ", shift = " << *shift << std::endl;
   }
 
   // Construct shifted sketch
@@ -414,9 +397,8 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
 
   timings["approx"]["daxpy"] += timer.seconds();
 
-  if (debug) {
-    std::cout << "Y = Y + shift Omega" << std::endl;
-    Impl::print(sketch);
+  if constexpr (debug) {
+    Impl::write(sketch, "debug_shifted_sketch");
   }
 
   // Form the matrix B = Ω∗Yν
@@ -436,9 +418,8 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
 
   timings["approx"]["omega"] += timer.seconds();
 
-  if (debug) {
-    std::cout << "B = Omega^T * Y = " << std::endl;
-    Impl::print(B);
+  if constexpr (debug) {
+    Impl::write(B, "debug_OmegaT_Y");
   }
 
   // Compute a Cholesky decomposition B = CC^*
@@ -460,9 +441,8 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
 
   timings["approx"]["update"] += timer.seconds();
 
-  if (debug) {
-    std::cout << "C = 0.5 * (B + B^T) = " << std::endl;
-    Impl::print(C);
+  if constexpr (debug) {
+    Impl::write(C, "debug_force_symmetry");
   }
 
   return C;
@@ -477,7 +457,7 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
 {
   Kokkos::Timer timer;
   scalar_type time{0.0};
-  const bool debug{algParams.debug};
+
   const scalar_type one{1.0};
   const scalar_type zero{0.0};
   const scalar_type half{0.5};
@@ -491,7 +471,7 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
   scalar_type ynorm = compute_sketch_2norm(sketch);
   *shift            = machine_eps * ynorm;
 
-  if (debug) {
+  if constexpr (debug) {
     std::cout << std::setprecision(16) << "norm(Y) = " << ynorm
               << ", shift = " << shift << std::endl;
   }
@@ -510,9 +490,8 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
 
   timings["approx"]["daxpy"] += timer.seconds();
 
-  if (debug) {
-    std::cout << "Y = Y + shift Omega" << std::endl;
-    Impl::print(sketch);
+  if constexpr (debug) {
+    Impl::write(sketch, "debug_shifted_sketch");
   }
 
   // Form the matrix B = Ω∗Yν
@@ -520,7 +499,6 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
   timer.reset();
   crs_matrix_type B;
   try {
-    // TODO check transpose here
     B = std::get<crs_matrix_type>(
         DR_Omega.apply_left(&one, sketch, &zero, 'T', 'N'));
   } catch (const std::exception& e) {
@@ -533,21 +511,19 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
 
   timings["approx"]["omega"] += timer.seconds();
 
-  if (debug) {
-    std::cout << "B = Omega^T * Y = " << std::endl;
-    Impl::print(B);
+  if constexpr (debug) {
+    Impl::write(B, "debug_OmegaT_Y");
   }
 
   // Compute a Cholesky decomposition B = CC^*
   std::cout << "  Computing C = (B+B^T)/2" << std::endl;
   timer.reset();
   auto Bt = Impl::transpose(B);
-  // assert((B.extent(0) == B.extent(1)) && "Axis 0 of B must match axis 1");
 
   // Force symmetry
   crs_matrix_type Cs;
   try {
-    Impl::matadd(&half, B, &zero, Bt, Cs);
+    Impl::matadd(&half, B, &half, Bt, Cs);
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::update encountered an "
                  "exception: "
@@ -557,9 +533,8 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
 
   timings["approx"]["update"] += timer.seconds();
 
-  if (debug) {
-    std::cout << "C = 0.5 * (B + B^T) = " << std::endl;
-    Impl::print(Cs);
+  if constexpr (debug) {
+    Impl::write(Cs, "debug_force_symmetry");
   }
 
   matrix_type Cd("C dense", sketch_range_size, sketch_range_size);
@@ -593,109 +568,7 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   const scalar_type one{1.0};
   const scalar_type zero{0.0};
   const int print_level{algParams.print_level};
-  const bool debug{algParams.debug};
-  // constexpr scalar_type machine_eps{
-  //     std::numeric_limits<scalar_type>::epsilon()};
 
-  // // Construct the shifted sketch Yν = Y + νΩ.
-  // // Compute nu = machine_eps * norm(Y)
-  // std::cout << "  Computing norm(Y)" << std::endl;
-  // scalar_type shift{1.0};
-  // scalar_type ynorm{1.0};
-
-  // if (algParams.norm2_solver == Skema::Decomposition_Type::SVD) {
-  //   // Here copy Y because nrm2 with dgesvd overwrites
-  //   matrix_type sketch_Y_copy("sketch_Y_copy", range_sketch_Yd.extent(0),
-  //                             range_sketch_Yd.extent(1));
-  //   Kokkos::deep_copy(sketch_Y_copy, range_sketch_Yd);
-  //   timer.reset();
-  //   try {
-  //     ynorm = linalg::nrm2(sketch_Y_copy);
-  //   } catch (const std::exception& e) {
-  //     std::cout << "Skema::sketchyspd::low_rank_approx::norm2 encountered an
-  //     "
-  //                  "exception: "
-  //               << e.what() << std::endl;
-  //   }
-  // } else {
-  //   ynorm = linalg::nrm2_svds(range_sketch_Yd, algParams);
-  // }
-  // Kokkos::fence();
-  // if (update_timers) {
-  //   timings["approx"]["norm2"] += timer.seconds();
-  // }
-
-  // shift = machine_eps * ynorm;
-
-  // if (debug) {
-  //   std::cout << std::setprecision(16) << "norm(Y) = " << ynorm
-  //             << ", shift = " << shift << std::endl;
-  // }
-
-  // // Construct shifted sketch
-  // std::cout << "  Computing norm(Y)*Omega" << std::endl;
-  // timer.reset();
-  // try {
-  //   DR_Omega.scale_and_add(shift, range_sketch_Yd);
-  // } catch (const std::exception& e) {
-  //   std::cout << "Skema::sketchyspd::low_rank_approx::axpy encountered an "
-  //                "exception: "
-  //             << e.what() << std::endl;
-  // }
-  // Kokkos::fence();
-  // if (update_timers) {
-  //   timings["approx"]["daxpy"] += timer.seconds();
-  // }
-  // if (debug) {
-  //   std::cout << "Y = Y + shift Omega" << std::endl;
-  //   Impl::print(range_sketch_Yd);
-  // }
-
-  // // Form the matrix B = Ω∗Yν
-  // std::cout << "  Computing B = norm(Y)*Omega^T * Y" << std::endl;
-  // timer.reset();
-  // matrix_type B;
-  // try {
-  //   B = std::get<matrix_type>(
-  //       DR_Omega.apply_left(&one, range_sketch_Yd, &zero, 'T', 'N'));
-  // } catch (const std::exception& e) {
-  //   std::cout
-  //       << "Skema::sketchyspd::low_rank_approx::apply_left encountered an "
-  //          "exception: "
-  //       << e.what() << std::endl;
-  // }
-  // Kokkos::fence();
-  // if (update_timers) {
-  //   timings["approx"]["omega"] += timer.seconds();
-  // }
-  // if (debug) {
-  //   std::cout << "B = Omega^T * Y = " << std::endl;
-  //   Impl::print(B);
-  // }
-
-  // // Compute a Cholesky decomposition B = CC^*
-  // std::cout << "  Computing C = (B+B^T)/2" << std::endl;
-  // timer.reset();
-  // auto Bt = Impl::transpose(B);
-  // assert((B.extent(0) == B.extent(1)) && "Axis 0 of B must match axis 1");
-
-  // // Force symmetry
-  // matrix_type C("C", sketch_range_size, sketch_range_size);
-  // try {
-  //   KokkosBlas::update(0.5, B, 0.5, Bt, 0.0, C);
-  // } catch (const std::exception& e) {
-  //   std::cout << "Skema::sketchyspd::low_rank_approx::update encountered an "
-  //                "exception: "
-  //             << e.what() << std::endl;
-  // }
-  // Kokkos::fence();
-  // if (update_timers) {
-  //   timings["approx"]["update"] += timer.seconds();
-  // }
-  // if (debug) {
-  //   std::cout << "C = 0.5 * (B + B^T) = " << std::endl;
-  //   Impl::print(C);
-  // }
   scalar_type shift;
   matrix_type C;
   if constexpr (DenseSketch<MatrixT, DimReduxT>) {
@@ -717,9 +590,8 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
 
   timings["approx"]["dpotrf"] = timer.seconds();
 
-  if (debug) {
-    std::cout << "chol(C) = " << std::endl;
-    Impl::print(C);
+  if constexpr (debug) {
+    Impl::write(C, "debug_cholesky");
   }
 
   // Compute E = YνC^{−1} by back-substitution
@@ -731,7 +603,7 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   if constexpr (DenseSketch<MatrixT, DimReduxT>) {
     set_sketch(Yt, range_sketch_Yd, true);
   } else if constexpr (SparseSketch<MatrixT, DimReduxT>) {
-    set_sketch(Yt, range_sketch_Ys, true);  // TODO check this transpose
+    set_sketch(Yt, range_sketch_Ys, true);
   }
   try {
     linalg::ls(&T, C, Yt, sketch_range_size, sketch_range_size, Yt.extent(1));

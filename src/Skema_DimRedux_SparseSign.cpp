@@ -229,24 +229,8 @@ auto SparseSignDimRedux::axpy(const scalar_type val, crs_matrix_type& A)
   const size_type num_rows{static_cast<size_type>(A.numRows())};
   const size_type num_cols{static_cast<size_type>(A.numCols())};
 
-  // Copy A to B, and overwrite A
-  crs_row_map_type B_row_map("crs_axpy_B_row_map", num_rows + 1);
-  crs_entries_type B_entries("crs_axpy_B_entries", A.nnz());
-  vector_type B_values("crs_axpy_B_values", A.nnz());
-
-  Kokkos::deep_copy(B_row_map, A.graph.row_map);
-  Kokkos::deep_copy(B_entries, A.graph.entries);
-  Kokkos::deep_copy(B_values, A.values);
-  auto B_internal =
-      crs_matrix_type("crs_axpy_B", num_rows, num_cols, B_values.extent(0),
-                      B_values, B_row_map, B_entries);
-
-  crs_matrix_type data_(data);
-  // if (init_transposed) // TODO check here
-  // Scale data
-  Kokkos::parallel_for(
-      data.values.extent(0),
-      KOKKOS_LAMBDA(const int i) { data.values(i) *= val; });
+  // Output
+  crs_matrix_type C;
 
   // Create KokkosKernelHandle
   using KernelHandle = KokkosKernels::Experimental::KokkosKernelsHandle<
@@ -254,14 +238,12 @@ auto SparseSignDimRedux::axpy(const scalar_type val, crs_matrix_type& A)
       memory_space>;
   KernelHandle kh;
   kh.create_spadd_handle(false);
-  KokkosSparse::spadd_symbolic(&kh, data, B_internal, A);
-  KokkosSparse::spadd_numeric(&kh, 1.0, data, 0.0, B_internal, A);
+  KokkosSparse::spadd_symbolic(&kh, A, data, C);
+  KokkosSparse::spadd_numeric(&kh, 1.0, A, val, data, C);
   kh.destroy_spadd_handle();
 
-  // Unscale data
-  Kokkos::parallel_for(
-      data.values.extent(0),
-      KOKKOS_LAMBDA(const int i) { data.values(i) /= val; });
+  // Set output
+  A = C;
 }
 
 auto SparseSignDimRedux::write(const std::filesystem::path filename) -> void {

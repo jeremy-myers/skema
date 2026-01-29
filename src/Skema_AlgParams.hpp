@@ -32,7 +32,6 @@ struct AlgParams {
   std::filesystem::path inputfilename;
   std::filesystem::path outputfilename;
   std::filesystem::path history_filename;
-  std::filesystem::path debug_filename;
   std::filesystem::path primme_outputFile;
   Solver_Method::type solver;
   Decomposition_Type::type decomposition_type;
@@ -51,7 +50,6 @@ struct AlgParams {
   Sampler_Type::type isvd_sampler;
   bool issparse;
   bool issymmetric;
-  bool debug;
   bool hist;
   bool rayleigh_ritz_pass;
   bool isvd_dense_solver;
