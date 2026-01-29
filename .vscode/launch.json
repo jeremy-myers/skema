@@ -83,10 +83,6 @@
                 "sketchyspd-sparse-gaussdr.primme.txt",
                 "--primme_method",
                 "PRIMME_LOBPCG_OrthoBasis",
-                "--debug-file",
-                "sketchyspd-sparse-gaussdr",
-                "--norm-solver",
-                "svd"
             ],
             "environment": [
                 {
@@ -119,9 +115,6 @@
                 "sketchyspd-sparse-countdr.json",
                 "--primme_outputFile",
                 "sketchyspd-sparse-countdr.primme.txt",
-                "--debug",
-                "--debug-file",
-                "debug"
             ],
             "environment": [
                 {
