@@ -177,15 +177,21 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
 
   template <typename InputMatrixT>
   auto lmap(const scalar_type* alpha, const InputMatrixT& B,
-            const scalar_type* beta, char transA = 'N', char transB = 'N',
-            const range_type idx = std::make_pair<size_type>(0, 0))
-      -> InputMatrixT;
+            const scalar_type* beta, char transA, char transB) -> InputMatrixT;
+
+  template <typename InputMatrixT>
+  auto lmap(const scalar_type* alpha, const InputMatrixT& B,
+            const scalar_type* beta, char transA, char transB,
+            const range_type idx) -> InputMatrixT;
 
   template <typename InputMatrixT>
   auto rmap(const scalar_type* alpha, const InputMatrixT& A,
-            const scalar_type* beta, char transA = 'N', char transB = 'T',
-            const range_type idx = std::make_pair<size_type>(0, 0))
-      -> InputMatrixT;
+            const scalar_type* beta, char transA, char transB) -> InputMatrixT;
+
+  template <typename InputMatrixT>
+  auto rmap(const scalar_type* alpha, const InputMatrixT& A,
+            const scalar_type* beta, char transA, char transB,
+            const range_type idx) -> InputMatrixT;
 
   auto write(const std::filesystem::path filename = "") -> void;
 };

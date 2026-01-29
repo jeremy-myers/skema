@@ -183,7 +183,8 @@ class SketchySPD {
   vector_type rnrms;
 
   // Sketch
-  matrix_type range_sketch_Y;
+  matrix_type range_sketch_Yd;
+  crs_matrix_type range_sketch_Ys;
   size_type sketch_Y_nrow;
   size_type sketch_Y_ncol;
   const size_type input_nrow;
@@ -229,6 +230,23 @@ class SketchySPD {
                  const crs_matrix_type&) -> void
     requires SparseSketch<MatrixT, DimReduxT>;
 
+  template <typename SketchT>
+  auto compute_sketch_2norm(const SketchT&, bool iterative = true)
+      -> scalar_type
+    requires std::is_same_v<SketchT, matrix_type>;
+
+  template <typename SketchT>
+  auto compute_sketch_2norm(const SketchT&) -> scalar_type
+    requires std::is_same_v<SketchT, crs_matrix_type>;
+
+  template <typename SketchT>
+  auto fixed_rank_approx(SketchT&) -> std::tuple<matrix_type, vector_type>
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  template <typename SketchT>
+  auto fixed_rank_approx(SketchT&) -> std::tuple<matrix_type, vector_type>
+    requires SparseSketch<MatrixT, DimReduxT>;
+
   auto linear_update_impl(const MatrixT&) -> void
     requires DenseSketch<MatrixT, DimReduxT>;
 
@@ -245,9 +263,23 @@ class SketchySPD {
     requires SparseSketch<MatrixT, DimReduxT>;
 
   auto linear_update_stream_impl(const MatrixT&) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  template <typename SketchT>
+  auto prepare_cholesky(SketchT&, scalar_type*) -> matrix_type
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  template <typename SketchT>
+  auto prepare_cholesky(SketchT&, scalar_type*) -> matrix_type
     requires SparseSketch<MatrixT, DimReduxT>;
 
   auto set_sketch(matrix_type&, matrix_type&, const bool) -> void
+    requires DenseSketch<MatrixT, DimReduxT>;
+
+  auto set_sketch(matrix_type&, matrix_type&, const bool) -> void
+    requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto set_sketch(matrix_type&, crs_matrix_type&, const bool) -> void
     requires DenseSketch<MatrixT, DimReduxT>;
 
   auto set_sketch(matrix_type&, crs_matrix_type&, const bool) -> void

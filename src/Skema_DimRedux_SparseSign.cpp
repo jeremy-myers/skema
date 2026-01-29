@@ -79,6 +79,25 @@ SparseSignDimRedux::SparseSignDimRedux(const size_type nrow_,
 
 template <>
 auto SparseSignDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
+                              const scalar_type* beta, char transA, char transB)
+    -> matrix_type {
+  Kokkos::Timer timer;
+  if (init_transposed) {  // Need to swap modes
+    transA = (transA == 'N') ? 'T' : 'N';
+  }
+  const auto m{(transA == 'N') ? nrow : ncol};
+  const auto n{(transB == 'N') ? B.extent(1) : B.extent(0)};
+  matrix_type C("SparseSignDimRedux::lmap::C", m, n);
+  crs_matrix_type data_(data);
+  Impl::mm(&transA, &transB, alpha, data_, B, beta, C);
+
+  Kokkos::fence();
+  stats.map = timer.seconds();
+  return C;
+}
+
+template <>
+auto SparseSignDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
                               const scalar_type* beta, char transA, char transB,
                               const range_type idx) -> matrix_type {
   Kokkos::Timer timer;
@@ -99,6 +118,23 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
 
 template <>
 auto SparseSignDimRedux::rmap(const scalar_type* alpha, const matrix_type& A,
+                              const scalar_type* beta, char transA, char transB)
+    -> matrix_type {
+  Kokkos::Timer timer;
+  const auto m{(transB == 'T') ? nrow : ncol};
+  const auto n{A.extent(0)};
+  transB  = (transB == 'T' ? 'N' : 'T');  // swap transB
+  auto At = Impl::transpose(A);
+  matrix_type C("SparseSignDimRedux::rmap::C", m, n);
+  Impl::mm(&transB, &transA, alpha, data, At, beta, C);
+
+  Kokkos::fence();
+  stats.map = timer.seconds();
+  return Impl::transpose(C);
+}
+
+template <>
+auto SparseSignDimRedux::rmap(const scalar_type* alpha, const matrix_type& A,
                               const scalar_type* beta, char transA, char transB,
                               const range_type idx) -> matrix_type {
   Kokkos::Timer timer;
@@ -114,34 +150,20 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha, const matrix_type& A,
   return Impl::transpose(C);
 }
 
-// template <>
-// auto SparseSignDimRedux::lmap(const scalar_type* alpha,
-//                               const crs_matrix_type& B, const scalar_type*
-//                               beta, char transA, char transB, const
-//                               range_type idx)
-//     -> matrix_type {
-//   Kokkos::Timer timer;
-//   crs_matrix_type C;
-//   crs_matrix_type data_(data);
-//   if (idx.first != idx.second) data_ = col_subview(data, idx);
-//   Impl::mm(&transA, alpha, data_, B, beta, C);
-
-//   Kokkos::fence();
-//   stats.map = timer.seconds();
-
-//   // Output dense matrix
-//   matrix_type C_full("SparseSignDimRedux::lmap::C_full", C.numRows(),
-//                      C.numCols());
-//   Kokkos::parallel_for(
-//       C.numRows(), KOKKOS_LAMBDA(const int ii) {
-//         auto crow = C.row(ii);
-//         for (auto jj = 0; jj < crow.length; ++jj) {
-//           C_full(ii, crow.colidx(jj)) = crow.value(jj);
-//         }
-//       });
-//   Kokkos::fence();
-//   return C_full;
-// }
+template <>
+auto SparseSignDimRedux::lmap(const scalar_type* alpha,
+                              const crs_matrix_type& B, const scalar_type* beta,
+                              char transA, char transB) -> crs_matrix_type {
+  Kokkos::Timer timer;
+  crs_matrix_type C;
+  crs_matrix_type data_(data);
+  if (transA == 'T') {
+    data_ = Impl::transpose(data);
+  }
+  Impl::mm(&transA, alpha, data_, B, beta, C);
+  stats.map = timer.seconds();
+  return C;
+}
 
 template <>
 auto SparseSignDimRedux::lmap(const scalar_type* alpha,
@@ -157,32 +179,16 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha,
   return C;
 }
 
-// template <>
-// auto SparseSignDimRedux::rmap(const scalar_type* alpha,
-//                               const crs_matrix_type& A, const scalar_type*
-//                               beta, char transA, char transB, const
-//                               range_type idx)
-//     -> matrix_type {
-//   Kokkos::Timer timer;
-
-//   crs_matrix_type C;
-//   Impl::mm(&transA, alpha, A, data, beta, C);
-
-//   stats.map = timer.seconds();
-
-//   // Dense output
-//   matrix_type C_full("SparseSignDimRedux::rmap::C_full", C.numRows(),
-//                      C.numCols());
-//   Kokkos::parallel_for(
-//       C.numRows(), KOKKOS_LAMBDA(const int ii) {
-//         auto crow = C.row(ii);
-//         for (auto jj = 0; jj < crow.length; ++jj) {
-//           C_full(ii, crow.colidx(jj)) = crow.value(jj);
-//         }
-//       });
-//   Kokkos::fence();
-//   return C_full;
-// }
+template <>
+auto SparseSignDimRedux::rmap(const scalar_type* alpha,
+                              const crs_matrix_type& A, const scalar_type* beta,
+                              char transA, char transB) -> crs_matrix_type {
+  Kokkos::Timer timer;
+  crs_matrix_type C;
+  Impl::mm(&transA, alpha, A, data, beta, C);
+  stats.map = timer.seconds();
+  return C;
+}
 
 template <>
 auto SparseSignDimRedux::rmap(const scalar_type* alpha,
@@ -206,6 +212,56 @@ auto SparseSignDimRedux::axpy(const scalar_type val, matrix_type& A) -> void {
         }
       });
   Kokkos::fence();
+}
+
+template <>
+auto SparseSignDimRedux::axpy(const scalar_type val, crs_matrix_type& A)
+    -> void {
+  using device_type = typename Kokkos::Device<
+      Kokkos::DefaultExecutionSpace,
+      typename Kokkos::DefaultExecutionSpace::memory_space>;
+  using execution_space = typename device_type::execution_space;
+  using memory_space    = typename device_type::memory_space;
+  using crs_row_map_type =
+      typename crs_matrix_type::row_map_type::non_const_type;
+  using crs_entries_type = typename crs_matrix_type::index_type::non_const_type;
+
+  const size_type num_rows{static_cast<size_type>(A.numRows())};
+  const size_type num_cols{static_cast<size_type>(A.numCols())};
+
+  // Copy A to B, and overwrite A
+  crs_row_map_type B_row_map("crs_axpy_B_row_map", num_rows + 1);
+  crs_entries_type B_entries("crs_axpy_B_entries", A.nnz());
+  vector_type B_values("crs_axpy_B_values", A.nnz());
+
+  Kokkos::deep_copy(B_row_map, A.graph.row_map);
+  Kokkos::deep_copy(B_entries, A.graph.entries);
+  Kokkos::deep_copy(B_values, A.values);
+  auto B_internal =
+      crs_matrix_type("crs_axpy_B", num_rows, num_cols, B_values.extent(0),
+                      B_values, B_row_map, B_entries);
+
+  crs_matrix_type data_(data);
+  // if (init_transposed) // TODO check here
+  // Scale data
+  Kokkos::parallel_for(
+      data.values.extent(0),
+      KOKKOS_LAMBDA(const int i) { data.values(i) *= val; });
+
+  // Create KokkosKernelHandle
+  using KernelHandle = KokkosKernels::Experimental::KokkosKernelsHandle<
+      size_type, ordinal_type, scalar_type, execution_space, memory_space,
+      memory_space>;
+  KernelHandle kh;
+  kh.create_spadd_handle(false);
+  KokkosSparse::spadd_symbolic(&kh, data, B_internal, A);
+  KokkosSparse::spadd_numeric(&kh, 1.0, data, 0.0, B_internal, A);
+  kh.destroy_spadd_handle();
+
+  // Unscale data
+  Kokkos::parallel_for(
+      data.values.extent(0),
+      KOKKOS_LAMBDA(const int i) { data.values(i) /= val; });
 }
 
 auto SparseSignDimRedux::write(const std::filesystem::path filename) -> void {

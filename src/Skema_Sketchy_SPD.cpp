@@ -30,7 +30,7 @@ SketchySPD<MatrixT, DimReduxT>::SketchySPD(AlgParams algParams_)
                          (!algParams_.issparse &&
                           algParams_.dim_redux == DimRedux_Map::SPARSE_SIGN))),
       window(getWindow<MatrixT>(algParams)) {
-  range_sketch_Y = matrix_type("Y", input_nrow, sketch_range_size);
+  range_sketch_Yd = matrix_type("Y", input_nrow, sketch_range_size);
 
   // Determine if axpy is called with transp == true for LHS
   // Enumerate all options here
@@ -128,12 +128,12 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_full_impl(const MatrixT& A)
   axpy(input_scaling_factor, Y_, sketch_scaling_factor, y);
   timings["update"]["daxpy"] += timer.seconds();
 
-  set_sketch(range_sketch_Y, Y_, transpy);
+  set_sketch(range_sketch_Yd, Y_, transpy);
 
   if (!algParams.debug_filename.empty()) {
     std::string fname;
     fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
-    Impl::write(range_sketch_Y, fname.c_str());
+    Impl::write(range_sketch_Yd, fname.c_str());
   }
 }
 
@@ -183,12 +183,12 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
     ++ucnt;
   }
 
-  set_sketch(range_sketch_Y, Y_, transpy);
+  set_sketch(range_sketch_Yd, Y_, transpy);
 
   if (!algParams.debug_filename.empty()) {
     std::string fname;
     fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
-    Impl::write(range_sketch_Y, fname.c_str());
+    Impl::write(range_sketch_Yd, fname.c_str());
   }
 }
 
@@ -212,18 +212,18 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_full_impl(const MatrixT& A)
   const auto y = update(H);
   timings["update"]["omega"] += timer.seconds();
 
-  crs_matrix_type Y_;
+  // crs_matrix_type Y_;
 
   timer.reset();
-  axpy(input_scaling_factor, Y_, sketch_scaling_factor, y);
+  axpy(input_scaling_factor, range_sketch_Ys, sketch_scaling_factor, y);
   timings["update"]["daxpy"] += timer.seconds();
 
-  set_sketch(range_sketch_Y, Y_, transpy);
+  // set_sketch(range_sketch_Yd, Y_, transpy);
 
   if (!algParams.debug_filename.empty()) {
     std::string fname;
     fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
-    Impl::write(range_sketch_Y, fname.c_str());
+    Impl::write(range_sketch_Yd, fname.c_str());
   }
 }
 
@@ -239,7 +239,7 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
   const size_type nwindows{
       static_cast<size_type>(std::ceil(input_nrow / wsize))};
 
-  crs_matrix_type Y_;
+  // crs_matrix_type Y_;
 
   std::cout << "Streaming input" << std::endl;
   range_type idx;
@@ -264,7 +264,8 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
     time += timer.seconds();
 
     timer.reset();
-    axpy(input_scaling_factor, Y_, sketch_scaling_factor, y, idx, transpy);
+    axpy(input_scaling_factor, range_sketch_Ys, sketch_scaling_factor, y, idx,
+         transpy);
     timings["update"]["daxpy"] += timer.seconds();
     time += timer.seconds();
 
@@ -273,12 +274,12 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
     ++ucnt;
   }
 
-  set_sketch(range_sketch_Y, Y_, transpy);
+  // set_sketch(range_sketch_Yd, Y_, transpy);
 
   if (!algParams.debug_filename.empty()) {
     std::string fname;
     fname = algParams.debug_filename.filename().stem().string() + "_Y.txt";
-    Impl::write(range_sketch_Y, fname.c_str());
+    Impl::write(range_sketch_Yd, fname.c_str());
   }
 }
 
@@ -332,75 +333,90 @@ auto SketchySPD<crs_matrix_type, SparseSignDimRedux>::update(
 }
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
-    -> std::tuple<matrix_type, vector_type> {
-  // Numerically stable Fixed-Rank Nyström Approximation. Instead of
-  // approximating the psd matrix A directly, we approximate the shifted matrix
-  // Aν = A + νI and then remove the shift.
-  std::cout << "Computing fixed-rank PSD approximation" << std::endl;
-
-  Kokkos::Timer timer;
-  scalar_type time{0.0};
-  scalar_type total_time{0.0};
-
-  const char N{'N'};
-  const char T{'T'};
-  const scalar_type one{1.0};
-  const scalar_type zero{0.0};
-  const int print_level{algParams.print_level};
-  const bool debug{algParams.debug};
-  constexpr scalar_type machine_eps{
-      std::numeric_limits<scalar_type>::epsilon()};
-
-  // Construct the shifted sketch Yν = Y + νΩ.
-  // Compute nu = machine_eps * norm(Y)
-  std::cout << "  Computing norm(Y)" << std::endl;
-  scalar_type shift{1.0};
-  scalar_type ynorm{1.0};
-
-  if (algParams.norm2_solver == Skema::Decomposition_Type::SVD) {
-    // Here copy Y because nrm2 with dgesvd overwrites
-    matrix_type sketch_Y_copy("sketch_Y_copy", range_sketch_Y.extent(0),
-                              range_sketch_Y.extent(1));
-    Kokkos::deep_copy(sketch_Y_copy, range_sketch_Y);
-    timer.reset();
+template <typename SketchT>
+auto SketchySPD<MatrixT, DimReduxT>::compute_sketch_2norm(const SketchT& sketch,
+                                                          bool iterative)
+    -> scalar_type
+  requires std::is_same_v<SketchT, matrix_type>
+{
+  scalar_type sketch_norm{1.0};
+  if (iterative) {
+    sketch_norm = linalg::nrm2_svds(sketch, algParams);
+  } else {
+    // Here copy sketch because nrm2 with dgesvd overwrites
+    matrix_type sketch_copy("sketch_copy", sketch.extent(0), sketch.extent(1));
+    Kokkos::deep_copy(sketch_copy, sketch);
     try {
-      ynorm = linalg::nrm2(sketch_Y_copy);
+      sketch_norm = linalg::nrm2(sketch_copy);
     } catch (const std::exception& e) {
-      std::cout << "Skema::sketchyspd::low_rank_approx::norm2 encountered an "
+      std::cout << "Skema::sketchyspd::compute_sketch_2norm encountered an "
                    "exception: "
                 << e.what() << std::endl;
     }
-  } else {
-    ynorm = linalg::nrm2_svds(range_sketch_Y, algParams);
   }
-  Kokkos::fence();
-  if (update_timers) {
-    timings["approx"]["norm2"] += timer.seconds();
-  }
+  return sketch_norm;
+}
+
+template <typename MatrixT, typename DimReduxT>
+template <typename SketchT>
+auto SketchySPD<MatrixT, DimReduxT>::compute_sketch_2norm(const SketchT& sketch)
+    -> scalar_type
+  requires std::is_same_v<SketchT, crs_matrix_type>
+{
+  // TODO may need transpose here?
+  return linalg::nrm2_svds(sketch, algParams);
+}
+
+template <typename MatrixT, typename DimReduxT>
+template <typename SketchT>
+auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
+                                                      scalar_type* shift)
+    -> matrix_type
+  requires DenseSketch<MatrixT, DimReduxT>
+{
+  Kokkos::Timer timer;
+  scalar_type time{0.0};
+  const bool debug{algParams.debug};
+  const scalar_type one{1.0};
+  const scalar_type zero{0.0};
+
+  // Construct the shifted sketch Yν = Y + νΩ.
+  // Compute nu = machine_eps * norm(Y)
+  constexpr scalar_type machine_eps{
+      std::numeric_limits<scalar_type>::epsilon()};
+  std::cout << "  Computing norm(Y)" << std::endl;
+
+  timer.reset();
+  scalar_type ynorm = compute_sketch_2norm(
+      sketch,
+      (algParams.norm2_solver == Skema::Decomposition_Type::SVDS ? true
+                                                                 : false));
+  timings["approx"]["norm2"] += timer.seconds();
+
+  *shift = machine_eps * ynorm;
+
   if (debug) {
     std::cout << std::setprecision(16) << "norm(Y) = " << ynorm
               << ", shift = " << shift << std::endl;
   }
-  shift = machine_eps * ynorm;
 
   // Construct shifted sketch
   std::cout << "  Computing norm(Y)*Omega" << std::endl;
   timer.reset();
   try {
-    DR_Omega.scale_and_add(shift, range_sketch_Y);
+    DR_Omega.scale_and_add(*shift, sketch);
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::axpy encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
   Kokkos::fence();
-  if (update_timers) {
-    timings["approx"]["daxpy"] += timer.seconds();
-  }
+
+  timings["approx"]["daxpy"] += timer.seconds();
+
   if (debug) {
     std::cout << "Y = Y + shift Omega" << std::endl;
-    Impl::print(range_sketch_Y);
+    Impl::print(sketch);
   }
 
   // Form the matrix B = Ω∗Yν
@@ -409,7 +425,7 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   matrix_type B;
   try {
     B = std::get<matrix_type>(
-        DR_Omega.apply_left(&one, range_sketch_Y, &zero, 'T', 'N'));
+        DR_Omega.apply_left(&one, sketch, &zero, 'T', 'N'));
   } catch (const std::exception& e) {
     std::cout
         << "Skema::sketchyspd::low_rank_approx::apply_left encountered an "
@@ -417,9 +433,9 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
         << e.what() << std::endl;
   }
   Kokkos::fence();
-  if (update_timers) {
-    timings["approx"]["omega"] += timer.seconds();
-  }
+
+  timings["approx"]["omega"] += timer.seconds();
+
   if (debug) {
     std::cout << "B = Omega^T * Y = " << std::endl;
     Impl::print(B);
@@ -441,12 +457,251 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
               << e.what() << std::endl;
   }
   Kokkos::fence();
-  if (update_timers) {
-    timings["approx"]["update"] += timer.seconds();
-  }
+
+  timings["approx"]["update"] += timer.seconds();
+
   if (debug) {
     std::cout << "C = 0.5 * (B + B^T) = " << std::endl;
+    Impl::print(C);
+  }
+
+  return C;
+}
+
+template <typename MatrixT, typename DimReduxT>
+template <typename SketchT>
+auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
+                                                      scalar_type* shift)
+    -> matrix_type
+  requires SparseSketch<MatrixT, DimReduxT>
+{
+  Kokkos::Timer timer;
+  scalar_type time{0.0};
+  const bool debug{algParams.debug};
+  const scalar_type one{1.0};
+  const scalar_type zero{0.0};
+  const scalar_type half{0.5};
+
+  // Construct the shifted sketch Yν = Y + νΩ.
+  // Compute nu = machine_eps * norm(Y)
+  constexpr scalar_type machine_eps{
+      std::numeric_limits<scalar_type>::epsilon()};
+  std::cout << "  Computing norm(Y)" << std::endl;
+
+  scalar_type ynorm = compute_sketch_2norm(sketch);
+  *shift            = machine_eps * ynorm;
+
+  if (debug) {
+    std::cout << std::setprecision(16) << "norm(Y) = " << ynorm
+              << ", shift = " << shift << std::endl;
+  }
+
+  // Construct shifted sketch
+  std::cout << "  Computing norm(Y)*Omega" << std::endl;
+  timer.reset();
+  try {
+    DR_Omega.scale_and_add(*shift, sketch);
+  } catch (const std::exception& e) {
+    std::cout << "Skema::sketchyspd::low_rank_approx::axpy encountered an "
+                 "exception: "
+              << e.what() << std::endl;
+  }
+  Kokkos::fence();
+
+  timings["approx"]["daxpy"] += timer.seconds();
+
+  if (debug) {
+    std::cout << "Y = Y + shift Omega" << std::endl;
+    Impl::print(sketch);
+  }
+
+  // Form the matrix B = Ω∗Yν
+  std::cout << "  Computing B = norm(Y)*Omega^T * Y" << std::endl;
+  timer.reset();
+  crs_matrix_type B;
+  try {
+    // TODO check transpose here
+    B = std::get<crs_matrix_type>(
+        DR_Omega.apply_left(&one, sketch, &zero, 'T', 'N'));
+  } catch (const std::exception& e) {
+    std::cout
+        << "Skema::sketchyspd::low_rank_approx::apply_left encountered an "
+           "exception: "
+        << e.what() << std::endl;
+  }
+  Kokkos::fence();
+
+  timings["approx"]["omega"] += timer.seconds();
+
+  if (debug) {
+    std::cout << "B = Omega^T * Y = " << std::endl;
     Impl::print(B);
+  }
+
+  // Compute a Cholesky decomposition B = CC^*
+  std::cout << "  Computing C = (B+B^T)/2" << std::endl;
+  timer.reset();
+  auto Bt = Impl::transpose(B);
+  // assert((B.extent(0) == B.extent(1)) && "Axis 0 of B must match axis 1");
+
+  // Force symmetry
+  crs_matrix_type Cs;
+  try {
+    Impl::matadd(&half, B, &zero, Bt, Cs);
+  } catch (const std::exception& e) {
+    std::cout << "Skema::sketchyspd::low_rank_approx::update encountered an "
+                 "exception: "
+              << e.what() << std::endl;
+  }
+  Kokkos::fence();
+
+  timings["approx"]["update"] += timer.seconds();
+
+  if (debug) {
+    std::cout << "C = 0.5 * (B + B^T) = " << std::endl;
+    Impl::print(Cs);
+  }
+
+  matrix_type Cd("C dense", sketch_range_size, sketch_range_size);
+  assert(Cs.numRows() == sketch_range_size);
+  assert(Cs.numCols() == sketch_range_size);
+  Kokkos::parallel_for(
+      Cs.numRows(), KOKKOS_LAMBDA(const size_type i) {
+        auto row = Cs.row(i);
+        for (auto j = 0; j < row.length; ++j) {
+          Cd(i, row.colidx(j)) = row.value(j);
+        }
+      });
+
+  return Cd;
+}
+
+template <typename MatrixT, typename DimReduxT>
+auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
+    -> std::tuple<matrix_type, vector_type> {
+  // Numerically stable Fixed-Rank Nyström Approximation. Instead of
+  // approximating the psd matrix A directly, we approximate the shifted matrix
+  // Aν = A + νI and then remove the shift.
+  std::cout << "Computing fixed-rank PSD approximation" << std::endl;
+
+  Kokkos::Timer timer;
+  scalar_type time{0.0};
+  scalar_type total_time{0.0};
+
+  const char N{'N'};
+  const char T{'T'};
+  const scalar_type one{1.0};
+  const scalar_type zero{0.0};
+  const int print_level{algParams.print_level};
+  const bool debug{algParams.debug};
+  // constexpr scalar_type machine_eps{
+  //     std::numeric_limits<scalar_type>::epsilon()};
+
+  // // Construct the shifted sketch Yν = Y + νΩ.
+  // // Compute nu = machine_eps * norm(Y)
+  // std::cout << "  Computing norm(Y)" << std::endl;
+  // scalar_type shift{1.0};
+  // scalar_type ynorm{1.0};
+
+  // if (algParams.norm2_solver == Skema::Decomposition_Type::SVD) {
+  //   // Here copy Y because nrm2 with dgesvd overwrites
+  //   matrix_type sketch_Y_copy("sketch_Y_copy", range_sketch_Yd.extent(0),
+  //                             range_sketch_Yd.extent(1));
+  //   Kokkos::deep_copy(sketch_Y_copy, range_sketch_Yd);
+  //   timer.reset();
+  //   try {
+  //     ynorm = linalg::nrm2(sketch_Y_copy);
+  //   } catch (const std::exception& e) {
+  //     std::cout << "Skema::sketchyspd::low_rank_approx::norm2 encountered an
+  //     "
+  //                  "exception: "
+  //               << e.what() << std::endl;
+  //   }
+  // } else {
+  //   ynorm = linalg::nrm2_svds(range_sketch_Yd, algParams);
+  // }
+  // Kokkos::fence();
+  // if (update_timers) {
+  //   timings["approx"]["norm2"] += timer.seconds();
+  // }
+
+  // shift = machine_eps * ynorm;
+
+  // if (debug) {
+  //   std::cout << std::setprecision(16) << "norm(Y) = " << ynorm
+  //             << ", shift = " << shift << std::endl;
+  // }
+
+  // // Construct shifted sketch
+  // std::cout << "  Computing norm(Y)*Omega" << std::endl;
+  // timer.reset();
+  // try {
+  //   DR_Omega.scale_and_add(shift, range_sketch_Yd);
+  // } catch (const std::exception& e) {
+  //   std::cout << "Skema::sketchyspd::low_rank_approx::axpy encountered an "
+  //                "exception: "
+  //             << e.what() << std::endl;
+  // }
+  // Kokkos::fence();
+  // if (update_timers) {
+  //   timings["approx"]["daxpy"] += timer.seconds();
+  // }
+  // if (debug) {
+  //   std::cout << "Y = Y + shift Omega" << std::endl;
+  //   Impl::print(range_sketch_Yd);
+  // }
+
+  // // Form the matrix B = Ω∗Yν
+  // std::cout << "  Computing B = norm(Y)*Omega^T * Y" << std::endl;
+  // timer.reset();
+  // matrix_type B;
+  // try {
+  //   B = std::get<matrix_type>(
+  //       DR_Omega.apply_left(&one, range_sketch_Yd, &zero, 'T', 'N'));
+  // } catch (const std::exception& e) {
+  //   std::cout
+  //       << "Skema::sketchyspd::low_rank_approx::apply_left encountered an "
+  //          "exception: "
+  //       << e.what() << std::endl;
+  // }
+  // Kokkos::fence();
+  // if (update_timers) {
+  //   timings["approx"]["omega"] += timer.seconds();
+  // }
+  // if (debug) {
+  //   std::cout << "B = Omega^T * Y = " << std::endl;
+  //   Impl::print(B);
+  // }
+
+  // // Compute a Cholesky decomposition B = CC^*
+  // std::cout << "  Computing C = (B+B^T)/2" << std::endl;
+  // timer.reset();
+  // auto Bt = Impl::transpose(B);
+  // assert((B.extent(0) == B.extent(1)) && "Axis 0 of B must match axis 1");
+
+  // // Force symmetry
+  // matrix_type C("C", sketch_range_size, sketch_range_size);
+  // try {
+  //   KokkosBlas::update(0.5, B, 0.5, Bt, 0.0, C);
+  // } catch (const std::exception& e) {
+  //   std::cout << "Skema::sketchyspd::low_rank_approx::update encountered an "
+  //                "exception: "
+  //             << e.what() << std::endl;
+  // }
+  // Kokkos::fence();
+  // if (update_timers) {
+  //   timings["approx"]["update"] += timer.seconds();
+  // }
+  // if (debug) {
+  //   std::cout << "C = 0.5 * (B + B^T) = " << std::endl;
+  //   Impl::print(C);
+  // }
+  scalar_type shift;
+  matrix_type C;
+  if constexpr (DenseSketch<MatrixT, DimReduxT>) {
+    C = prepare_cholesky<matrix_type>(range_sketch_Yd, &shift);
+  } else if constexpr (SparseSketch<MatrixT, DimReduxT>) {
+    C = prepare_cholesky<crs_matrix_type>(range_sketch_Ys, &shift);
   }
 
   // C = chol( (B + B^T) / 2)
@@ -459,9 +714,9 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
               << std::endl;
   }
   Kokkos::fence();
-  if (update_timers) {
-    timings["approx"]["dpotrf"] = timer.seconds();
-  }
+
+  timings["approx"]["dpotrf"] = timer.seconds();
+
   if (debug) {
     std::cout << "chol(C) = " << std::endl;
     Impl::print(C);
@@ -472,7 +727,12 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   // W = Y/C; MATLAB: (C'\Y')'; / is MATLAB mldivide(C',Y')'
   std::cout << "  Computing E = Y * C^-1" << std::endl;
   timer.reset();
-  auto Yt = Impl::transpose(range_sketch_Y);
+  matrix_type Yt("Yt", sketch_range_size, input_nrow);
+  if constexpr (DenseSketch<MatrixT, DimReduxT>) {
+    set_sketch(Yt, range_sketch_Yd, true);
+  } else if constexpr (SparseSketch<MatrixT, DimReduxT>) {
+    set_sketch(Yt, range_sketch_Ys, true);  // TODO check this transpose
+  }
   try {
     linalg::ls(&T, C, Yt, sketch_range_size, sketch_range_size, Yt.extent(1));
   } catch (const std::exception& e) {
@@ -482,16 +742,15 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   }
   Kokkos::fence();
 
-  range_sketch_Y = Impl::transpose(Yt);
-  time           = timer.seconds();
-  if (update_timers) {
-    timings["approx"]["dgels"] += timer.seconds();
-  }
+  set_sketch(range_sketch_Yd, Yt, true);
+  time = timer.seconds();
+
+  timings["approx"]["dgels"] += timer.seconds();
 
   // Compute the (thin) singular value decomposition E = UΣV^*
   std::cout << "  Computing E = USV^T" << std::endl;
-  const size_type mw{range_sketch_Y.extent(0)};
-  const size_type nw{range_sketch_Y.extent(1)};
+  const size_type mw{range_sketch_Yd.extent(0)};
+  const size_type nw{range_sketch_Yd.extent(1)};
   const size_type min_mnw{std::min(mw, nw)};
 
   matrix_type Uwy("Uwy", mw, min_mnw);
@@ -499,16 +758,15 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   matrix_type Vwy("Vwy", min_mnw, nw);  // transpose
   timer.reset();
   try {
-    linalg::svd(range_sketch_Y, mw, nw, Uwy, Swy, Vwy);
+    linalg::svd(range_sketch_Yd, mw, nw, Uwy, Swy, Vwy);
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchyspd::low_rank_approx::svd encountered an "
                  "exception: "
               << e.what() << std::endl;
   }
   Kokkos::fence();
-  if (update_timers) {
-    timings["approx"]["dgesvd"] += timer.seconds();
-  }
+
+  timings["approx"]["dgesvd"] += timer.seconds();
 
   // Truncate to rank r
   std::cout << "  Truncating to rank r" << std::endl;
@@ -802,9 +1060,49 @@ auto SketchySPD<MatrixT, DimReduxT>::set_sketch(matrix_type& dst,
 
 template <typename MatrixT, typename DimReduxT>
 auto SketchySPD<MatrixT, DimReduxT>::set_sketch(matrix_type& dst,
+                                                matrix_type& src,
+                                                const bool transp_src) -> void
+  requires SparseSketch<MatrixT, DimReduxT>
+{
+  if (transp_src) {
+    dst = Impl::transpose(src);
+  } else {
+    dst = src;
+  }
+}
+
+template <typename MatrixT, typename DimReduxT>
+auto SketchySPD<MatrixT, DimReduxT>::set_sketch(matrix_type& dst,
                                                 crs_matrix_type& src,
                                                 const bool transp_src) -> void
   requires SparseSketch<MatrixT, DimReduxT>
+{
+  if (transp_src) {
+    assert(dst.extent(0) == src.numCols());
+    assert(dst.extent(1) == src.numRows());
+    for (auto irow = 0; irow < src.numRows(); ++irow) {
+      auto row = src.row(irow);
+      for (auto jcol = 0; jcol < row.length; ++jcol) {
+        dst(row.colidx(jcol), irow) = row.value(jcol);
+      }
+    }
+  } else {
+    assert(dst.extent(0) == src.numRows());
+    assert(dst.extent(1) == src.numCols());
+    for (auto irow = 0; irow < src.numRows(); ++irow) {
+      auto row = src.row(irow);
+      for (auto jcol = 0; jcol < row.length; ++jcol) {
+        dst(irow, row.colidx(jcol)) = row.value(jcol);
+      }
+    }
+  }
+}
+
+template <typename MatrixT, typename DimReduxT>
+auto SketchySPD<MatrixT, DimReduxT>::set_sketch(matrix_type& dst,
+                                                crs_matrix_type& src,
+                                                const bool transp_src) -> void
+  requires DenseSketch<MatrixT, DimReduxT>
 {
   if (transp_src) {
     assert(dst.extent(0) == src.numCols());

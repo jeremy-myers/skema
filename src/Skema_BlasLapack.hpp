@@ -133,6 +133,14 @@ inline scalar_type nrm2_svds(const matrix_type& A, const AlgParams& algParams) {
   return s(0);
 }
 
+inline scalar_type nrm2_svds(const crs_matrix_type& A,
+                             const AlgParams& algParams) {
+  vector_type s("linalg::nrm2", 1);
+  PRIMME_SVDS<crs_matrix_type> solver(algParams);
+  solver.compute(A, A.numRows(), A.numCols(), 1, s);
+  return s(0);
+}
+
 inline void qr(matrix_type& Q, const size_type nrow, const size_type ncol) {
 #if !defined(LAPACK_FOUND)
   std::cout << "Error: dgeqrf and/or dorgqr not found." << std::endl;

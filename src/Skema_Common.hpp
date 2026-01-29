@@ -1,5 +1,6 @@
 #pragma once
 #include <KokkosSparse.hpp>
+#include <KokkosSparse_crs2ccs.hpp>
 #include <cstddef>
 #include <cstdio>
 #include <iomanip>
@@ -11,6 +12,29 @@
 /* Common helper functions */
 namespace Skema {
 namespace Impl {
+inline void matadd(const scalar_type* alpha, const crs_matrix_type& A,
+                   const scalar_type* beta, const crs_matrix_type& B,
+                   crs_matrix_type& C) {
+  using device_type = typename Kokkos::Device<
+      Kokkos::DefaultExecutionSpace,
+      typename Kokkos::DefaultExecutionSpace::memory_space>;
+  using execution_space = typename device_type::execution_space;
+  using memory_space    = typename device_type::memory_space;
+  using crs_row_map_type =
+      typename crs_matrix_type::row_map_type::non_const_type;
+  using crs_entries_type = typename crs_matrix_type::index_type::non_const_type;
+
+  // Create KokkosKernelHandle
+  using KernelHandle = KokkosKernels::Experimental::KokkosKernelsHandle<
+      size_type, ordinal_type, scalar_type, execution_space, memory_space,
+      memory_space>;
+  KernelHandle kh;
+  kh.create_spadd_handle(false);
+  KokkosSparse::spadd_symbolic(&kh, A, B, C);
+  KokkosSparse::spadd_numeric(&kh, *alpha, A, *beta, B, C);
+  kh.destroy_spadd_handle();
+}
+
 inline void mv(const char* trans, const scalar_type* alpha,
                const matrix_type& A, const vector_type& B,
                const scalar_type* beta, vector_type& C) {
@@ -181,4 +205,8 @@ struct IsNegative {
   KOKKOS_INLINE_FUNCTION
   bool operator()(const ValueType val) const { return (val < 0); }
 };
+
+// inline void crs2ccs(const crs_matrix_type& A) -> ccs_matrix_type {
+//   return KokkosSparse::crs2ccs(A);
+// }
 }  // namespace Skema
