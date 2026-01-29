@@ -61,7 +61,7 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
   vector_type rnrms("rnrms", rank);
 
   /* Initialize primme parameters */
-  params.matrix       = &(const_cast<matrix_type&>(matrix));
+  params.matrix       = (void*)matrix.data();
   params.n            = nrow;
   params.numEvals     = rank;
   params.eps          = algParams.primme_eps;
