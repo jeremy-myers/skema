@@ -76,13 +76,14 @@ int main(int argc, char* argv[]) {
         std::cout << "Done: " << time << " s" << std::endl;
 
         std::tie(U, S, V, R) =
-            Skema::driver<crs_matrix_type>(matrix, algParams);
+            Skema::driver<crs_matrix_type>(matrix, algParams, false);
       } else {
         auto matrix = Skema::read_matrix<matrix_type>(inputfilename);
         time        = timer.seconds();
         std::cout << "Done: " << time << " s" << std::endl;
 
-        std::tie(U, S, V, R) = Skema::driver<matrix_type>(matrix, algParams);
+        std::tie(U, S, V, R) =
+            Skema::driver<matrix_type>(matrix, algParams, false);
       }
 
       auto end             = std::chrono::system_clock::now();

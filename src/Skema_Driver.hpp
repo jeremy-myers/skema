@@ -10,7 +10,8 @@
 
 namespace Skema {
 template <typename MatrixType>
-inline auto driver(const MatrixType& matrix, AlgParams algParams)
+inline auto driver(const MatrixType& matrix, AlgParams algParams,
+                   const bool print_configuration = true)
     -> std::tuple<matrix_type, vector_type, matrix_type, vector_type> {
   /* Fix ups */
   if constexpr (std::is_same_v<MatrixType, matrix_type>) {
@@ -61,8 +62,11 @@ inline auto driver(const MatrixType& matrix, AlgParams algParams)
                    100
             << "\% dense)" << std::endl;
 
-  std::cout << "Algorithm configuration: " << std::endl;
-  algParams.print(std::cout);
+  if (print_configuration) {
+    std::cout << "Algorithm configuration: " << std::endl;
+    algParams.print(std::cout);
+  }
+  std::cout << "===============================================" << std::endl;
 
   matrix_type u;
   vector_type s;
