@@ -431,7 +431,7 @@ auto SketchySVD<crs_matrix_type, GaussDimRedux>::update(
     const crs_matrix_type& A, const range_type row_idxs)
     -> std::tuple<matrix_type, matrix_type, matrix_type> {
   // Here, we initialized all DimRedux maps to be transposed
-  // X = (H^T * UpsilonT(:,row_idxs))^T, where UpsilonT is Upsilon &&
+  // X^T = H^T * UpsilonT(:,row_idxs), where UpsilonT is Upsilon &&
   // init_transposed is true
   // Y = H * OmegaT
   // W^T = H^T * PhiT(:,row_idxs)
@@ -1054,7 +1054,7 @@ auto SketchySVD<MatrixT, DimReduxT>::compute_residuals(const MatrixT& A)
   Kokkos::Timer timer;
   rnrms = residuals(A, uvecs, svals, vvecs, rank, algParams, window);
   time  = timer.seconds();
-  std::cout << "\nCompute residuals: " << time << std::endl;
+  std::cout << "Compute residuals: " << time << std::endl;
   return rnrms;
 }
 
