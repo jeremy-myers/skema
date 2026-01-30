@@ -78,11 +78,13 @@ class Window : public WindowBase<MatrixType> {
 template <typename MatrixType>
 class GaussRBFWindow : public WindowBase<MatrixType> {
  public:
-  GaussRBFWindow(const AlgParams& algParams_)
+  GaussRBFWindow(const AlgParams& algParams_,
+                 const unsigned int print_level_ = 1)
       : WindowBase<MatrixType>(algParams_),
         map(GaussRBF<MatrixType>(algParams_.window, algParams_.matrix_m,
                                  algParams_.kernel_gamma)),
-        helper(Window<MatrixType>(algParams_)) {}
+        helper(Window<MatrixType>(algParams_)),
+        print_level(print_level_) {}
   ~GaussRBFWindow() {};
 
   inline auto get(const matrix_type& input, const range_type idx,
@@ -96,7 +98,9 @@ class GaussRBFWindow : public WindowBase<MatrixType> {
     // Update window timers from kernel
     if (update_counters) {
       auto kstats = map.stats();
-      std::cout << " GaussRBF window: " << kstats->time << ", " << std::flush;
+      if (print_level > 0) {
+        std::cout << " GaussRBF window: " << kstats->time << ", " << std::flush;
+      }
       WindowBase<MatrixType>::stats_->count++;
       WindowBase<MatrixType>::stats_->time = kstats->time;
       WindowBase<MatrixType>::stats_->elapsed_time += kstats->elapsed_time;
@@ -116,14 +120,16 @@ class GaussRBFWindow : public WindowBase<MatrixType> {
  private:
   GaussRBF<MatrixType> map;
   Window<MatrixType> helper;
+  const unsigned int print_level;
 };
 
 template <typename MatrixType>
-inline auto getWindow(const AlgParams& algParams)
+inline auto getWindow(const AlgParams& algParams,
+                      const unsigned int print_level = 1)
     -> std::unique_ptr<WindowBase<MatrixType>> {
   if (algParams.kernel_func == Kernel_Map::GAUSSRBF) {
     return std::make_unique<GaussRBFWindow<MatrixType>>(
-        GaussRBFWindow<MatrixType>(algParams));
+        GaussRBFWindow<MatrixType>(algParams, print_level));
   } else {
     return std::make_unique<Window<MatrixType>>(Window<MatrixType>(algParams));
   }

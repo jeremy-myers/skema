@@ -54,8 +54,6 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
                                        const size_type rank, matrix_type& U,
                                        vector_type& S, matrix_type& V,
                                        vector_type& R) {
-  Kokkos::Timer timer;
-
   vector_type evals("evals", rank);
   vector_type evecs("evecs", nrow * rank);
   vector_type rnrms("rnrms", rank);
@@ -76,7 +74,7 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
     params.iseed[i] = static_cast<PRIMME_INT>(algParams.seeds[i]);
   }
 
-  auto window = getWindow<matrix_type>(algParams);
+  auto window = getWindow<matrix_type>(algParams, 0);
   EIGS_Kernel_Matrix kernel(matrix, window, matrix.extent(1), algParams.window);
   if (algParams.kernel_func != Skema::Kernel_Map::NONE) {
     params.matrix       = &kernel;
@@ -96,7 +94,7 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
 
   std::string filename = !algParams.primme_outputFile.empty()
                              ? algParams.primme_outputFile.filename().string()
-                             : "primme.txt";
+                             : "primme-eigs.txt";
   FILE* fp             = fopen(filename.c_str(), "w");
   params.outputFile    = fp;
 
@@ -108,13 +106,9 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
   primme_display_params(params);
 
   /* Call primme_eigs */
-  std::cout << "Computing low-rank approximation" << std::endl;
-  timer.reset();
   int ret;
   ret = dprimme(evals.data(), evecs.data(), rnrms.data(), &params);
   Kokkos::fence();
-  scalar_type time = timer.seconds();
-  std::cout << "Elapsed time: " << time << std::endl;
 
   if (ret != 0) {
     fprintf(params.outputFile,
@@ -137,12 +131,12 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
   Kokkos::fence();
 
   std::filesystem::path json_file =
-      (!algParams.primme_outputFile.empty()
-           ? algParams.primme_outputFile.filename()
-                 .stem()
-                 .replace_extension("json")
-                 .string()
-           : "primme.json");
+      (!algParams.history_filename.empty()
+           ? std::filesystem::path(algParams.history_filename.filename()
+                                       .stem()
+                                       .replace_extension("primme-eigs.json")
+                                       .string())
+           : "primme-eigs.json");
   save_primme_stats(json_file, evals, rnrms, &params.stats);
 }
 
@@ -153,8 +147,6 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
                                            const size_type rank, matrix_type& U,
                                            vector_type& S, matrix_type& V,
                                            vector_type& R) {
-  Kokkos::Timer timer;
-
   vector_type evals("evals", rank);
   vector_type evecs("evecs", nrow * rank);
   vector_type rnrms("rnrms", rank);
@@ -188,7 +180,7 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
 
   std::string filename = !algParams.primme_outputFile.empty()
                              ? algParams.primme_outputFile.filename().string()
-                             : "primme.txt";
+                             : "primme-eigs.txt";
   FILE* fp             = fopen(filename.c_str(), "w");
   params.outputFile    = fp;
 
@@ -198,13 +190,9 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   primme_display_params(params);
 
   /* Call primme_eigs  */
-  std::cout << "Computing low-rank approximation" << std::endl;
-  timer.reset();
   int ret;
   ret = dprimme(evals.data(), evecs.data(), rnrms.data(), &params);
   Kokkos::fence();
-  scalar_type time = timer.seconds();
-  std::cout << "Elapsed time: " << time << std::endl;
 
   if (ret != 0) {
     fprintf(params.outputFile,
@@ -227,12 +215,12 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   Kokkos::fence();
 
   std::filesystem::path json_file =
-      (!algParams.primme_outputFile.empty()
-           ? algParams.primme_outputFile.filename()
-                 .stem()
-                 .replace_extension("json")
-                 .string()
-           : "primme.json");
+      (!algParams.history_filename.empty()
+           ? std::filesystem::path(algParams.history_filename.filename()
+                                       .stem()
+                                       .replace_extension("primme-eigs.json")
+                                       .string())
+           : "primme-eigs.json");
   save_primme_stats(json_file, evals, rnrms, &params.stats);
 }
 
@@ -243,8 +231,6 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
                                        const size_type ncol,
                                        const size_type rank,
                                        vector_type& svals) {
-  Kokkos::Timer timer;
-
   assert(svals.extent(0) == rank);
 
   vector_type svals_internal("PRIMME_SVDS::compute svals_internal", rank);
@@ -275,7 +261,7 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
 
   std::string filename = !algParams.primme_outputFile.empty()
                              ? algParams.primme_outputFile.filename().string()
-                             : "primme.txt";
+                             : "primme-svds.txt";
   FILE* fp             = fopen(filename.c_str(), "w");
   params.outputFile    = fp;
 
@@ -286,14 +272,10 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
   primme_svds_display_params(params);
 
   /* Call primme_svds  */
-  std::cout << "Computing low-rank approximation" << std::endl;
-  timer.reset();
   int ret;
   ret = dprimme_svds(svals_internal.data(), svecs_internal.data(),
                      rnrms_internal.data(), &params);
   Kokkos::fence();
-  scalar_type time = timer.seconds();
-  std::cout << "Elapsed time: " << time << std::endl;
 
   if (ret != 0) {
     fprintf(params.outputFile,
@@ -306,12 +288,12 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
   Kokkos::deep_copy(svals, svals_internal);
 
   std::filesystem::path json_file =
-      (!algParams.primme_outputFile.empty()
-           ? algParams.primme_outputFile.filename()
-                 .stem()
-                 .replace_extension("json")
-                 .string()
-           : "primme.json");
+      (!algParams.history_filename.empty()
+           ? std::filesystem::path(algParams.history_filename.filename()
+                                       .stem()
+                                       .replace_extension("primme-svds.json")
+                                       .string())
+           : "primme-svds.json");
   save_primme_stats(json_file, svals_internal, rnrms_internal, &params.stats);
 }
 
@@ -321,8 +303,6 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
                                            const size_type ncol,
                                            const size_type rank,
                                            vector_type& svals) {
-  Kokkos::Timer timer;
-
   assert(svals.extent(0) == rank);
 
   vector_type svals_internal("PRIMME_SVDS::compute svals_internal", rank);
@@ -359,7 +339,7 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
 
   std::string filename = !algParams.primme_outputFile.empty()
                              ? algParams.primme_outputFile.filename().string()
-                             : "primme.txt";
+                             : "primme-svds.txt";
   FILE* fp             = fopen(filename.c_str(), "w");
   params.outputFile    = fp;
 
@@ -370,14 +350,10 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   primme_svds_display_params(params);
 
   /* Call primme_svds  */
-  std::cout << "Computing low-rank approximation" << std::endl;
-  timer.reset();
   int ret;
   ret = dprimme_svds(svals_internal.data(), svecs_internal.data(),
                      rnrms_internal.data(), &params);
   Kokkos::fence();
-  scalar_type time = timer.seconds();
-  std::cout << "Elapsed time: " << time << std::endl;
 
   if (ret != 0) {
     fprintf(params.outputFile,
@@ -390,12 +366,12 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   Kokkos::deep_copy(svals, svals_internal);
 
   std::filesystem::path json_file =
-      (!algParams.primme_outputFile.empty()
-           ? algParams.primme_outputFile.filename()
-                 .stem()
-                 .replace_extension("json")
-                 .string()
-           : "primme.json");
+      (!algParams.history_filename.empty()
+           ? std::filesystem::path(algParams.history_filename.filename()
+                                       .stem()
+                                       .replace_extension("primme-svds.json")
+                                       .string())
+           : "primme-svds.json");
   save_primme_stats(json_file, svals_internal, rnrms_internal, &params.stats);
 }
 
@@ -406,8 +382,6 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
                                        const size_type rank, matrix_type& U,
                                        vector_type& S, matrix_type& V,
                                        vector_type& R) {
-  Kokkos::Timer timer;
-
   vector_type svals("svals", rank);
   vector_type svecs("svecs", (nrow + ncol) * rank);
   vector_type rnrms("rnrms", rank);
@@ -433,7 +407,7 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
 
   params.matrixMatvec = svds_default_dense_matvec;
 
-  auto window = getWindow<matrix_type>(algParams);
+  auto window = getWindow<matrix_type>(algParams, 0);
   EIGS_Kernel_Matrix kernel(matrix, window, matrix.extent(1), algParams.window);
   if (algParams.kernel_func != Kernel_Map::NONE) {
     params.matrix       = &kernel;
@@ -465,7 +439,7 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
 
   std::string filename = !algParams.primme_outputFile.empty()
                              ? algParams.primme_outputFile.filename().string()
-                             : "primme.txt";
+                             : "primme-svds.txt";
   FILE* fp             = fopen(filename.c_str(), "w");
   params.outputFile    = fp;
 
@@ -476,13 +450,9 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
   primme_svds_display_params(params);
 
   /* Call primme_svds  */
-  std::cout << "Computing low-rank approximation" << std::endl;
-  timer.reset();
   int ret;
   ret = dprimme_svds(svals.data(), svecs.data(), rnrms.data(), &params);
   Kokkos::fence();
-  scalar_type time = timer.seconds();
-  std::cout << "Elapsed time: " << time << std::endl;
 
   if (ret != 0) {
     fprintf(params.outputFile,
@@ -514,12 +484,12 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
   Kokkos::fence();
 
   std::filesystem::path json_file =
-      (!algParams.primme_outputFile.empty()
-           ? algParams.primme_outputFile.filename()
-                 .stem()
-                 .replace_extension("json")
-                 .string()
-           : "primme.json");
+      (!algParams.history_filename.empty()
+           ? std::filesystem::path(algParams.history_filename.filename()
+                                       .stem()
+                                       .replace_extension("primme-svds.json")
+                                       .string())
+           : "primme-svds.json");
   save_primme_stats(json_file, svals, rnrms, &params.stats);
 }
 
@@ -530,8 +500,6 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
                                            const size_type rank, matrix_type& U,
                                            vector_type& S, matrix_type& V,
                                            vector_type& R) {
-  Kokkos::Timer timer;
-
   vector_type svals("svals", rank);
   vector_type svecs("svecs", (nrow + ncol) * rank);
   vector_type rnrms("rnrms", rank);
@@ -582,7 +550,7 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
 
   std::string filename = !algParams.primme_outputFile.empty()
                              ? algParams.primme_outputFile.filename().string()
-                             : "primme.txt";
+                             : "primme-svds.txt";
   FILE* fp             = fopen(filename.c_str(), "w");
   params.outputFile    = fp;
 
@@ -593,13 +561,9 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   primme_svds_display_params(params);
 
   /* Call primme_svds  */
-  std::cout << "Computing low-rank approximation" << std::endl;
-  timer.reset();
   int ret;
   ret = dprimme_svds(svals.data(), svecs.data(), rnrms.data(), &params);
   Kokkos::fence();
-  scalar_type time = timer.seconds();
-  std::cout << "Elapsed time: " << time << std::endl;
 
   if (ret != 0) {
     fprintf(params.outputFile,
@@ -631,12 +595,12 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   Kokkos::fence();
 
   std::filesystem::path json_file =
-      (!algParams.primme_outputFile.empty()
-           ? algParams.primme_outputFile.filename()
-                 .stem()
-                 .replace_extension("json")
-                 .string()
-           : "primme.json");
+      (!algParams.history_filename.empty()
+           ? std::filesystem::path(algParams.history_filename.filename()
+                                       .stem()
+                                       .replace_extension("primme-svds.json")
+                                       .string())
+           : "primme-svds.json");
   save_primme_stats(json_file, svals, rnrms, &params.stats);
 }
 
@@ -647,8 +611,10 @@ void primme_eigs(const matrix_type& matrix, AlgParams algParams) {
   vector_type s;
   matrix_type v;
   vector_type r;
+  Kokkos::Timer timer;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
                  u, s, v, r);
+  std::cout << "Elapsed time: " << timer.seconds() << std::endl;
 }
 
 template <>
@@ -656,8 +622,10 @@ void primme_eigs(const matrix_type& matrix, matrix_type& u, vector_type& s,
                  vector_type& r, AlgParams algParams) {
   PRIMME_EIGS<matrix_type> solver(algParams);
   matrix_type v;
+  Kokkos::Timer timer;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
                  u, s, v, r);
+  std::cout << "Elapsed time: " << timer.seconds() << std::endl;
 }
 
 template <>
@@ -667,8 +635,10 @@ void primme_eigs(const crs_matrix_type& matrix, AlgParams algParams) {
   vector_type s;
   matrix_type v;
   vector_type r;
+  Kokkos::Timer timer;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
                  u, s, v, r);
+  std::cout << "Elapsed time: " << timer.seconds() << std::endl;
 }
 
 template <>
@@ -676,8 +646,10 @@ void primme_eigs(const crs_matrix_type& matrix, matrix_type& u, vector_type& s,
                  vector_type& r, AlgParams algParams) {
   PRIMME_EIGS<crs_matrix_type> solver(algParams);
   matrix_type v;
+  Kokkos::Timer timer;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
                  u, s, v, r);
+  std::cout << "Elapsed time: " << timer.seconds() << std::endl;
 }
 
 template <>
@@ -687,35 +659,42 @@ void primme_svds(const matrix_type& matrix, AlgParams algParams) {
   vector_type s;
   matrix_type v;
   vector_type r;
+  Kokkos::Timer timer;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
                  u, s, v, r);
+  std::cout << "Elapsed time: " << timer.seconds() << std::endl;
 }
 
 template <>
 void primme_svds(const matrix_type& matrix, matrix_type& u, vector_type& s,
                  matrix_type& v, vector_type& r, AlgParams algParams) {
   PRIMME_SVDS<matrix_type> solver(algParams);
+  Kokkos::Timer timer;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
                  u, s, v, r);
+  std::cout << "Elapsed time: " << timer.seconds() << std::endl;
 }
 
 template <>
 void primme_svds(const crs_matrix_type& matrix, AlgParams algParams) {
   PRIMME_SVDS<crs_matrix_type> solver(algParams);
-
   matrix_type u;
   vector_type s;
   matrix_type v;
   vector_type r;
+  Kokkos::Timer timer;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
                  u, s, v, r);
+  std::cout << "Elapsed time: " << timer.seconds() << std::endl;
 }
 
 template <>
 void primme_svds(const crs_matrix_type& matrix, matrix_type& u, vector_type& s,
                  matrix_type& v, vector_type& r, AlgParams algParams) {
   PRIMME_SVDS<crs_matrix_type> solver(algParams);
+  Kokkos::Timer timer;
   solver.compute(matrix, algParams.matrix_m, algParams.matrix_n, algParams.rank,
                  u, s, v, r);
+  std::cout << "Elapsed time: " << timer.seconds() << std::endl;
 }
 }  // namespace Skema
