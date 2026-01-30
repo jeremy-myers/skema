@@ -15,6 +15,11 @@ typedef ptrdiff_t lapack_int;
 #define dpotrf dpotrf_
 
 extern "C" {
+
+void dgeev(char*, char*, lapack_int*, double*, lapack_int*, double*, double*,
+           double*, lapack_int*, double*, lapack_int*, double*, lapack_int*,
+           lapack_int*);
+
 void dgesvd(char*, char*, lapack_int*, lapack_int*, double*, lapack_int*,
             double*, double*, lapack_int*, double*, lapack_int*, double*,
             lapack_int*, lapack_int*);
