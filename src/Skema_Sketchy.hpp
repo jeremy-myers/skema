@@ -193,8 +193,7 @@ class SketchySPD {
   const size_type sketch_range_size;
   const scalar_type sketch_scaling_factor;
   const scalar_type input_scaling_factor;
-
-  bool transpy;
+  static constexpr bool transpy{false};  // deprecated?
   const AlgParams algParams;
   std::unique_ptr<WindowBase<MatrixT>> window;
 
@@ -272,6 +271,8 @@ class SketchySPD {
   template <typename SketchT>
   auto prepare_cholesky(SketchT&, scalar_type*) -> matrix_type
     requires SparseSketch<MatrixT, DimReduxT>;
+
+  auto prepare_low_rank_problem(matrix_type&, const matrix_type&) -> bool;
 
   auto set_sketch(matrix_type&, matrix_type&, const bool) -> void
     requires DenseSketch<MatrixT, DimReduxT>;

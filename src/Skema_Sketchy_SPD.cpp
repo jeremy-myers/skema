@@ -1,5 +1,6 @@
 #include "Skema_Sketchy.hpp"
 
+#include <cmath>
 #include <utility>
 
 #include "Skema_AlgParams.hpp"
@@ -26,30 +27,28 @@ SketchySPD<MatrixT, DimReduxT>::SketchySPD(AlgParams algParams_)
       input_scaling_factor(algParams_.sketch_nu),
       algParams(algParams_),
       DR_Omega(DimReduxT(input_ncol, sketch_range_size, algParams.seeds[0],
-                         "Omega",
-                         (!algParams_.issparse &&
-                          algParams_.dim_redux == DimRedux_Map::SPARSE_SIGN))),
+                         "Omega")),
       window(getWindow<MatrixT>(algParams)) {
   range_sketch_Yd = matrix_type("Y", input_nrow, sketch_range_size);
 
   // Determine if axpy is called with transp == true for LHS
   // Enumerate all options here
-  if constexpr ((std::is_same_v<MatrixT, matrix_type>) &&
-                (std::is_same_v<DimReduxT, GaussDimRedux>)) {
-    transpy = false;
-  } else if constexpr ((std::is_same_v<MatrixT, matrix_type>) &&
-                       (std::is_same_v<DimReduxT, SparseSignDimRedux>)) {
-    transpy = true;
-  } else if constexpr ((std::is_same_v<MatrixT, crs_matrix_type>) &&
-                       (std::is_same_v<DimReduxT, GaussDimRedux>)) {
-    transpy = false;
-  } else if constexpr ((std::is_same_v<MatrixT, crs_matrix_type>) &&
-                       (std::is_same_v<DimReduxT, SparseSignDimRedux>)) {
-    transpy = false;
-  } else {
-    static_assert(dependent_false_v<MatrixT>,
-                  "Unsupported SketchySPD combination.");
-  }
+  // if constexpr ((std::is_same_v<MatrixT, matrix_type>) &&
+  //               (std::is_same_v<DimReduxT, GaussDimRedux>)) {
+  //   transpy = false;
+  // } else if constexpr ((std::is_same_v<MatrixT, matrix_type>) &&
+  //                      (std::is_same_v<DimReduxT, SparseSignDimRedux>)) {
+  //   transpy = false;
+  // } else if constexpr ((std::is_same_v<MatrixT, crs_matrix_type>) &&
+  //                      (std::is_same_v<DimReduxT, GaussDimRedux>)) {
+  //   transpy = false;
+  // } else if constexpr ((std::is_same_v<MatrixT, crs_matrix_type>) &&
+  //                      (std::is_same_v<DimReduxT, SparseSignDimRedux>)) {
+  //   transpy = false;
+  // } else {
+  //   static_assert(dependent_false_v<MatrixT>,
+  //                 "Unsupported SketchySPD combination.");
+  // }
 
   sketch_Y_nrow = (transpy ? sketch_range_size : input_nrow);
   sketch_Y_ncol = (transpy ? input_nrow : sketch_range_size);
@@ -65,6 +64,7 @@ SketchySPD<MatrixT, DimReduxT>::SketchySPD(AlgParams algParams_)
   timings["approx"]["dpotrf"] = 0.0;
   timings["approx"]["dgels"]  = 0.0;
   timings["approx"]["dgesvd"] = 0.0;
+  timings["approx"]["dgemm"]  = 0.0;
 
   timings["init"]["omega"] += DR_Omega.stats.initialize;
 }
@@ -122,16 +122,12 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_full_impl(const MatrixT& A)
   const auto y = update(H);
   timings["update"]["omega"] += timer.seconds();
 
-  matrix_type Y_("Y_", sketch_Y_nrow, sketch_Y_ncol);
-
   timer.reset();
-  axpy(input_scaling_factor, Y_, sketch_scaling_factor, y);
+  axpy(input_scaling_factor, range_sketch_Yd, sketch_scaling_factor, y);
   timings["update"]["daxpy"] += timer.seconds();
 
-  set_sketch(range_sketch_Yd, Y_, transpy);
-
   if constexpr (debug) {
-    Impl::write(range_sketch_Ys, "debug_sketch");
+    Impl::write(range_sketch_Yd, "debug_sketch");
   }
 }
 
@@ -146,8 +142,6 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
   size_type wsize{algParams.window};
   const size_type nwindows{
       static_cast<size_type>(std::ceil(input_nrow / wsize))};
-
-  matrix_type Y_("Y_", sketch_Y_nrow, sketch_Y_ncol);
 
   std::cout << "Streaming input" << std::endl;
   range_type idx;
@@ -172,7 +166,7 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
     time += timer.seconds();
 
     timer.reset();
-    axpy(input_scaling_factor, Y_, sketch_scaling_factor, y, idx);
+    axpy(input_scaling_factor, range_sketch_Yd, sketch_scaling_factor, y, idx);
     timings["update"]["daxpy"] += timer.seconds();
     time += timer.seconds();
 
@@ -181,10 +175,10 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
     ++ucnt;
   }
 
-  set_sketch(range_sketch_Yd, Y_, transpy);
+  set_sketch(range_sketch_Yd, range_sketch_Yd, transpy);
 
   if constexpr (debug) {
-    Impl::write(range_sketch_Ys, "debug_sketch");
+    Impl::write(range_sketch_Yd, "debug_sketch");
   }
 }
 
@@ -378,8 +372,9 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
   *shift = machine_eps * ynorm;
 
   if constexpr (debug) {
-    std::cout << std::setprecision(16) << "norm(Y) = " << ynorm
-              << ", shift = " << *shift << std::endl;
+    std::cout << std::setprecision(16) << "    norm(Y) = " << ynorm
+              << std::endl;
+    std::cout << "    shift = " << *shift << std::endl;
   }
 
   // Construct shifted sketch
@@ -468,8 +463,9 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
   *shift = machine_eps * ynorm;
 
   if constexpr (debug) {
-    std::cout << std::setprecision(16) << "norm(Y) = " << ynorm
-              << ", shift = " << shift << std::endl;
+    std::cout << std::setprecision(16) << "    norm(Y) = " << ynorm
+              << std::endl;
+    std::cout << "    shift = " << *shift << std::endl;
   }
 
   // Construct shifted sketch
@@ -542,6 +538,103 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
 }
 
 template <typename MatrixT, typename DimReduxT>
+auto SketchySPD<MatrixT, DimReduxT>::prepare_low_rank_problem(
+    matrix_type& Yt, const matrix_type& C) -> bool {
+  // C = chol( (B + B^T) / 2)
+  Kokkos::Timer timer;
+  constexpr char N{'N'};
+  constexpr char T{'T'};
+
+  // Create a back up in case cholesky fails
+  matrix_type C_copy("C_copy", C.extent(0), C.extent(1));
+  Kokkos::deep_copy(C_copy, C);
+
+  std::cout << "  Computing LL^T = chol(C)" << std::endl;
+  timer.reset();
+  int blaslapack_ret          = linalg::chol(C_copy);
+  timings["approx"]["dpotrf"] = timer.seconds();
+
+  if constexpr (debug) {
+    Impl::write(C_copy, "debug_cholesky");
+  }
+
+  if (blaslapack_ret == 0) {
+    // Cholesky was successful
+    // Compute E = YνC^{−1} by back-substitution
+    // Least squares problem Y / C
+    // W = Y/C; MATLAB: (C'\Y')'; / is MATLAB mldivide(C',Y')'
+    std::cout << "  Computing E = Y * C^-1" << std::endl;
+    timer.reset();
+    try {
+      linalg::ls(&T, C_copy, Yt, sketch_range_size, sketch_range_size,
+                 Yt.extent(1));
+    } catch (const std::exception& e) {
+      std::cout << "Skema::sketchyspd::low_rank_approx::ls encountered an "
+                   "exception: "
+                << e.what() << std::endl;
+    }
+    timings["approx"]["dgels"] += timer.seconds();
+    return true;
+  } else {
+    // Cholesky failed. Use eig & approximate C^-1.
+    std::cout << "    Skema::sketchyspd::low_rank_approx::chol encountered an "
+                 "exception."
+              << std::endl;
+    std::cout << "  Computing E = Y * A^{-1/2}, A = XDX^T = C" << std::endl;
+    /*[V,D] = eig(A);
+      d = diag(D);
+      tol = max(size(A)) * eps(max(d));
+
+      idx = d > tol;
+      Ahalf_inv = V(:,idx) * diag(1./sqrt(d(idx)));
+    */
+    matrix_type evecs("evecs", C.extent(0), C.extent(1));
+    vector_type evals("evals", C.extent(0));
+    timer.reset();
+    linalg::eig(C, evecs, evals);
+    timings["approx"]["dgeev"] = timer.seconds();
+    scalar_type max_value;
+    Kokkos::parallel_reduce(
+        evals.extent(0),
+        KOKKOS_LAMBDA(const size_type& i, scalar_type& lmax) {
+          lmax = lmax > evals(i) ? lmax : evals(i);
+        },
+        Kokkos::Max<scalar_type, Kokkos::HostSpace>(max_value));
+    scalar_type tol =
+        std::max<scalar_type>(C.extent(0), C.extent(1)) *
+        std::abs(std::nextafter(max_value,
+                                std::numeric_limits<scalar_type>::epsilon()) -
+                 max_value);
+    for (auto col = 0; col < evecs.extent(1); ++col) {
+      if (evals(col) > tol) {
+        Kokkos::parallel_for(
+            evecs.extent(0), KOKKOS_LAMBDA(const size_type row) {
+              evecs(row, col) /= std::sqrt(evals(col));
+            });
+      }
+    }
+    Kokkos::fence();
+
+    constexpr double one{1.0};
+    constexpr double zero{0.0};
+    matrix_type Y("Y", Yt.extent(1), Yt.extent(0));
+    timer.reset();
+    Impl::mm(&T, &N, &one, Yt, evecs, &zero, Y);
+    timings["approx"]["dgemm"] += timer.seconds();
+    Yt = Y;
+    if constexpr (debug) {
+      Impl::write(evals, "debug_evals");
+      Impl::write(evecs, "debug_evecs");
+      Impl::write(Y, "debug_eig");
+    }
+    timings["approx"]["dpotrf"] *= -1.0;
+    timings["approx"]["dgels"] *= -1.0;
+
+    return false;
+  }
+}
+
+template <typename MatrixT, typename DimReduxT>
 auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
     -> std::tuple<matrix_type, vector_type> {
   // Numerically stable Fixed-Rank Nyström Approximation. Instead of
@@ -567,43 +660,15 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
     C = prepare_cholesky<crs_matrix_type>(range_sketch_Ys, &shift);
   }
 
-  // C = chol( (B + B^T) / 2)
-  std::cout << "  Computing LL^T = chol(C)" << std::endl;
-  int blaslapack_ret;
-  blaslapack_ret = linalg::chol(C);
-  if (blaslapack_ret != 0) {
-    std::cout << "Skema::sketchyspd::low_rank_approx::chol encountered an "
-                 "exception"
-              << std::endl;
-  }
-  timings["approx"]["dpotrf"] = timer.seconds();
-
-  if constexpr (debug) {
-    Impl::write(C, "debug_cholesky");
-  }
-
-  // Compute E = YνC^{−1} by back-substitution
-  // Least squares problem Y / C
-  // W = Y/C; MATLAB: (C'\Y')'; / is MATLAB mldivide(C',Y')'
-  std::cout << "  Computing E = Y * C^-1" << std::endl;
-  timer.reset();
   matrix_type Yt("Yt", sketch_range_size, input_nrow);
   if constexpr (DenseSketch<MatrixT, DimReduxT>) {
     set_sketch(Yt, range_sketch_Yd, true);
   } else if constexpr (SparseSketch<MatrixT, DimReduxT>) {
     set_sketch(Yt, range_sketch_Ys, true);
   }
-  try {
-    linalg::ls(&T, C, Yt, sketch_range_size, sketch_range_size, Yt.extent(1));
-  } catch (const std::exception& e) {
-    std::cout << "Skema::sketchyspd::low_rank_approx::ls encountered an "
-                 "exception: "
-              << e.what() << std::endl;
-  }
-  set_sketch(range_sketch_Yd, Yt, true);
-  time = timer.seconds();
+  auto chol_succeed = prepare_low_rank_problem(Yt, C);
 
-  timings["approx"]["dgels"] += timer.seconds();
+  set_sketch(range_sketch_Yd, Yt, chol_succeed);
 
   // Compute the (thin) singular value decomposition E = UΣV^*
   std::cout << "  Computing E = USV^T" << std::endl;

@@ -6,6 +6,8 @@
 
 #if defined(LAPACK_FOUND)
 typedef ptrdiff_t lapack_int;
+
+#define dgeev dgeev_
 #define dgesvd dgesvd_
 #define dgeqrf dgeqrf_
 #define dorgqr dorgqr_
@@ -34,6 +36,31 @@ void dpotrf(char*, lapack_int*, double*, lapack_int*, lapack_int*);
 namespace Skema {
 // Wrappers to BLAS/LAPACK calls using MATLAB function names
 namespace linalg {
+
+inline void eig(const matrix_type& A, matrix_type& X, vector_type& Dreal) {
+#if !defined(LAPACK_FOUND)
+  std::cout << "Error: dgeev not found." << std::endl;
+#else
+  char jobvl{'N'};  // left evecs not computed
+  char jobvr{'V'};  // right evecs are computed
+  lapack_int n{static_cast<lapack_int>(A.extent(0))};
+  lapack_int lda{std::max<lapack_int>(1, n)};
+  vector_type Dimag("Dimag", Dreal.extent(0));
+  lapack_int ldvl{1};                 // Ok, since jobvl == 'N'?
+  matrix_type vl("vl tmp", ldvl, n);  // not referenced since jobvl == 'N'
+  lapack_int ldvr{n};
+  lapack_int lwork{4 * n};
+  std::vector<double> work(lwork);
+  lapack_int info{0};
+
+  ::dgeev(&jobvl, &jobvr, &n, A.data(), &lda, Dreal.data(), Dimag.data(),
+          vl.data(), &ldvl, X.data(), &ldvr, work.data(), &lwork, &info);
+  Kokkos::fence();
+  if (info != 0) {
+    std::cout << "dgeev encountered an exception: " << info << std::endl;
+  }
+#endif
+}
 
 // Compute U, S, & Vt
 inline void svd(const matrix_type& A, const size_type nrow,
