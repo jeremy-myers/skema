@@ -5,20 +5,48 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "PRIMME SVDS rectangular sparse",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/skema",
+            "args": [
+                "--input",
+                "${workspaceFolder}/test/data/fs_183_6.mtx",
+                "--window",
+                "250",
+                "--solver",
+                "primme_svds",
+                "--sparse",
+                "--rank",
+                "5",
+                "--history-file",
+                "primme-svds-rectangular-sparse.json",
+            ],
+            "environment": [
+                {
+                    "name": "config",
+                    "value": "Debug"
+                }
+            ],
+            "cwd": "${workspaceFolder}",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "stopAtEntry": false
+        },
+        {
             "name": "SketchySVD rectangular sparse, Gauss DR",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/bin/skema",
             "args": [
                 "--input",
-                "${workspaceFolder}/test/data-prev/rectangular_sparse.mtx",
+                "${workspaceFolder}/test/data/fs_183_6.mtx",
                 "--window",
-                "8",
+                "250",
                 "--solver",
                 "sketchy_svd",
                 "--sparse",
                 "--history-file",
-                "sketchysvd-sparse-gaussdr.json",
+                "sketchysvd-gauss-rectangular-sparse.json",
                 "--rank",
                 "5"
             ],
@@ -30,7 +58,7 @@
             ],
             "cwd": "${workspaceFolder}",
             "miDebuggerPath": "/usr/bin/gdb",
-            "stopAtEntry": true
+            "stopAtEntry": false
         },
         {
             "name": "SketchySVD rectangular sparse, Count DR",
@@ -39,9 +67,9 @@
             "program": "${workspaceFolder}/build/bin/skema",
             "args": [
                 "--input",
-                "${workspaceFolder}/test/data-prev/rectangular_sparse.mtx",
+                "${workspaceFolder}/test/data/fs_183_6.mtx",
                 "--window",
-                "8",
+                "250",
                 "--solver",
                 "sketchy_svd",
                 "--sparse",
@@ -50,7 +78,7 @@
                 "--rank",
                 "5",
                 "--history-file",
-                "sketchysvd-sparse-countdr.json",
+                "sketchysvd-count-rectangular-sparse.json",
             ],
             "environment": [
                 {
@@ -60,7 +88,91 @@
             ],
             "cwd": "${workspaceFolder}",
             "miDebuggerPath": "/usr/bin/gdb",
-            "stopAtEntry": true
+            "stopAtEntry": false
+        },
+        {
+            "name": "PRIMME EIGS symmetric sparse",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/skema",
+            "args": [
+                "--input",
+                "${workspaceFolder}/test/data/bcsstm08.mtx",
+                "--solver",
+                "primme_eigs",
+                "--sparse",
+                "--rank",
+                "5",
+                "--history-file",
+                "primme-eigs-symmetric-sparse.json",
+            ],
+            "environment": [
+                {
+                    "name": "config",
+                    "value": "Debug"
+                }
+            ],
+            "cwd": "${workspaceFolder}",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "stopAtEntry": false
+        },
+        {
+            "name": "SketchySVD symmetric sparse, Gauss DR",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/skema",
+            "args": [
+                "--input",
+                "${workspaceFolder}/test/data/bcsstm08.mtx",
+                "--window",
+                "250",
+                "--solver",
+                "sketchy_svd",
+                "--sparse",
+                "--history-file",
+                "sketchysvd-gauss-symmetric-sparse.json",
+                "--rank",
+                "5",
+            ],
+            "environment": [
+                {
+                    "name": "config",
+                    "value": "Debug"
+                }
+            ],
+            "cwd": "${workspaceFolder}",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "stopAtEntry": false
+        },
+        {
+            "name": "SketchySVD symmetric sparse, Count DR",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/skema",
+            "args": [
+                "--input",
+                "${workspaceFolder}/test/data/bcsstm08.mtx",
+                "--window",
+                "250",
+                "--solver",
+                "sketchy_svd",
+                "--sparse",
+                "--model",
+                "count",
+                "--rank",
+                "5",
+                "--history-file",
+                "sketchysvd-count-symmetric-sparse.json",
+            ],
+            "environment": [
+                {
+                    "name": "config",
+                    "value": "Debug"
+                }
+            ],
+            "cwd": "${workspaceFolder}",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "stopAtEntry": false
         },
         {
             "name": "SketchySPD symmetric sparse, Gauss DR",
@@ -69,20 +181,16 @@
             "program": "${workspaceFolder}/build/bin/skema",
             "args": [
                 "--input",
-                "${workspaceFolder}/test/data-prev/symmetric_sparse.mtx",
+                "${workspaceFolder}/test/data/bcsstm08.mtx",
                 "--window",
-                "8",
+                "250",
                 "--solver",
                 "sketchy_spd",
                 "--sparse",
                 "--history-file",
-                "sketchyspd-sparse-gaussdr.json",
+                "sketchyspd-gauss-symmetric-sparse.json",
                 "--rank",
                 "5",
-                "--primme_outputFile",
-                "sketchyspd-sparse-gaussdr.primme.txt",
-                "--primme_method",
-                "PRIMME_LOBPCG_OrthoBasis",
             ],
             "environment": [
                 {
@@ -92,7 +200,7 @@
             ],
             "cwd": "${workspaceFolder}",
             "miDebuggerPath": "/usr/bin/gdb",
-            "stopAtEntry": true
+            "stopAtEntry": false
         },
         {
             "name": "SketchySPD symmetric sparse, Count DR",
@@ -101,9 +209,9 @@
             "program": "${workspaceFolder}/build/bin/skema",
             "args": [
                 "--input",
-                "${workspaceFolder}/test/data-prev/symmetric_sparse.mtx",
+                "${workspaceFolder}/test/data/bcsstm08.mtx",
                 "--window",
-                "8",
+                "250",
                 "--solver",
                 "sketchy_spd",
                 "--sparse",
@@ -112,9 +220,7 @@
                 "--rank",
                 "5",
                 "--history-file",
-                "sketchyspd-sparse-countdr.json",
-                "--primme_outputFile",
-                "sketchyspd-sparse-countdr.primme.txt",
+                "sketchyspd-count-symmetric-sparse.json",
             ],
             "environment": [
                 {
@@ -124,112 +230,16 @@
             ],
             "cwd": "${workspaceFolder}",
             "miDebuggerPath": "/usr/bin/gdb",
-            "stopAtEntry": true
+            "stopAtEntry": false
         },
         {
-            "name": "PRIMME eigs symmetric sparse",
+            "name": "Kernel PRIMME EIGS",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/bin/skema",
             "args": [
                 "--input",
-                "${workspaceFolder}/test/data-prev/symmetric_sparse.mtx",
-                "--window",
-                "250",
-                "--solver",
-                "primme_eigs",
-                "--sparse",
-                "--rank",
-                "5",
-                "--gamma",
-                "1e0",
-                "--history-file",
-                "primme-eigs.json",
-            ],
-            "environment": [
-                {
-                    "name": "config",
-                    "value": "Debug"
-                }
-            ],
-            "cwd": "${workspaceFolder}",
-            "miDebuggerPath": "/usr/bin/gdb",
-            "stopAtEntry": true
-        },
-        {
-            "name": "Kernel SketchySVD, Gauss DR",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/bin/skema",
-            "args": [
-                "--input",
-                "${workspaceFolder}/test/data-prev/data_1k.mtx",
-                "--window",
-                "250",
-                "--solver",
-                "sketchy_svd",
-                "--kernel",
-                "gaussrbf",
-                "--model",
-                "gauss",
-                "--rank",
-                "5",
-                "--gamma",
-                "1e0",
-                "--history-file",
-                "kernel-sketchysvd-gaussdr.json",
-            ],
-            "environment": [
-                {
-                    "name": "config",
-                    "value": "Debug"
-                }
-            ],
-            "cwd": "${workspaceFolder}",
-            "miDebuggerPath": "/usr/bin/gdb",
-            "stopAtEntry": true
-        },
-        {
-            "name": "Kernel SketchySVD, Count DR",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/bin/skema",
-            "args": [
-                "--input",
-                "${workspaceFolder}/test/data-prev/data_1k.mtx",
-                "--window",
-                "250",
-                "--solver",
-                "sketchy_svd",
-                "--kernel",
-                "gaussrbf",
-                "--model",
-                "count",
-                "--rank",
-                "5",
-                "--gamma",
-                "1e0",
-                "--history-file",
-                "kernel-sketchysvd-countdr.json",
-            ],
-            "environment": [
-                {
-                    "name": "config",
-                    "value": "Debug"
-                }
-            ],
-            "cwd": "${workspaceFolder}",
-            "miDebuggerPath": "/usr/bin/gdb",
-            "stopAtEntry": true
-        },
-        {
-            "name": "Kernel PRIMME eigs",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/bin/skema",
-            "args": [
-                "--input",
-                "${workspaceFolder}/test/data-prev/data_1k.mtx",
+                "${workspaceFolder}/test/data/kernel_data.mtx",
                 "--window",
                 "250",
                 "--solver",
@@ -251,7 +261,139 @@
             ],
             "cwd": "${workspaceFolder}",
             "miDebuggerPath": "/usr/bin/gdb",
-            "stopAtEntry": true
+            "stopAtEntry": false
+        },
+        {
+            "name": "Kernel SketchySVD, Gauss DR",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/skema",
+            "args": [
+                "--input",
+                "${workspaceFolder}/test/data/kernel_data.mtx",
+                "--window",
+                "250",
+                "--solver",
+                "sketchy_svd",
+                "--kernel",
+                "gaussrbf",
+                "--model",
+                "gauss",
+                "--rank",
+                "5",
+                "--gamma",
+                "1e0",
+                "--history-file",
+                "kernel-sketchysvd-gauss.json",
+            ],
+            "environment": [
+                {
+                    "name": "config",
+                    "value": "Debug"
+                }
+            ],
+            "cwd": "${workspaceFolder}",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Kernel SketchySVD, Count DR",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/skema",
+            "args": [
+                "--input",
+                "${workspaceFolder}/test/data/kernel_data.mtx",
+                "--window",
+                "250",
+                "--solver",
+                "sketchy_svd",
+                "--kernel",
+                "gaussrbf",
+                "--model",
+                "count",
+                "--rank",
+                "5",
+                "--gamma",
+                "1e0",
+                "--history-file",
+                "kernel-sketchysvd-count.json",
+            ],
+            "environment": [
+                {
+                    "name": "config",
+                    "value": "Debug"
+                }
+            ],
+            "cwd": "${workspaceFolder}",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Kernel SketchySPD, Gauss DR",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/skema",
+            "args": [
+                "--input",
+                "${workspaceFolder}/test/data/kernel_data.mtx",
+                "--window",
+                "250",
+                "--solver",
+                "sketchy_spd",
+                "--kernel",
+                "gaussrbf",
+                "--model",
+                "gauss",
+                "--rank",
+                "5",
+                "--gamma",
+                "1e0",
+                "--history-file",
+                "kernel-sketchyspd-gauss.json",
+            ],
+            "environment": [
+                {
+                    "name": "config",
+                    "value": "Debug"
+                }
+            ],
+            "cwd": "${workspaceFolder}",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Kernel SketchySPD, Count DR",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/skema",
+            "args": [
+                "--input",
+                "${workspaceFolder}/test/data/kernel_data.mtx",
+                "--window",
+                "250",
+                "--solver",
+                "sketchy_spd",
+                "--kernel",
+                "gaussrbf",
+                "--model",
+                "count",
+                "--rank",
+                "5",
+                "--gamma",
+                "1e0",
+                "--history-file",
+                "kernel-sketchyspd-count.json",
+            ],
+            "environment": [
+                {
+                    "name": "config",
+                    "value": "Debug"
+                }
+            ],
+            "cwd": "${workspaceFolder}",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "stopAtEntry": false
         }
     ]
 }
