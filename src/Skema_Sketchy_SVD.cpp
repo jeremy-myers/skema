@@ -1,5 +1,6 @@
 #include "Skema_Sketchy.hpp"
 
+#include <cassert>
 #include <utility>
 
 #include "Skema_AlgParams.hpp"
@@ -95,9 +96,33 @@ SketchySVD<MatrixT, DimReduxT>::SketchySVD(AlgParams algParams_)
       SparseSketch<MatrixT, DimReduxT> || DenseSketch<MatrixT, DimReduxT>,
       "Unsupported SketchySVD combination.");
 
-  corange_sketch_X = matrix_type("X", sketch_range_size, input_ncol);
-  range_sketch_Y   = matrix_type("Y", input_nrow, sketch_range_size);
-  core_sketch_Z    = matrix_type("Z", sketch_core_size, sketch_core_size);
+  if (rank > sketch_range_size) {
+    std::cout << "SketchySVD: rank " << rank << " > sketch range size "
+              << sketch_range_size << std::endl;
+    throw std::runtime_error("Exiting.");
+  }
+  if (rank > sketch_core_size) {
+    std::cout << "SketchySVD: rank " << rank << " > sketch core size "
+              << sketch_core_size << std::endl;
+    throw std::runtime_error("Exiting.");
+  }
+  if (sketch_range_size > sketch_core_size) {
+    std::cout << "SketchySVD: sketch range size " << sketch_range_size
+              << " > sketch core size " << sketch_core_size << std::endl;
+    throw std::runtime_error("Exiting.");
+  }
+  if (sketch_range_size > std::min(input_nrow, input_ncol)) {
+    std::cout << "SketchySVD: sketch range size " << sketch_range_size
+              << " > min(m,n) = " << std::min(input_nrow, input_ncol)
+              << std::endl;
+    throw std::runtime_error("Exiting.");
+  }
+  if (sketch_core_size > std::min(input_nrow, input_ncol)) {
+    std::cout << "SketchySVD: sketch core size " << sketch_core_size
+              << " > min(m,n) = " << std::min(input_nrow, input_ncol)
+              << std::endl;
+    throw std::runtime_error("Exiting.");
+  }
 
   // Determine if axpy is called with transp == true for LHS
   // Enumerate all options here
@@ -133,6 +158,10 @@ SketchySVD<MatrixT, DimReduxT>::SketchySVD(AlgParams algParams_)
   sketch_Z_nrow = sketch_core_size;
   sketch_Z_ncol = sketch_core_size;
 
+  corange_sketch_Xd = matrix_type("X", sketch_X_nrow, sketch_X_ncol);
+  range_sketch_Yd   = matrix_type("Y", sketch_Y_nrow, sketch_Y_ncol);
+  core_sketch_Zd    = matrix_type("Z", sketch_Z_nrow, sketch_Z_ncol);
+
   timings["init"]["upsilon"]   = 0.0;
   timings["init"]["omega"]     = 0.0;
   timings["init"]["phi"]       = 0.0;
@@ -154,6 +183,13 @@ SketchySVD<MatrixT, DimReduxT>::SketchySVD(AlgParams algParams_)
   timings["init"]["omega"] += DR_Omega.stats.initialize;
   timings["init"]["phi"] += DR_Phi.stats.initialize;
   timings["init"]["psi"] += DR_Psi.stats.initialize;
+
+  if constexpr (debug) {
+    DR_Upsilon.save("debug_Upsilon");
+    DR_Omega.save("debug_Omega");
+    DR_Phi.save("debug_Phi");
+    DR_Psi.save("debug_Psi");
+  }
 }
 
 template <typename MatrixT, typename DimReduxT>
@@ -175,19 +211,11 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_full_impl(const MatrixT& A)
   timings["update"]["phi"] += DR_Phi.stats.map;
   timings["update"]["psi"] += DR_Psi.stats.map;
 
-  matrix_type X_("X_", sketch_X_nrow, sketch_X_ncol);
-  matrix_type Y_("Y_", sketch_Y_nrow, sketch_Y_ncol);
-  matrix_type Z_("Z_", sketch_Z_nrow, sketch_Z_ncol);
-
   timer.reset();
-  axpy(input_scaling_factor, X_, sketch_scaling_factor, x);
-  axpy(input_scaling_factor, Z_, sketch_scaling_factor, z);
-  axpy(input_scaling_factor, Y_, sketch_scaling_factor, y);
+  axpy(input_scaling_factor, corange_sketch_Xd, sketch_scaling_factor, x);
+  axpy(input_scaling_factor, range_sketch_Yd, sketch_scaling_factor, y);
+  axpy(input_scaling_factor, core_sketch_Zd, sketch_scaling_factor, z);
   timings["update"]["daxpy"] += timer.seconds();
-
-  set_sketch(corange_sketch_X, X_, transpx);
-  set_sketch(range_sketch_Y, Y_, transpy);
-  set_sketch(core_sketch_Z, Z_, transpz);
 }
 
 template <typename MatrixT, typename DimReduxT>
@@ -201,10 +229,6 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
   size_type wsize{algParams.window};
   const size_type nwindows{
       static_cast<size_type>(std::ceil(input_nrow / wsize))};
-
-  matrix_type X_("local X_", sketch_X_nrow, sketch_X_ncol);
-  matrix_type Y_("local Y_", sketch_Y_nrow, sketch_Y_ncol);
-  matrix_type Z_("local Z_", sketch_Z_nrow, sketch_Z_ncol);
 
   std::cout << "Streaming input" << std::endl;
   range_type idx;
@@ -233,9 +257,10 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
     timings["update"]["psi"] += DR_Psi.stats.map;
 
     timer.reset();
-    axpy(input_scaling_factor, X_, sketch_scaling_factor, x);
-    axpy(input_scaling_factor, Z_, sketch_scaling_factor, z);
-    axpy(input_scaling_factor, Y_, sketch_scaling_factor, y, idx, transpy);
+    axpy(input_scaling_factor, corange_sketch_Xd, sketch_scaling_factor, x);
+    axpy(input_scaling_factor, range_sketch_Yd, sketch_scaling_factor, y, idx,
+         transpy);
+    axpy(input_scaling_factor, core_sketch_Zd, sketch_scaling_factor, z);
     timings["update"]["daxpy"] += timer.seconds();
     time += timer.seconds();
 
@@ -243,10 +268,6 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
 
     ++ucnt;
   }
-
-  set_sketch(corange_sketch_X, X_, transpx);
-  set_sketch(range_sketch_Y, Y_, transpy);
-  set_sketch(core_sketch_Z, Z_, transpz);
 }
 
 template <typename MatrixT, typename DimReduxT>
@@ -268,19 +289,15 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_full_impl(const MatrixT& A)
   timings["update"]["phi"] += DR_Phi.stats.map;
   timings["update"]["psi"] += DR_Psi.stats.map;
 
-  crs_matrix_type X_;
-  crs_matrix_type Y_;
-  crs_matrix_type Z_;
-
   timer.reset();
-  axpy(input_scaling_factor, X_, sketch_scaling_factor, x);
-  axpy(input_scaling_factor, Z_, sketch_scaling_factor, z);
-  axpy(input_scaling_factor, Y_, sketch_scaling_factor, y);
+  axpy(input_scaling_factor, corange_sketch_Xs, sketch_scaling_factor, x);
+  axpy(input_scaling_factor, range_sketch_Ys, sketch_scaling_factor, y);
+  axpy(input_scaling_factor, core_sketch_Zs, sketch_scaling_factor, z);
   timings["update"]["daxpy"] += timer.seconds();
 
-  set_sketch(corange_sketch_X, X_, transpx);
-  set_sketch(range_sketch_Y, Y_, transpy);
-  set_sketch(core_sketch_Z, Z_, transpz);
+  set_sketch(corange_sketch_Xd, corange_sketch_Xs, transpx);
+  set_sketch(range_sketch_Yd, range_sketch_Ys, transpy);
+  set_sketch(core_sketch_Zd, core_sketch_Zs, transpz);
 }
 
 template <typename MatrixT, typename DimReduxT>
@@ -294,10 +311,6 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
   size_type wsize{algParams.window};
   const size_type nwindows{
       static_cast<size_type>(std::ceil(input_nrow / wsize))};
-
-  crs_matrix_type X_;
-  crs_matrix_type Y_;
-  crs_matrix_type Z_;
 
   std::cout << "Streaming input" << std::endl;
   range_type idx;
@@ -326,9 +339,10 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
     timings["update"]["psi"] += DR_Psi.stats.map;
 
     timer.reset();
-    axpy(input_scaling_factor, X_, sketch_scaling_factor, x);
-    axpy(input_scaling_factor, Z_, sketch_scaling_factor, z);
-    axpy(input_scaling_factor, Y_, sketch_scaling_factor, y, idx, transpy);
+    axpy(input_scaling_factor, corange_sketch_Xs, sketch_scaling_factor, x);
+    axpy(input_scaling_factor, range_sketch_Ys, sketch_scaling_factor, y, idx,
+         transpy);
+    axpy(input_scaling_factor, core_sketch_Zs, sketch_scaling_factor, z);
     timings["update"]["daxpy"] += timer.seconds();
     time += timer.seconds();
 
@@ -337,9 +351,9 @@ auto SketchySVD<MatrixT, DimReduxT>::linear_update_stream_impl(const MatrixT& A)
     ++ucnt;
   }
 
-  set_sketch(corange_sketch_X, X_, transpx);
-  set_sketch(range_sketch_Y, Y_, transpy);
-  set_sketch(core_sketch_Z, Z_, transpz);
+  set_sketch(corange_sketch_Xd, corange_sketch_Xs, transpx);
+  set_sketch(range_sketch_Yd, range_sketch_Ys, transpy);
+  set_sketch(core_sketch_Zd, core_sketch_Zs, transpz);
 }
 
 template <typename MatrixT, typename DimReduxT>
@@ -370,8 +384,18 @@ template <typename MatrixT, typename DimReduxT>
 auto SketchySVD<MatrixT, DimReduxT>::linear_update(const MatrixT& A) -> void {
   if constexpr (DenseSketch<MatrixT, DimReduxT>) {
     linear_update_impl(A);
+    if constexpr (debug) {
+      Impl::write(corange_sketch_Xd, "debug_corange_sketch_Xd");
+      Impl::write(range_sketch_Yd, "debug_range_sketch_Yd");
+      Impl::write(core_sketch_Zd, "debug_core_sketch_Zd");
+    }
   } else if constexpr (SparseSketch<MatrixT, DimReduxT>) {
     linear_update_impl(A);
+    if constexpr (debug) {
+      Impl::write(corange_sketch_Xs, "debug_corange_sketch_Xs");
+      Impl::write(range_sketch_Ys, "debug_range_sketch_Ys");
+      Impl::write(core_sketch_Zs, "debug_core_sketch_Zs");
+    }
   }
 }
 
@@ -410,7 +434,6 @@ auto SketchySVD<matrix_type, SparseSignDimRedux>::update(
   // Yt = = (Omega * H^T)^T; Y = H * Omega^T;
   // W = Phi(:,row_idxs) * H
   // Z = W * Psi^T = (Psi*W^T)^T
-
   // Deviate from X,Y,W,Z order
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
@@ -435,7 +458,7 @@ auto SketchySVD<crs_matrix_type, GaussDimRedux>::update(
   // init_transposed is true
   // Y = H * OmegaT
   // W^T = H^T * PhiT(:,row_idxs)
-  // Z = W * PsiT
+  // Z = W^T * PsiT
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
   auto xt = std::get<matrix_type>(
@@ -485,10 +508,14 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   // [P,~] = qr(X^T,0);
   std::cout << "  Computing initial approximation" << std::endl;
   std::cout << "    Computing [P,~] = qr(X^T,0)" << std::endl;
+
+  if (!transpx) {
+    corange_sketch_Xd = Impl::transpose(corange_sketch_Xd);
+  }
   timer.reset();
-  auto P = Impl::transpose(corange_sketch_X);
   try {
-    linalg::qr(P, input_ncol, sketch_range_size);
+    linalg::qr(corange_sketch_Xd, corange_sketch_Xd.extent(0),
+               corange_sketch_Xd.extent(1));
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchysvd::initial_approx::qr encountered an "
                  "exception: "
@@ -498,15 +525,18 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
     timings["approx"]["dgeqrf"] += timer.seconds();
   }
   if constexpr (debug) {
-    Impl::write(P, "debug_P");
+    Impl::write(corange_sketch_Xd, "debug_P");
   }
 
   std::cout << "    Computing [Q,~] = qr(Y,0);" << std::endl;
   // [Q,~] = qr(Y,0);
+  if (transpy) {
+    range_sketch_Yd = Impl::transpose(range_sketch_Yd);
+  }
   timer.reset();
-  auto Q = range_sketch_Y;
   try {
-    linalg::qr(Q, input_nrow, sketch_range_size);
+    linalg::qr(range_sketch_Yd, range_sketch_Yd.extent(0),
+               range_sketch_Yd.extent(1));
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchysvd::initial_approx::qr encountered an "
                  "exception: "
@@ -516,7 +546,7 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
     timings["approx"]["dgeqrf"] += timer.seconds();
   }
   if constexpr (debug) {
-    Impl::write(Q, "debug_Q");
+    Impl::write(range_sketch_Yd, "debug_Q");
   }
 
   std::cout << "    Computing Phi*Q" << std::endl;
@@ -527,7 +557,8 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   matrix_type U2;
   timer.reset();
   try {
-    U1 = std::get<matrix_type>(DR_Phi.apply_left(&one, Q, &zero, 'N', 'N'));
+    U1 = std::get<matrix_type>(DR_Phi.apply_left(
+        &one, range_sketch_Yd, &zero, (DR_Phi.istranspose() ? 'T' : 'N'), 'N'));
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchysvd::initial_approx::apply_left encountered an "
                  "exception: "
@@ -543,7 +574,9 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   std::cout << "    Computing Psi*P" << std::endl;
   timer.reset();
   try {
-    U2 = std::get<matrix_type>(DR_Psi.apply_left(&one, P, &zero, 'N', 'N'));
+    U2 = std::get<matrix_type>(
+        DR_Psi.apply_left(&one, corange_sketch_Xd, &zero,
+                          (DR_Psi.istranspose() ? 'T' : 'N'), 'N'));
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchysvd::initial_approx::apply_left encountered an "
                  "exception: "
@@ -556,7 +589,7 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
     Impl::write(U2, "debug_PsiP");
   }
 
-  std::cout << "    [U2,T2] = qr(Phi*Q,0);" << std::endl;
+  std::cout << "    [U1,T1] = qr(Phi*Q,0);" << std::endl;
   timer.reset();
   matrix_type T1("T1", sketch_range_size, sketch_range_size);
   try {
@@ -570,6 +603,7 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
     timings["approx"]["dgeqrf"] += timer.seconds();
   }
   if constexpr (debug) {
+    Impl::write(U1, "debug_U1");
     Impl::write(T1, "debug_T1");
   }
 
@@ -587,16 +621,20 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
     timings["approx"]["dgeqrf"] += timer.seconds();
   }
   if constexpr (debug) {
+    Impl::write(U2, "debug_U2");
     Impl::write(T2, "debug_T2");
   }
 
-  // Z2 = U1'*obj.Z*U2;
-  // Z1 = U1'*Ztmp
+  // Z2 = U1'*Z*U2;
+  // Z1 = U1'*Z
   std::cout << "    Computing Z2 = U1'*obj.Z*U2;" << std::endl;
+  if (transpz) {
+    core_sketch_Zd = Impl::transpose(core_sketch_Zd);
+  }
   timer.reset();
   matrix_type Z1("Z1", sketch_range_size, sketch_core_size);
   try {
-    Impl::mm(&T, &N, &one, U1, core_sketch_Z, &zero, Z1);
+    Impl::mm(&T, &N, &one, U1, core_sketch_Zd, &zero, Z1);
   } catch (const std::exception& e) {
     std::cout << "Skema::sketchysvd::initial_approx::dgemm encountered an "
                  "exception: "
@@ -604,6 +642,9 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   }
   if (update_timers) {
     timings["approx"]["dgemm"] += timer.seconds();
+  }
+  if constexpr (debug) {
+    Impl::write(Z1, "debug_Z1");
   }
 
   // Z2 = Z1*U2
@@ -619,6 +660,9 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   if (update_timers) {
     timings["approx"]["dgemm"] += timer.seconds();
   }
+  if constexpr (debug) {
+    Impl::write(Z2, "debug_Z2");
+  }
 
   std::cout << "    Computing Z2 = T1\\Z2;" << std::endl;
   // Z2 = T1\Z2; \ is MATLAB mldivide(T1,Z2);
@@ -633,6 +677,9 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   }
   if (update_timers) {
     timings["approx"]["dgels"] += timer.seconds();
+  }
+  if constexpr (debug) {
+    Impl::write(Z2, "debug_L1");
   }
 
   std::cout << "    Computing W^T = Z2/(T2');" << std::endl;
@@ -651,12 +698,19 @@ auto SketchySVD<MatrixT, DimReduxT>::initial_approx(bool update_timers)
   if (update_timers) {
     timings["approx"]["dgels"] += timer.seconds();
   }
+  if constexpr (debug) {
+    Impl::write(Z2t, "debug_L2");
+  }
 
   auto C = Impl::transpose(Z2t);
+  if constexpr (debug) {
+    Impl::write(C, "debug_C");
+  }
 
   Kokkos::fence();
 
-  return std::tuple<matrix_type, matrix_type, matrix_type>(Q, C, P);
+  return std::tuple<matrix_type, matrix_type, matrix_type>(range_sketch_Yd, C,
+                                                           corange_sketch_Xd);
 };
 
 template <typename MatrixT, typename DimReduxT>
@@ -703,6 +757,11 @@ auto SketchySVD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   if (update_timers) {
     timings["approx"]["dgesvd"] += timer.seconds();
   }
+  if constexpr (debug) {
+    Impl::write(U, "debug_U");
+    Impl::write(S, "debug_S");
+    Impl::write(V, "debug_Vt");
+  }
 
   // Truncate SVD to rank r
   auto rlargest = std::make_pair<size_type>(0, rank);
@@ -726,6 +785,9 @@ auto SketchySVD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   if (update_timers) {
     timings["approx"]["dgemm"] += timer.seconds();
   }
+  if constexpr (debug) {
+    Impl::write(uvecs, "debug_QU");
+  }
 
   std::cout << "  Computing V = P*Vt'" << std::endl;
   // V = P*Vt';
@@ -740,6 +802,9 @@ auto SketchySVD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   }
   if (update_timers) {
     timings["approx"]["dgemm"] += timer.seconds();
+  }
+  if constexpr (debug) {
+    Impl::write(vvecs, "debug_PV");
   }
 
   Kokkos::fence();

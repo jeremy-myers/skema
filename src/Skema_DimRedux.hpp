@@ -83,6 +83,8 @@ class DimRedux {
 
   inline auto issparse() noexcept -> bool { return self().issparse(); };
 
+  inline auto istranspose() noexcept -> bool { return init_transposed; };
+
   template <typename InputMatrixT>
   inline auto scale_and_add(const scalar_type val, InputMatrixT& A) -> void {
     self().axpy(val, A);

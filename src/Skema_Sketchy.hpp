@@ -52,9 +52,12 @@ class SketchySVD {
   vector_type rnrms;
 
   // Sketch
-  matrix_type corange_sketch_X;
-  matrix_type range_sketch_Y;
-  matrix_type core_sketch_Z;
+  matrix_type corange_sketch_Xd;
+  matrix_type range_sketch_Yd;
+  matrix_type core_sketch_Zd;
+  crs_matrix_type corange_sketch_Xs;
+  crs_matrix_type range_sketch_Ys;
+  crs_matrix_type core_sketch_Zs;
   const size_type input_nrow;
   const size_type input_ncol;
   const size_type rank;
