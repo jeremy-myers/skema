@@ -15,9 +15,9 @@ static constexpr bool debug =
 #endif
 
 /* Typedefs */
-using scalar_type  = KokkosKernels::default_scalar;
-using ordinal_type = KokkosKernels::default_lno_t;
-using size_type    = KokkosKernels::default_size_type;
+using scalar_type  = double;
+using ordinal_type = int64_t;
+using size_type    = std::size_t;
 using layout_type  = Kokkos::LayoutLeft;
 using device_type  = typename Kokkos::Device<
      Kokkos::DefaultExecutionSpace,

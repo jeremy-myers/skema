@@ -11,7 +11,9 @@
 				"-g",
 				"${file}",
 				"-o",
-				"${fileDirname}/${fileBasenameNoExtension}"
+				"${fileDirname}/${fileBasenameNoExtension}",
+				"-DKokkosKernels_INST_OFFSET_SIZE_T=ON",
+				"-DKokkosKernels_INST_ORDINAL_INT64_T=ON"
 			],
 			"options": {
 				"cwd": "${fileDirname}"
