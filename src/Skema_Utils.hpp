@@ -1,6 +1,7 @@
 #pragma once
 #include <KokkosSparse.hpp>
 #include <Kokkos_Core.hpp>
+#include <KokkosKernels_default_types.hpp>
 #include <cfloat>
 #include <cstddef>
 #include <cstdlib>
@@ -14,9 +15,9 @@ static constexpr bool debug =
 #endif
 
 /* Typedefs */
-using scalar_type  = double;
-using ordinal_type = int;
-using size_type    = std::size_t;
+using scalar_type  = KokkosKernels::default_scalar;
+using ordinal_type = KokkosKernels::default_lno_t;
+using size_type    = KokkosKernels::default_size_type;
 using layout_type  = Kokkos::LayoutLeft;
 using device_type  = typename Kokkos::Device<
      Kokkos::DefaultExecutionSpace,
