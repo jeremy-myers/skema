@@ -36,16 +36,7 @@ SparseSignDimRedux::SparseSignDimRedux(const size_type nrow_,
   // At each step, compute a random permutation of 0,...,k-1, take the
   // first zeta numbers, and assign them to the ii-th block.
   crs_matrix_type::index_type::non_const_type entries("entries", zeta * nrow);
-  // for (auto ii = 0; ii < nrow; ++ii) {
-  //   range_type idx = std::make_pair(ii * zeta, (ii + 1) * zeta);
-  //   auto e = Kokkos::subview(entries, Kokkos::make_pair(idx.first,
-  //   idx.second)); index_type pi("rand indices", zeta);
-  //   Kokkos::fill_random(pi, rand_pool, ncol);
-  //   Kokkos::sort(pi);
-  //   Kokkos::deep_copy(e, pi);
-  // }
 
-  // This is faster
   for (auto ii = 0; ii < nrow; ++ii) {
     range_type idx = std::make_pair(ii * zeta, (ii + 1) * zeta);
     auto e = Kokkos::subview(entries, Kokkos::make_pair(idx.first, idx.second));
@@ -82,9 +73,6 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
                               const scalar_type* beta, char transA, char transB)
     -> matrix_type {
   Kokkos::Timer timer;
-  if (init_transposed) {  // Need to swap modes
-    transA = (transA == 'N') ? 'T' : 'N';
-  }
   const auto m{(transA == 'N') ? nrow : ncol};
   const auto n{(transB == 'N') ? B.extent(1) : B.extent(0)};
   matrix_type C("SparseSignDimRedux::lmap::C", m, n);

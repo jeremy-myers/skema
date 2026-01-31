@@ -25,9 +25,6 @@ auto GaussDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
                          const scalar_type* beta, char transA, char transB,
                          const range_type idx) -> matrix_type {
   Kokkos::Timer timer;
-  if (init_transposed) {  // Need to swap modes
-    transA = (transA == 'N') ? 'T' : 'N';
-  }
   const auto m{(transA == 'N') ? nrow : ncol};
   const auto n{(transB == 'N') ? B.extent(1) : B.extent(0)};
   matrix_type C("GaussDimRedux::lmap::C", m, n);
