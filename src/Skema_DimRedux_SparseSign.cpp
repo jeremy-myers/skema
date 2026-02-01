@@ -196,30 +196,20 @@ auto SparseSignDimRedux::axpy(const scalar_type val, matrix_type& A) -> void {
 template <>
 auto SparseSignDimRedux::axpy(const scalar_type val, crs_matrix_type& A)
     -> void {
-  using device_type = typename Kokkos::Device<
-      Kokkos::DefaultExecutionSpace,
-      typename Kokkos::DefaultExecutionSpace::memory_space>;
-  using execution_space = typename device_type::execution_space;
-  using memory_space    = typename device_type::memory_space;
-  using crs_row_map_type =
-      typename crs_matrix_type::row_map_type::non_const_type;
-  using crs_entries_type = typename crs_matrix_type::index_type::non_const_type;
-
-  const size_type num_rows{static_cast<size_type>(A.numRows())};
-  const size_type num_cols{static_cast<size_type>(A.numCols())};
-
-  // Output
   crs_matrix_type C;
 
-  // Create KokkosKernelHandle
-  using KernelHandle = KokkosKernels::Experimental::KokkosKernelsHandle<
-      size_type, ordinal_type, scalar_type, execution_space, memory_space,
-      memory_space>;
-  KernelHandle kh;
-  kh.create_spadd_handle(false);
-  KokkosSparse::spadd_symbolic(&kh, A, data, C);
-  KokkosSparse::spadd_numeric(&kh, 1.0, A, val, data, C);
-  kh.destroy_spadd_handle();
+  // Scale data
+  Kokkos::parallel_for(
+      data.nnz(), KOKKOS_LAMBDA(const size_type i) { data.values(i) *= val; });
+
+  // Perform spadd
+  constexpr double one{1.0};
+  constexpr double zero{0.0};
+  Impl::matadd(&one, A, &zero, data, C);
+
+  // Uncale data
+  Kokkos::parallel_for(
+      data.nnz(), KOKKOS_LAMBDA(const size_type i) { data.values(i) /= val; });
 
   // Set output
   A = C;
