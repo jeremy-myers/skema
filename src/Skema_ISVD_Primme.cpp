@@ -155,7 +155,7 @@ void ISVD_SVDS<MatrixType>::compute(const MatrixType& X, const size_type nrow,
 
   Kokkos::parallel_for(
       nrow * rank,
-      KOKKOS_LAMBDA(const int i) { U.data()[i] = svecs.data()[i]; });
+      KOKKOS_LAMBDA(const size_type i) { U.data()[i] = svecs.data()[i]; });
 
   uint64_t k{nrow * (rank + rank_add_factor)};
   for (auto i = 0; i < rank; ++i) {
@@ -201,7 +201,8 @@ void ISVD_SVDS<MatrixT>::set_u0(const MatrixT& A, const size_type nrow,
   // U = [eye(r); u0]
   // Clear out U
   // Kokkos::parallel_for(
-  //     nrow * rank, KOKKOS_LAMBDA(const int ii) { U.data()[ii] = 0.0; });
+  //     nrow * rank, KOKKOS_LAMBDA(const size_type ii) { U.data()[ii] = 0.0;
+  //     });
   Kokkos::deep_copy(U, 0.0);
   for (auto ii = 0; ii < rank; ++ii) {
     U(ii, ii) = 1.0;

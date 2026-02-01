@@ -33,7 +33,7 @@ inline auto driver(const MatrixType& matrix, AlgParams algParams,
     if (algParams.normalize_matrix > 0.0) {
       Kokkos::parallel_for(
           "normalize_by_column", algParams.matrix_n,
-          KOKKOS_LAMBDA(const int col) {
+          KOKKOS_LAMBDA(const size_type col) {
             for (auto row = 0; row < algParams.matrix_m; ++row) {
               matrix(row, col) /= algParams.normalize_matrix;
             }
@@ -46,9 +46,10 @@ inline auto driver(const MatrixType& matrix, AlgParams algParams,
     algParams.issparse   = true;
 
     if (algParams.normalize_matrix > 0.0) {
-      for (auto v = 0; v < algParams.matrix_nnz; ++v) {
-        matrix.values(v) /= algParams.normalize_matrix;
-      }
+      Kokkos::parallel_for(
+          matrix.nnz(), KOKKOS_LAMBDA(const size_type v) {
+            matrix.values(v) /= algParams.normalize_matrix;
+          });
     }
   } else {
     std::cout << "Unknown matrix type!" << std::endl;

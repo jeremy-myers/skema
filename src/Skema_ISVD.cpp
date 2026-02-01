@@ -47,7 +47,8 @@ auto ISVD<MatrixType>::solve(const MatrixType& A) -> void {
   // Get first window
   std::cout << "Streaming input" << std::endl;
   if (residual_iters) {
-    std::cout << "Note: Computing residuals of each window. This may be slow." << std::endl;
+    std::cout << "Note: Computing residuals of each window. This may be slow."
+              << std::endl;
   }
 
   std::cout << "  (" << ucnt + 1 << "/" << nwindows << "): " << std::flush;
@@ -178,7 +179,7 @@ auto ISVD<MatrixType>::compute_U(const MatrixType& A) -> void {
   }
 
   Kokkos::parallel_for(
-      rank, KOKKOS_LAMBDA(const int r) {
+      rank, KOKKOS_LAMBDA(const size_type r) {
         auto ur = Kokkos::subview(u, Kokkos::ALL(), r);
         auto s  = svals(r);
         for (auto i = 0; i < nrow; ++i) {

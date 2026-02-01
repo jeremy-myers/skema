@@ -84,7 +84,7 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
         nrow * rank,
-        KOKKOS_LAMBDA(const int ii) { evecs.data()[ii] = U.data()[ii]; });
+        KOKKOS_LAMBDA(const size_type ii) { evecs.data()[ii] = U.data()[ii]; });
     params.initSize = rank;
   }
 
@@ -126,7 +126,7 @@ void PRIMME_EIGS<matrix_type>::compute(const matrix_type& matrix,
   Kokkos::resize(U, nrow, rank);
   Kokkos::parallel_for(
       nrow * rank,
-      KOKKOS_LAMBDA(const int i) { U.data()[i] = evecs.data()[i]; });
+      KOKKOS_LAMBDA(const size_type i) { U.data()[i] = evecs.data()[i]; });
 
   Kokkos::fence();
 
@@ -170,7 +170,7 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
         nrow * rank,
-        KOKKOS_LAMBDA(const int ii) { evecs.data()[ii] = U.data()[ii]; });
+        KOKKOS_LAMBDA(const size_type ii) { evecs.data()[ii] = U.data()[ii]; });
     params.initSize = rank;
   }
 
@@ -210,7 +210,7 @@ void PRIMME_EIGS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   Kokkos::resize(U, nrow, rank);
   Kokkos::parallel_for(
       nrow * rank,
-      KOKKOS_LAMBDA(const int i) { U.data()[i] = evecs.data()[i]; });
+      KOKKOS_LAMBDA(const size_type i) { U.data()[i] = evecs.data()[i]; });
 
   Kokkos::fence();
 
@@ -417,13 +417,13 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
         nrow * rank,
-        KOKKOS_LAMBDA(const int ii) { svecs.data()[ii] = U.data()[ii]; });
+        KOKKOS_LAMBDA(const size_type ii) { svecs.data()[ii] = U.data()[ii]; });
     params.initSize = rank;
   }
 
   if (V.extent(0) > 0 && V.extent(1) > 0) {
     Kokkos::parallel_for(
-        ncol * rank, KOKKOS_LAMBDA(const int ii) {
+        ncol * rank, KOKKOS_LAMBDA(const size_type ii) {
           auto jj = ii + nrow * rank;
           if (jj < (nrow + ncol) * rank) {
             svecs.data()[jj] = V.data()[ii];
@@ -470,11 +470,11 @@ void PRIMME_SVDS<matrix_type>::compute(const matrix_type& matrix,
   Kokkos::resize(U, nrow, rank);
   Kokkos::parallel_for(
       nrow * rank,
-      KOKKOS_LAMBDA(const int i) { U.data()[i] = svecs.data()[i]; });
+      KOKKOS_LAMBDA(const size_type i) { U.data()[i] = svecs.data()[i]; });
 
   Kokkos::resize(V, ncol, rank);
   Kokkos::parallel_for(
-      ncol * rank, KOKKOS_LAMBDA(const int i) {
+      ncol * rank, KOKKOS_LAMBDA(const size_type i) {
         auto jj = i + nrow * rank;
         if (jj < (nrow + ncol) * rank) {
           V.data()[i] = svecs.data()[jj];
@@ -528,13 +528,13 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   if (U.extent(0) > 0 && U.extent(1) > 0) {
     Kokkos::parallel_for(
         nrow * rank,
-        KOKKOS_LAMBDA(const int ii) { svecs.data()[ii] = U.data()[ii]; });
+        KOKKOS_LAMBDA(const size_type ii) { svecs.data()[ii] = U.data()[ii]; });
     params.initSize = rank;
   }
 
   if (V.extent(0) > 0 && V.extent(1) > 0) {
     Kokkos::parallel_for(
-        ncol * rank, KOKKOS_LAMBDA(const int ii) {
+        ncol * rank, KOKKOS_LAMBDA(const size_type ii) {
           auto jj = ii + nrow * rank;
           if (jj < (nrow + ncol) * rank) {
             svecs.data()[jj] = V.data()[ii];
@@ -581,11 +581,11 @@ void PRIMME_SVDS<crs_matrix_type>::compute(const crs_matrix_type& matrix,
   Kokkos::resize(U, nrow, rank);
   Kokkos::parallel_for(
       nrow * rank,
-      KOKKOS_LAMBDA(const int i) { U.data()[i] = svecs.data()[i]; });
+      KOKKOS_LAMBDA(const size_type i) { U.data()[i] = svecs.data()[i]; });
 
   Kokkos::resize(V, ncol, rank);
   Kokkos::parallel_for(
-      ncol * rank, KOKKOS_LAMBDA(const int i) {
+      ncol * rank, KOKKOS_LAMBDA(const size_type i) {
         auto jj = i + nrow * rank;
         if (jj < (nrow + ncol) * rank) {
           V.data()[i] = svecs.data()[jj];
