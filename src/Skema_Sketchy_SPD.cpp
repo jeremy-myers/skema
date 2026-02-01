@@ -67,6 +67,10 @@ SketchySPD<MatrixT, DimReduxT>::SketchySPD(AlgParams algParams_)
   timings["approx"]["dgemm"]  = 0.0;
 
   timings["init"]["omega"] += DR_Omega.stats.initialize;
+
+  if constexpr (debug) {
+    DR_Omega.save("debug_Omega");
+  }
 }
 
 template <typename MatrixT, typename DimReduxT>
