@@ -76,8 +76,7 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
   const auto m{(transA == 'N') ? nrow : ncol};
   const auto n{(transB == 'N') ? B.extent(1) : B.extent(0)};
   matrix_type C("SparseSignDimRedux::lmap::C", m, n);
-  crs_matrix_type data_(data);
-  Impl::mm(&transA, &transB, alpha, data_, B, beta, C);
+  Impl::mm(&transA, &transB, alpha, data, B, beta, C);
   stats.map = timer.seconds();
   return C;
 }
