@@ -431,7 +431,7 @@ auto SketchySVD<matrix_type, SparseSignDimRedux>::update(
     const matrix_type& A, const range_type row_idxs)
     -> std::tuple<matrix_type, matrix_type, matrix_type> {
   // X = Upsilon(:,row_idxs) * H
-  // Yt = = (Omega * H^T)^T; Y = H * Omega^T;
+  // Yt = (Omega * H^T); Y = H * Omega^T;
   // W = Phi(:,row_idxs) * H
   // Z = W * Psi^T = (Psi*W^T)^T
   // Deviate from X,Y,W,Z order
