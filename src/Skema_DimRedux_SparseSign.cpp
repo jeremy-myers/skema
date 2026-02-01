@@ -183,14 +183,28 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha,
 
 template <>
 auto SparseSignDimRedux::axpy(const scalar_type val, matrix_type& A) -> void {
-  Kokkos::parallel_for(
-      data.numRows(), KOKKOS_LAMBDA(const int ii) {
-        auto row = data.row(ii);
-        for (auto jj = 0; jj < row.length; ++jj) {
-          A(ii, row.colidx(jj)) += val * row.value(jj);
-        }
-      });
-  Kokkos::fence();
+  // Kokkos::parallel_for(
+  //     data.numRows(), KOKKOS_LAMBDA(const size_type ii) {
+  //       auto row = data.row(ii);
+  //       for (auto jj = 0; jj < row.length; ++jj) {
+  //         A(ii, row.colidx(jj)) += val * row.value(jj);
+  //       }
+  //     });
+
+  //
+  // matrix_type x("SparseSignDimRedux::axpy::x", A.extent(1), A.extent(1));
+  // for (auto i = 0; i < A.extent(1); ++i) {
+  //   x(i, i) = 1.0;
+  // }
+  // KokkosSparse::spmv("N", val, data, x, 1.0, A);
+
+  vector_type y("y", A.extent(1));
+  for (auto i = 0; i < A.extent(1); ++i) {
+    y(i) = 1.0;
+    KokkosSparse::spmv("N", val, data, y, 1.0,
+                       Kokkos::subview(A, Kokkos::ALL(), i));
+    y(i) = 0.0;
+  }
 }
 
 template <>
@@ -201,15 +215,17 @@ auto SparseSignDimRedux::axpy(const scalar_type val, crs_matrix_type& A)
   // Scale data
   Kokkos::parallel_for(
       data.nnz(), KOKKOS_LAMBDA(const size_type i) { data.values(i) *= val; });
+  Kokkos::fence();
 
   // Perform spadd
   constexpr double one{1.0};
   constexpr double zero{0.0};
   Impl::matadd(&one, A, &zero, data, C);
 
-  // Uncale data
+  // Unscale data
   Kokkos::parallel_for(
       data.nnz(), KOKKOS_LAMBDA(const size_type i) { data.values(i) /= val; });
+  Kokkos::fence();
 
   // Set output
   A = C;
@@ -249,9 +265,11 @@ auto SparseSignDimRedux::col_subview(
     }
   }
   Kokkos::fence();
-  Kokkos::resize(entries, nnz);
-  Kokkos::resize(values, nnz);
-  return crs_matrix_type("sparse sign col view", nrow, idx.second - idx.first,
-                         nnz, values, row_map, entries);
+  // Kokkos::resize(entries, nnz);
+  // Kokkos::resize(values, nnz);
+  return crs_matrix_type(
+      "sparse sign col view", nrow, idx.second - idx.first, nnz,
+      Kokkos::subview(values, Kokkos::make_pair<size_type>(0, nnz)), row_map,
+      Kokkos::subview(entries, Kokkos::make_pair<size_type>(0, nnz)));
 }
 }  // namespace Skema
