@@ -378,7 +378,7 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
   }
 
   // Construct shifted sketch
-  std::cout << "  Computing norm(Y)*Omega" << std::endl;
+  std::cout << "  Computing Y = Y + norm(Y)*Omega" << std::endl;
   timer.reset();
   try {
     DR_Omega.scale_and_add(*shift, sketch);
