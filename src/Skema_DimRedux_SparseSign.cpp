@@ -215,12 +215,13 @@ auto SparseSignDimRedux::axpy(const scalar_type val, matrix_type& A) -> void {
   // }
   // KokkosSparse::spmv("N", val, data, x, 1.0, A);
 
+  // Seems to get the best performance
   vector_type y("y", A.extent(1));
   for (auto i = 0; i < A.extent(1); ++i) {
-    y(i) = 1.0;
+    y(i) = 1.0;  // Turn on column
     KokkosSparse::spmv("N", val, data, y, 1.0,
                        Kokkos::subview(A, Kokkos::ALL(), i));
-    y(i) = 0.0;
+    y(i) = 0.0;  // Turn off column
   }
 }
 
