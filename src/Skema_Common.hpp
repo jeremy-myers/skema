@@ -213,7 +213,7 @@ inline void write(const crs_matrix_type& A, const char* filename) {
 template <typename ValueType>
 struct IsPositive {
   KOKKOS_INLINE_FUNCTION
-  bool operator()(const ValueType val) const { return (val > 0); }
+  bool operator()(const ValueType val) const { return (val >= 0); }
 };
 
 template <typename ValueType>
