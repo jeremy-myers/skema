@@ -251,10 +251,25 @@ auto SparseSignDimRedux::axpy(const scalar_type val, crs_matrix_type& A)
       data.nnz(), KOKKOS_LAMBDA(const size_type i) { data.values(i) *= val; });
   Kokkos::fence();
 
+  std::cout << "SparseSignDimRedux::axpy: "
+            << "numRows(A) = " << A.numRows()
+            << ", numCols(A) = " << A.numCols() << ", nnz(A) = " << A.nnz()
+            << std::endl;
+
+  std::cout << "SparseSignDimRedux::axpy: "
+            << "numRows(B) = " << data.numRows()
+            << ", numCols(B) = " << data.numCols()
+            << ", nnz(B) = " << data.nnz() << std::endl;
+
   // Perform spadd
   constexpr double one{1.0};
   constexpr double zero{0.0};
   Impl::matadd(&one, A, &zero, data, C);
+
+  std::cout << "SparseSignDimRedux::axpy: "
+            << "numRows(C) = " << C.numRows()
+            << ", numCols(C) = " << C.numCols() << ", nnz(C) = " << C.nnz()
+            << std::endl;
 
   // Unscale data
   Kokkos::parallel_for(
