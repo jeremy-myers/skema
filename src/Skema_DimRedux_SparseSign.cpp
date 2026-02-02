@@ -14,12 +14,27 @@ SparseSignDimRedux::SparseSignDimRedux(const size_type nrow_,
     : DimRedux<SparseSignDimRedux>(nrow_, ncol_, seed_, label_,
                                    init_transposed_) {
   // Create a CRS row map with zeta entries per row.
+  // Previously, we iterated n in blocks of size zeta,
+  // computed a random permutation in [0,k), took the
+  // first zeta numbers, and assigned them to the ii-th block.
+  // This was very expensive.
+  //
+  // Instead, we fill the entries with random column indices in [0,k)
+  // sort & merge the resulting crs graph, and then use ceil/floor to get the
+  // proper {-1, 1} values. This is much more streamlined and faster.
+  // Also the previous version was technically incorrect as it didn't account
+  // for duplicate entries and unoptimal due to unsorted and uncoalesced
+  // columns.
+  // Although we are not guaranteed to get zeta entries per row, we
+  // should still get good results as the calculation of zeta is based on
+  // empirical results rather than theoretical grounds.
   namespace KE = Kokkos::Experimental;
   execution_space exec_space;
 
   Kokkos::Timer timer;
   const size_type zeta{std::max<size_type>(2, std::min<size_type>(ncol, 8))};
 
+  // Create the row map
   // This is equivalent to a prefix/exclusive scan.
   crs_matrix_type::row_map_type::non_const_type row_map("row_map", nrow + 1);
   Kokkos::parallel_scan(
@@ -30,39 +45,41 @@ SparseSignDimRedux::SparseSignDimRedux(const size_type nrow_,
         }
         partial_sum += zeta;
       });
+  Kokkos::fence();
 
-  // There are zeta entries per row for n rows.
-  // Here, we iterate n times in blocks of size zeta.
-  // At each step, compute a random permutation of 0,...,k-1, take the
-  // first zeta numbers, and assign them to the ii-th block.
+  // Create the entries
   crs_matrix_type::index_type::non_const_type entries("entries", zeta * nrow);
-
-  for (auto ii = 0; ii < nrow; ++ii) {
-    range_type idx = std::make_pair(ii * zeta, (ii + 1) * zeta);
-    auto e = Kokkos::subview(entries, Kokkos::make_pair(idx.first, idx.second));
-    Kokkos::fill_random(e, rand_pool, ncol);
-    Kokkos::sort(e);
-  }
+  Kokkos::fill_random(entries, rand_pool, ncol);
 
   // The random values are taken from the Rademacher distribution (in the
   // real case only, which is what we do here).
   // We randomly fill a length zeta * n vector with uniform numbers in
-  // [-1,1] and use the functors IsPositiveFunctor and IsNegativeFunctor
-  // with KE::replace_if() to apply the ceiling function to the positive
-  // values and floor function to the negative values.
+  // [-1,1] and apply our ceiling function to
+  // the positive values and our floor function to the negative values.
+  // We do this *after* the call to sort_and_merge_matrix to avoid any zero
+  // values.
   vector_type values("values", zeta * nrow);
   Kokkos::fill_random(values, rand_pool, -1.0, 1.0);
   Kokkos::fence();
 
+  // Sort and merge
+  KokkosSparse::sort_and_merge_matrix(row_map, entries, values, row_map,
+                                      entries, values, ncol);
+  Kokkos::fence();
+
+  // Force positive values to 1.0
   KE::replace_if(exec_space, KE::begin(values), KE::end(values),
                  IsPositive<crs_matrix_type::const_value_type>(), 1.0);
+  Kokkos::fence();
+
+  // Force negative values to -1.0
   KE::replace_if(exec_space, KE::begin(values), KE::end(values),
                  IsNegative<crs_matrix_type::const_value_type>(), -1.0);
   Kokkos::fence();
 
   // Create the CRS matrix
-  auto nnz = entries.extent(0);
-  data     = crs_matrix_type(label, nrow, ncol, nnz, values, row_map, entries);
+  data = crs_matrix_type(label, nrow, ncol, entries.extent(0), values, row_map,
+                         entries);
 
   Kokkos::fence();
   stats.initialize = timer.seconds();
