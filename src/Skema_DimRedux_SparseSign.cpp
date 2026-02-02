@@ -283,8 +283,7 @@ auto SparseSignDimRedux::col_subview(
     }
   }
   Kokkos::fence();
-  // Kokkos::resize(entries, nnz);
-  // Kokkos::resize(values, nnz);
+
   return crs_matrix_type(
       "sparse sign col view", nrow, idx.second - idx.first, nnz,
       Kokkos::subview(values, Kokkos::make_pair<size_type>(0, nnz)), row_map,
