@@ -93,6 +93,8 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
   const auto m{(transA == 'N') ? nrow : ncol};
   const auto n{(transB == 'N') ? B.extent(1) : B.extent(0)};
   matrix_type C("SparseSignDimRedux::lmap::C", m, n);
+
+  timer.reset();
   Impl::mm(&transA, &transB, alpha, data, B, beta, C);
   stats.map = timer.seconds();
   return C;
@@ -111,6 +113,8 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
   matrix_type C("SparseSignDimRedux::lmap::C", m, n);
   crs_matrix_type data_(data);
   if (idx.first != idx.second) data_ = col_subview(data, idx);
+
+  timer.reset();
   Impl::mm(&transA, &transB, alpha, data_, B, beta, C);
   stats.map = timer.seconds();
   return C;
@@ -126,6 +130,8 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha, const matrix_type& A,
   transB  = (transB == 'T' ? 'N' : 'T');  // swap transB
   auto At = Impl::transpose(A);
   matrix_type C("SparseSignDimRedux::rmap::C", m, n);
+
+  timer.reset();
   Impl::mm(&transB, &transA, alpha, data, At, beta, C);
   stats.map = timer.seconds();
   return Impl::transpose(C);
@@ -141,6 +147,8 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha, const matrix_type& A,
   transB  = (transB == 'T' ? 'N' : 'T');  // swap transB
   auto At = Impl::transpose(A);
   matrix_type C("SparseSignDimRedux::rmap::C", m, n);
+
+  timer.reset();
   Impl::mm(&transB, &transA, alpha, data, At, beta, C);
   stats.map = timer.seconds();
   return Impl::transpose(C);
@@ -156,6 +164,8 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha,
   if (transA == 'T') {
     data_ = Impl::transpose(data);
   }
+
+  timer.reset();
   Impl::mm(&transA, alpha, data_, B, beta, C);
   stats.map = timer.seconds();
   return C;
@@ -170,6 +180,8 @@ auto SparseSignDimRedux::lmap(const scalar_type* alpha,
   crs_matrix_type C;
   crs_matrix_type data_(data);
   if (idx.first != idx.second) data_ = col_subview(data, idx);
+
+  timer.reset();
   Impl::mm(&transA, alpha, data_, B, beta, C);
   stats.map = timer.seconds();
   return C;
@@ -181,6 +193,8 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha,
                               char transA, char transB) -> crs_matrix_type {
   Kokkos::Timer timer;
   crs_matrix_type C;
+
+  timer.reset();
   Impl::mm(&transA, alpha, A, data, beta, C);
   stats.map = timer.seconds();
   return C;
@@ -193,6 +207,8 @@ auto SparseSignDimRedux::rmap(const scalar_type* alpha,
     -> crs_matrix_type {
   Kokkos::Timer timer;
   crs_matrix_type C;
+
+  timer.reset();
   Impl::mm(&transA, alpha, A, data, beta, C);
   stats.map = timer.seconds();
   return C;

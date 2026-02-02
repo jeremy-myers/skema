@@ -16,7 +16,6 @@ GaussDimRedux::GaussDimRedux(const size_type nrow_, const size_type ncol_,
   const double maxval{std::sqrt(2 * std::log(nrow_ * ncol_))};
   Kokkos::fill_random(data, rand_pool, -maxval, maxval);
   Kokkos::fence();
-
   stats.initialize = timer.seconds();
 }
 
@@ -32,6 +31,8 @@ auto GaussDimRedux::lmap(const scalar_type* alpha, const matrix_type& B,
   if (idx.first != idx.second) {
     data_ = Kokkos::subview(data, Kokkos::ALL(), idx);
   }
+
+  timer.reset();
   Impl::mm(&transA, &transB, alpha, data_, B, beta, C);
   stats.map = timer.seconds();
   return C;
@@ -45,6 +46,8 @@ auto GaussDimRedux::rmap(const scalar_type* alpha, const matrix_type& A,
   const auto m{(transA == 'N') ? A.extent(0) : ncol};
   const auto n{(transB == 'N') ? ncol : nrow};
   matrix_type C("GaussDimRedux::rmap::C", m, n);
+
+  timer.reset();
   Impl::mm(&transA, &transB, alpha, A, data, beta, C);
   stats.map = timer.seconds();
   return C;
@@ -64,6 +67,8 @@ auto GaussDimRedux::lmap(const scalar_type* alpha, const crs_matrix_type& B,
   if (idx.first != idx.second) {
     data_ = Kokkos::subview(data, Kokkos::ALL(), idx);
   }
+
+  timer.reset();
   Impl::mm(&transB, &transA, alpha, B, data_, beta, C);
   stats.map = timer.seconds();
   return Impl::transpose(C);
@@ -82,6 +87,8 @@ auto GaussDimRedux::rmap(const scalar_type* alpha, const crs_matrix_type& A,
   if (idx.first != idx.second) {
     data_ = Kokkos::subview(data, idx, Kokkos::ALL());
   }
+
+  timer.reset();
   Impl::mm(&transA, &transB, alpha, A, data_, beta, C);
   stats.map = timer.seconds();
   return C;
