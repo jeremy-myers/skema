@@ -81,6 +81,11 @@ class DimRedux {
     return self().rmap(std::forward<Args>(args)...);
   };
 
+  inline auto free() noexcept -> void {
+    self().release();
+    initialized = false;
+  };
+
   inline auto issparse() noexcept -> bool { return self().issparse(); };
 
   inline auto istranspose() noexcept -> bool { return init_transposed; };
@@ -136,6 +141,10 @@ class GaussDimRedux : public DimRedux<GaussDimRedux> {
             const scalar_type* beta, char transA = 'N', char transB = 'T',
             const range_type idx = std::make_pair<size_type>(0, 0))
       -> matrix_type;
+
+  inline auto release() -> void {
+    Kokkos::realloc(Kokkos::WithoutInitializing, data, 0, 0);
+  };
 
   auto write(const std::filesystem::path filename = "") -> void;
 };
@@ -194,6 +203,12 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
   auto rmap(const scalar_type* alpha, const InputMatrixT& A,
             const scalar_type* beta, char transA, char transB,
             const range_type idx) -> InputMatrixT;
+
+  inline auto release() -> void {
+    Kokkos::realloc(Kokkos::WithoutInitializing, data.graph.row_map, 0);
+    Kokkos::realloc(Kokkos::WithoutInitializing, data.graph.entries, 0);
+    Kokkos::realloc(Kokkos::WithoutInitializing, data.values, 0);
+  }
 
   auto write(const std::filesystem::path filename = "") -> void;
 };

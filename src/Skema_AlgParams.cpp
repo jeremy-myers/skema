@@ -138,6 +138,8 @@ void Skema::AlgParams::print(std::ostream& out) const {
       out << "  nu = " << sketch_nu << std::endl;
       out << "  dimredux = " << Skema::DimRedux_Map::names[dim_redux]
           << std::endl;
+      out << "  decomposition type = "
+          << Skema::Decomposition_Type::names[decomposition_type] << std::endl;
       break;
 
     case Skema::Solver_Method::PRIMME_SVDS:
@@ -335,6 +337,11 @@ void Skema::AlgParams::parse(std::vector<std::string>& args) {
 
   norm2_solver = parse_enum(
       args, "--norm-solver", Skema::Decomposition_Type::default_type,
+      Skema::Decomposition_Type::num_types, Skema::Decomposition_Type::types,
+      Skema::Decomposition_Type::names);
+
+  decomposition_type = parse_enum(
+      args, "--decomposition-type", Skema::Decomposition_Type::default_type,
       Skema::Decomposition_Type::num_types, Skema::Decomposition_Type::types,
       Skema::Decomposition_Type::names);
 

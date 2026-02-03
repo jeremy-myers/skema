@@ -275,7 +275,7 @@ class SketchySPD {
   auto prepare_cholesky(SketchT&, scalar_type*) -> matrix_type
     requires SparseSketch<MatrixT, DimReduxT>;
 
-  auto prepare_low_rank_problem(matrix_type&, const matrix_type&) -> bool;
+  auto prepare_low_rank_problem(matrix_type&, matrix_type&) -> bool;
 
   auto set_sketch(matrix_type&, matrix_type&, const bool) -> void
     requires DenseSketch<MatrixT, DimReduxT>;

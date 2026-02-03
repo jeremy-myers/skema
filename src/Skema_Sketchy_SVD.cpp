@@ -735,11 +735,19 @@ auto SketchySVD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
 
   Kokkos::Timer timer;
 
+  // Release Upsilon & Omega
+  DR_Upsilon.free();
+  DR_Omega.free();
+
   // [Y,Z,X] = initial_approx(U,S,V)
   matrix_type Q;
   matrix_type C;
   matrix_type P;
   std::tie(Q, C, P) = initial_approx();
+
+  // Release Phi & Psi
+  DR_Phi.free();
+  DR_Psi.free();
 
   // [uu,ss,vv] = svd(Z)
   std::cout << "  Computing [uu,ss,vv] = svd(Z)" << std::endl;

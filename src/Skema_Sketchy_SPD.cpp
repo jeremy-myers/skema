@@ -542,8 +542,9 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_cholesky(SketchT& sketch,
 }
 
 template <typename MatrixT, typename DimReduxT>
-auto SketchySPD<MatrixT, DimReduxT>::prepare_low_rank_problem(
-    matrix_type& Yt, const matrix_type& C) -> bool {
+auto SketchySPD<MatrixT, DimReduxT>::prepare_low_rank_problem(matrix_type& Yt,
+                                                              matrix_type& C)
+    -> bool {
   // C = chol( (B + B^T) / 2)
   Kokkos::Timer timer;
   constexpr char N{'N'};
@@ -566,7 +567,7 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_low_rank_problem(
     // Cholesky was successful
     // Compute E = YνC^{−1} by back-substitution
     // Least squares problem Y / C
-    // W = Y/C; MATLAB: (C'\Y')'; / is MATLAB mldivide(C',Y')'
+    // E = Y/C; MATLAB: (C'\Y')'; / is MATLAB mldivide(C',Y')'
     std::cout << "  Computing E = Y * C^-1" << std::endl;
     timer.reset();
     try {
@@ -592,8 +593,14 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_low_rank_problem(
       idx = d > tol;
       Ahalf_inv = V(:,idx) * diag(1./sqrt(d(idx)));
     */
-    matrix_type evecs("evecs", C.extent(0), C.extent(1));
-    vector_type evals("evals", C.extent(0));
+    // Release C_copy and set C as output
+    Kokkos::realloc(Kokkos::WithoutInitializing, C_copy, 0, 0);
+
+    const size_type num_C_rows{C.extent(0)};
+    const size_type num_C_cols{C.extent(1)};
+
+    matrix_type evecs("evecs", num_C_rows, num_C_cols);
+    vector_type evals("evals", num_C_rows);
     timer.reset();
     linalg::eig(C, evecs, evals);
     timings["approx"]["dgeev"] = timer.seconds();
@@ -605,7 +612,7 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_low_rank_problem(
         },
         Kokkos::Max<scalar_type, Kokkos::HostSpace>(max_value));
     scalar_type tol =
-        std::max<scalar_type>(C.extent(0), C.extent(1)) *
+        std::max<scalar_type>(num_C_rows, num_C_cols) *
         std::abs(std::nextafter(max_value,
                                 std::numeric_limits<scalar_type>::epsilon()) -
                  max_value);
@@ -621,15 +628,15 @@ auto SketchySPD<MatrixT, DimReduxT>::prepare_low_rank_problem(
 
     constexpr double one{1.0};
     constexpr double zero{0.0};
-    matrix_type Y("Y", Yt.extent(1), Yt.extent(0));
+    Kokkos::realloc(Kokkos::WithoutInitializing, C, Yt.extent(1), Yt.extent(0));
     timer.reset();
-    Impl::mm(&T, &N, &one, Yt, evecs, &zero, Y);
+    Impl::mm(&T, &N, &one, Yt, evecs, &zero, C);
     timings["approx"]["dgemm"] += timer.seconds();
-    Yt = Y;
+    Yt = C;
     if constexpr (debug) {
       Impl::write(evals, "debug_evals");
       Impl::write(evecs, "debug_evecs");
-      Impl::write(Y, "debug_eig");
+      Impl::write(C, "debug_eig");
     }
     timings["approx"]["dpotrf"] *= -1.0;
     timings["approx"]["dgels"] *= -1.0;
@@ -663,43 +670,52 @@ auto SketchySPD<MatrixT, DimReduxT>::low_rank_approx(bool update_timers)
   } else if constexpr (SparseSketch<MatrixT, DimReduxT>) {
     C = prepare_cholesky<crs_matrix_type>(range_sketch_Ys, &shift);
   }
+  DR_Omega.free();
 
-  matrix_type Yt("Yt", sketch_range_size, input_nrow);
   if constexpr (DenseSketch<MatrixT, DimReduxT>) {
-    set_sketch(Yt, range_sketch_Yd, true);
+    set_sketch(range_sketch_Yd, range_sketch_Yd, true);
   } else if constexpr (SparseSketch<MatrixT, DimReduxT>) {
-    set_sketch(Yt, range_sketch_Ys, true);
+    set_sketch(range_sketch_Yd, range_sketch_Ys, true);
   }
-  auto chol_succeed = prepare_low_rank_problem(Yt, C);
+  auto chol_succeed = prepare_low_rank_problem(range_sketch_Yd, C);
 
-  set_sketch(range_sketch_Yd, Yt, chol_succeed);
+  set_sketch(range_sketch_Yd, range_sketch_Yd, chol_succeed);
 
   // Compute the (thin) singular value decomposition E = UΣV^*
   std::cout << "  Computing E = USV^T" << std::endl;
-  const size_type mw{range_sketch_Yd.extent(0)};
-  const size_type nw{range_sketch_Yd.extent(1)};
-  const size_type min_mnw{std::min(mw, nw)};
+  matrix_type rvecs;
+  if (algParams.decomposition_type == Skema::Decomposition_Type::SVDS) {
+    AlgParams params(algParams);
+    params.kernel_func = Skema::Kernel_Map::NONE;
+    PRIMME_SVDS<matrix_type> svds_solver(params);
+    timer.reset();
+    svds_solver.compute(range_sketch_Yd, range_sketch_Yd.extent(0),
+                        range_sketch_Yd.extent(1), rank, uvecs, svals, rvecs,
+                        rnrms);
+  } else {
+    const size_type mw{range_sketch_Yd.extent(0)};
+    const size_type nw{range_sketch_Yd.extent(1)};
+    const size_type min_mnw{std::min(mw, nw)};
+    Kokkos::realloc(Kokkos::WithoutInitializing, uvecs, mw, min_mnw);
+    Kokkos::realloc(Kokkos::WithoutInitializing, svals, min_mnw);
+    Kokkos::realloc(Kokkos::WithoutInitializing, rvecs, min_mnw,
+                    nw);  // transpose
+    timer.reset();
+    try {
+      linalg::svd(range_sketch_Yd, mw, nw, uvecs, svals, rvecs);
+    } catch (const std::exception& e) {
+      std::cout << "Skema::sketchyspd::low_rank_approx::svd encountered an "
+                   "exception: "
+                << e.what() << std::endl;
+    }
+    // Truncate to rank r
+    std::cout << "  Truncating to rank r" << std::endl;
+    Kokkos::resize(uvecs, uvecs.extent(0), rank);
 
-  matrix_type Uwy("Uwy", mw, min_mnw);
-  vector_type Swy("Swy", min_mnw);
-  matrix_type Vwy("Vwy", min_mnw, nw);  // transpose
-  timer.reset();
-  try {
-    linalg::svd(range_sketch_Yd, mw, nw, Uwy, Swy, Vwy);
-  } catch (const std::exception& e) {
-    std::cout << "Skema::sketchyspd::low_rank_approx::svd encountered an "
-                 "exception: "
-              << e.what() << std::endl;
+    // Sr = S(1:r, 1:r);
+    Kokkos::resize(svals, rank);
   }
   timings["approx"]["dgesvd"] += timer.seconds();
-
-  // Truncate to rank r
-  std::cout << "  Truncating to rank r" << std::endl;
-  range_type rlargest = std::make_pair<size_type>(0, rank);
-  uvecs               = Kokkos::subview(Uwy, Kokkos::ALL(), rlargest);
-
-  // Sr = S(1:r, 1:r);
-  svals = Kokkos::subview(Swy, rlargest);
 
   // Square to get eigenvalues; remove shift
   std::cout << "  Removing shift" << std::endl;
@@ -1007,6 +1023,7 @@ auto SketchySPD<MatrixT, DimReduxT>::set_sketch(matrix_type& dst,
   requires SparseSketch<MatrixT, DimReduxT>
 {
   if (transp_src) {
+    Kokkos::resize(dst, src.numCols(), src.numRows());
     assert(dst.extent(0) == src.numCols());
     assert(dst.extent(1) == src.numRows());
     for (auto irow = 0; irow < src.numRows(); ++irow) {
@@ -1016,6 +1033,7 @@ auto SketchySPD<MatrixT, DimReduxT>::set_sketch(matrix_type& dst,
       }
     }
   } else {
+    Kokkos::resize(dst, src.numRows(), src.numCols());
     assert(dst.extent(0) == src.numRows());
     assert(dst.extent(1) == src.numCols());
     for (auto irow = 0; irow < src.numRows(); ++irow) {
