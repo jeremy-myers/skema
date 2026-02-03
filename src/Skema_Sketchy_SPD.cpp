@@ -90,11 +90,14 @@ auto SketchySPD<MatrixT, DimReduxT>::linear_update_impl(const MatrixT& A)
     -> void
   requires SparseSketch<MatrixT, DimReduxT>
 {
+  Kokkos::Timer timer;
+  std::cout << "Computing linear update" << std::endl;
   if ((algParams.window == 0) || (algParams.window == input_nrow)) {
     linear_update_full_impl(A);
   } else {
     linear_update_stream_impl(A);
   }
+  std::cout << "  Elapsed time: " << timer.seconds() << " sec." << std::endl;
 }
 
 template <typename MatrixT, typename DimReduxT>
