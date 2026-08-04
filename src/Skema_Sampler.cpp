@@ -129,7 +129,8 @@ void ReservoirSampler<crs_matrix_type>::sample(const crs_matrix_type& A) {
       std::cout << "Error in Sparse_Sampler.cpp: this functionality not "
                    "implemented yet."
                 << std::endl;
-      exit(2);
+      throw std::runtime_error(
+          "Sparse_Sampler: functionality not implemented yet");
     }
   } else {
     /* Bit mask to keep or drop rows from previous */

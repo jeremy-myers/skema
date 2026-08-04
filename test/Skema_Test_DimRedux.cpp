@@ -25,7 +25,18 @@ TEST_F(GaussDimReduxTest, TestDimensions) {
 
 TEST_F(GaussDimReduxTest, TestIssparse) { ASSERT_FALSE(gdr.issparse()); }
 
-// TODO Copy assign constructor (gdr = GaussDimRedux(...), which fails.)
+TEST_F(GaussDimReduxTest, CopyAssign) {
+  GaussDimRedux gdr2 = gdr;
+  ASSERT_EQ(gdr2.nrows(), gdr.nrows());
+  ASSERT_EQ(gdr2.ncols(), gdr.ncols());
+}
+
+TEST_F(GaussDimReduxTest, MoveAssign) {
+  GaussDimRedux tmp(k, n, seed);
+  GaussDimRedux gdr2 = std::move(tmp);
+  ASSERT_EQ(gdr2.nrows(), k);
+  ASSERT_EQ(gdr2.ncols(), n);
+}
 
 // ----- Known-data fixture for deterministic lmap/rmap tests -----
 //
@@ -133,6 +144,27 @@ TEST_F(SparseSignDimReduxTest, TestLmapDimensions) {
   constexpr scalar_type one{1.0};
   constexpr scalar_type zero{0.0};
   auto result = ssdr.lmap(&one, I, &zero);
+
+  ASSERT_EQ(result.extent(0), nrow);
+  ASSERT_EQ(result.extent(1), ncol);
+}
+
+// lmap with sparse crs_matrix_type input: I_ncol as a sparse matrix.
+// C(nrow, ncol) = data * I_ncol  =>  same shape as the dense lmap test.
+TEST_F(SparseSignDimReduxTest, TestLmapSparseDimensions) {
+  const ordinal_type n = static_cast<ordinal_type>(ncol);
+
+  Kokkos::View<size_type*>    row_map("row_map", n + 1);
+  Kokkos::View<ordinal_type*> entries("entries", n);
+  Kokkos::View<scalar_type*>  values("values", n);
+  for (ordinal_type i = 0; i <= n; ++i) row_map(i) = i;
+  for (ordinal_type i = 0; i < n; ++i) { entries(i) = i; values(i) = 1.0; }
+
+  crs_matrix_type I_sparse("I_sparse", n, n, n, values, row_map, entries);
+
+  constexpr scalar_type one{1.0};
+  constexpr scalar_type zero{0.0};
+  auto result = ssdr.lmap(&one, I_sparse, &zero);
 
   ASSERT_EQ(result.extent(0), nrow);
   ASSERT_EQ(result.extent(1), ncol);

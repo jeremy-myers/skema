@@ -51,7 +51,7 @@ inline auto driver(const MatrixType& matrix, AlgParams algParams)
     }
   } else {
     std::cout << "Unknown matrix type!" << std::endl;
-    exit(EXIT_FAILURE);
+    throw std::runtime_error("Unknown matrix type");
   }
 
   std::cout << "\nMatrix: " << algParams.matrix_m << " x "

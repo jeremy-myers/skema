@@ -143,8 +143,10 @@ inline void print(const crs_matrix_type& A) {
 }
 
 inline void write(const vector_type& input, const char* filename) {
-  FILE* fp;
-  fp = fopen(filename, "w");
+  FILE* fp = fopen(filename, "w");
+  if (!fp)
+    throw std::runtime_error(std::string("Cannot open file for writing: ") +
+                             filename);
 
   for (auto i = 0; i < input.extent(0); ++i) {
     fprintf(fp, "%.16f\n", input(i));
@@ -153,8 +155,10 @@ inline void write(const vector_type& input, const char* filename) {
 }
 
 inline void write(const matrix_type& input, const char* filename) {
-  FILE* fp;
-  fp = fopen(filename, "w");
+  FILE* fp = fopen(filename, "w");
+  if (!fp)
+    throw std::runtime_error(std::string("Cannot open file for writing: ") +
+                             filename);
 
   for (auto i = 0; i < input.extent(0); ++i) {
     for (auto j = 0; j < input.extent(1); ++j) {

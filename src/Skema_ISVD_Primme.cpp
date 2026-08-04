@@ -340,7 +340,8 @@ void isvd_dense_convTestFun(double* sval, void* leftsvec, void* rightvec,
         std::cout << "isvd_sparse_convTestFun: Encountered a case "
                      "we didn't consider."
                   << std::endl;
-        exit(1);
+        *ierr = -1;
+        return;
         // /* Have rightsvec, do not have leftvec */
         // unmanaged_vector_type r_view((scalar_type*)rightvec, primme_svds->n);
         // rvec = Kokkos::subview(r_view, Kokkos::ALL());
@@ -397,7 +398,8 @@ void isvd_dense_convTestFun(double* sval, void* leftsvec, void* rightvec,
         std::cout << "isvd_dense_convTestFun: Encountered a case "
                      "we didn't consider."
                   << std::endl;
-        exit(1);
+        *ierr = -1;
+        return;
       } else {
         /* Have nothing, exit early */
         *isconv = 0;
@@ -448,19 +450,22 @@ void isvd_dense_convTestFun(double* sval, void* leftsvec, void* rightvec,
             : rho = 0.0;
         if (std::isinf(rho)) {
           std::cout << "rho encountered Inf" << std::endl;
-          exit(2);
+          *ierr = -1;
+          return;
         }
 
         del = ((1 - rho) / (1 + convtest.eps)) * convtest.eps;
         if (std::isnan(del) || std::isinf(del)) {
           std::cout << "delta encountered NaN or Inf" << std::endl;
-          exit(2);
+          *ierr = -1;
+          return;
         }
 
         err = std::abs(r - convtest.rvals(isv, 0)) / std::abs(r);
         if (std::isnan(err) || std::isinf(err)) {
           std::cout << "err encountered NaN or Inf" << std::endl;
-          exit(2);
+          *ierr = -1;
+          return;
         }
 
         (err < del) ? * isconv = 1 : * isconv = 0;
@@ -675,7 +680,8 @@ void isvd_sparse_convTestFun(double* sval, void* leftsvec, void* rightvec,
         std::cout << "isvd_sparse_convTestFun: Encountered a case "
                      "we didn't consider."
                   << std::endl;
-        exit(1);
+        *ierr = -1;
+        return;
         // /* Have rightsvec, do not have leftvec */
         // unmanaged_vector_type r_view((scalar_type*)rightvec, primme_svds->n);
         // rvec = Kokkos::subview(r_view, Kokkos::ALL());
@@ -731,7 +737,8 @@ void isvd_sparse_convTestFun(double* sval, void* leftsvec, void* rightvec,
         std::cout << "isvd_sparse_convTestFun: Encountered a case "
                      "we didn't consider."
                   << std::endl;
-        exit(1);
+        *ierr = -1;
+        return;
       } else {
         /* Have nothing, exit early */
         *isconv = 0;
@@ -782,19 +789,22 @@ void isvd_sparse_convTestFun(double* sval, void* leftsvec, void* rightvec,
             : rho = 0.0;
         if (std::isinf(rho)) {
           std::cout << "rho encountered Inf" << std::endl;
-          exit(2);
+          *ierr = -1;
+          return;
         }
 
         del = ((1 - rho) / (1 + convtest.eps)) * convtest.eps;
         if (std::isnan(del) || std::isinf(del)) {
           std::cout << "delta encountered NaN or Inf" << std::endl;
-          exit(2);
+          *ierr = -1;
+          return;
         }
 
         err = std::abs(r - convtest.rvals(isv, 0)) / std::abs(r);
         if (std::isnan(err) || std::isinf(err)) {
           std::cout << "err encountered NaN or Inf" << std::endl;
-          exit(2);
+          *ierr = -1;
+          return;
         }
 
         (err < del) ? * isconv = 1 : * isconv = 0;

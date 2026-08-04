@@ -131,6 +131,7 @@ set(Skema_SOURCE_LIST
 
 # Build the library
 add_library(skemalib ${Skema_SOURCE_LIST})
+target_compile_options(skemalib PRIVATE -Wall -Wextra)
 
 target_link_libraries(skemalib PUBLIC ${LAPACK_LIBRARIES})
 if(LAPACK_FOUND)
@@ -146,7 +147,7 @@ install(TARGETS skemalib
         EXPORT skema
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
-file(GLOB skema_headers ${Skema_SOURCE_DIR}/*.hpp)
+file(GLOB skema_headers ${Skema_SOURCE_DIR}/src/*.hpp)
 install(FILES ${skema_headers}
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/skema
         PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
@@ -183,3 +184,6 @@ set(Skema_SOURCE_TEST
 
 add_executable(skema_unit_tests ${Skema_SOURCE_TEST})
 target_link_libraries(skema_unit_tests gtest skemalib)
+
+enable_testing()
+add_test(NAME skema_unit_tests COMMAND skema_unit_tests)

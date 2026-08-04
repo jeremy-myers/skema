@@ -129,8 +129,8 @@ class GaussDimRedux : public DimRedux<GaussDimRedux> {
 
   GaussDimRedux(const GaussDimRedux&) = default;
   GaussDimRedux(GaussDimRedux&&)      = default;
-  GaussDimRedux& operator=(const GaussDimRedux&);
-  GaussDimRedux& operator=(GaussDimRedux&&);
+  GaussDimRedux& operator=(const GaussDimRedux&) = default;
+  GaussDimRedux& operator=(GaussDimRedux&&)      = default;
 
   template <typename InputMatrixT>
   auto lmap(const scalar_type* alpha, const InputMatrixT& B,
@@ -255,8 +255,8 @@ class SparseSignDimRedux : public DimRedux<SparseSignDimRedux> {
 
   SparseSignDimRedux(const SparseSignDimRedux&) = default;
   SparseSignDimRedux(SparseSignDimRedux&&)      = default;
-  SparseSignDimRedux& operator=(const SparseSignDimRedux&);
-  SparseSignDimRedux& operator=(SparseSignDimRedux&&);
+  SparseSignDimRedux& operator=(const SparseSignDimRedux&) = default;
+  SparseSignDimRedux& operator=(SparseSignDimRedux&&)      = default;
   ~SparseSignDimRedux() = default;
 
   template <typename InputMatrixT>

@@ -107,9 +107,8 @@ class GaussRBFWindow : public WindowBase<MatrixType> {
                   const bool update_counters = true) -> crs_matrix_type {
     std::cout << "get_window for kernel function on sparse matrix not available"
               << std::endl;
-    exit(1);
-    crs_matrix_type data;
-    return data;
+    throw std::runtime_error(
+        "get_window: kernel function on sparse matrix not available");
   }
 
  private:

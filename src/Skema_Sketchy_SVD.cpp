@@ -755,7 +755,7 @@ auto sketchy_svd(const matrix_type& matrix, matrix_type& U, vector_type& S,
       std::cout << "Skema::sketchysvd::linear_update encountered an "
                    "exception: "
                 << e.what() << std::endl;
-      exit(EXIT_FAILURE);
+      throw;
     }
     try {
       std::tie(U, S, V) = sketch.low_rank_approx();
@@ -763,7 +763,7 @@ auto sketchy_svd(const matrix_type& matrix, matrix_type& U, vector_type& S,
       std::cout << "Skema::sketchysvd::low_rank_approx encountered an "
                    "exception: "
                 << e.what() << std::endl;
-      exit(EXIT_FAILURE);
+      throw;
     }
     try {
       sketch.compute_residuals(matrix);
@@ -771,7 +771,7 @@ auto sketchy_svd(const matrix_type& matrix, matrix_type& U, vector_type& S,
       std::cout << "Skema::sketchysvd::compute_residuals encountered an "
                    "exception: "
                 << e.what() << std::endl;
-      exit(EXIT_FAILURE);
+      throw;
     }
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
@@ -784,7 +784,7 @@ auto sketchy_svd(const matrix_type& matrix, matrix_type& U, vector_type& S,
       std::cout << "Skema::sketchysvd::linear_update encountered an "
                    "exception: "
                 << e.what() << std::endl;
-      exit(EXIT_FAILURE);
+      throw;
     }
     try {
       std::tie(U, S, V) = sketch.low_rank_approx();
@@ -792,7 +792,7 @@ auto sketchy_svd(const matrix_type& matrix, matrix_type& U, vector_type& S,
       std::cout << "Skema::sketchysvd::low_rank_approx encountered an "
                    "exception: "
                 << e.what() << std::endl;
-      exit(EXIT_FAILURE);
+      throw;
     }
     try {
       sketch.compute_residuals(matrix);
@@ -800,7 +800,7 @@ auto sketchy_svd(const matrix_type& matrix, matrix_type& U, vector_type& S,
       std::cout << "Skema::sketchysvd::compute_residuals encountered an "
                    "exception: "
                 << e.what() << std::endl;
-      exit(EXIT_FAILURE);
+      throw;
     }
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
@@ -812,8 +812,7 @@ auto sketchy_svd(const matrix_type& matrix, matrix_type& U, vector_type& S,
       primme_svds(matrix, U, S, V, params);
     }
   } else {
-    std::cout << "DimRedux: make another selection." << std::endl;
-    exit(1);
+    throw std::runtime_error("DimRedux: make another selection.");
   }
 };
 
@@ -828,7 +827,7 @@ auto sketchy_svd(const crs_matrix_type& matrix, matrix_type& U, vector_type& S,
       std::cout << "Skema::sketchysvd::linear_update encountered an "
                    "exception: "
                 << e.what() << std::endl;
-      exit(EXIT_FAILURE);
+      throw;
     }
     try {
       std::tie(U, S, V) = sketch.low_rank_approx();
@@ -836,7 +835,7 @@ auto sketchy_svd(const crs_matrix_type& matrix, matrix_type& U, vector_type& S,
       std::cout << "Skema::sketchysvd::low_rank_approx encountered an "
                    "exception: "
                 << e.what() << std::endl;
-      exit(EXIT_FAILURE);
+      throw;
     }
     try {
       sketch.compute_residuals(matrix);
@@ -844,7 +843,7 @@ auto sketchy_svd(const crs_matrix_type& matrix, matrix_type& U, vector_type& S,
       std::cout << "Skema::sketchysvd::compute_residuals encountered an "
                    "exception: "
                 << e.what() << std::endl;
-      exit(EXIT_FAILURE);
+      throw;
     }
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
@@ -864,7 +863,7 @@ auto sketchy_svd(const crs_matrix_type& matrix, matrix_type& U, vector_type& S,
       std::cout << "Skema::sketchysvd::linear_update encountered an "
                    "exception: "
                 << e.what() << std::endl;
-      exit(EXIT_FAILURE);
+      throw;
     }
     try {
       std::tie(U, S, V) = sketch.low_rank_approx();
@@ -872,7 +871,7 @@ auto sketchy_svd(const crs_matrix_type& matrix, matrix_type& U, vector_type& S,
       std::cout << "Skema::sketchysvd::low_rank_approx encountered an "
                    "exception: "
                 << e.what() << std::endl;
-      exit(EXIT_FAILURE);
+      throw;
     }
     try {
       sketch.compute_residuals(matrix);
@@ -880,15 +879,13 @@ auto sketchy_svd(const crs_matrix_type& matrix, matrix_type& U, vector_type& S,
       std::cout << "Skema::sketchysvd::compute_residuals encountered an "
                    "exception: "
                 << e.what() << std::endl;
-      exit(EXIT_FAILURE);
+      throw;
     }
     if (!algParams.history_filename.empty()) {
       sketch.save_history(algParams.history_filename);
     }
   } else {
-    std::cout << "DimRedux: Invalid option. Make another selection."
-              << std::endl;
-    exit(1);
+    throw std::runtime_error("DimRedux: Invalid option. Make another selection.");
   }
 };
 

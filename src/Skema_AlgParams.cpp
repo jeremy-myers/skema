@@ -395,7 +395,6 @@ T Skema::parse_enum(std::vector<std::string>& args, const std::string& cl_arg,
     }
     error_string << "." << std::endl;
     error(error_string.str());
-    exit(1);
   }
   // return default value if not specified on command line
   return default_value;
@@ -448,7 +447,6 @@ int Skema::parse_int(std::vector<std::string>& args, const std::string& cl_arg,
         error_string << "Unparseable input: " << cl_arg << " " << *it
                      << ", must be an integer" << std::endl;
         error(error_string.str());
-        exit(1);
       }
     }
     // Remove argument from list
@@ -461,7 +459,6 @@ int Skema::parse_int(std::vector<std::string>& args, const std::string& cl_arg,
                  << ",  must be in the range (" << min << ", " << max << ")"
                  << std::endl;
     error(error_string.str());
-    exit(1);
   }
   return tmp;
 }
@@ -493,7 +490,6 @@ double Skema::parse_real(std::vector<std::string>& args,
       error_string << "Unparseable input: " << cl_arg << " " << *it
                    << ", must be a double" << std::endl;
       error(error_string.str());
-      exit(1);
     }
     // Remove argument from list
     args.erase(arg_it, ++it);
@@ -505,7 +501,6 @@ double Skema::parse_real(std::vector<std::string>& args,
                  << ",  must be in the range (" << min << ", " << max << ")"
                  << std::endl;
     error(error_string.str());
-    exit(1);
   }
   return tmp;
 }
@@ -571,7 +566,6 @@ std::vector<int> Skema::parse_int_array(std::vector<std::string>& args,
                    << ", must be of the form [int,...,int] with no spaces"
                    << std::endl;
       error(error_string.str());
-      exit(1);
     }
     while (strlen(arg_val) > 0 && arg_val[0] != ']') {
       ++arg_val;  // Move past ,
@@ -584,7 +578,6 @@ std::vector<int> Skema::parse_int_array(std::vector<std::string>& args,
                      << ", must be of the form [int,...,int] with no spaces"
                      << std::endl;
         error(error_string.str());
-        exit(1);
       }
       // check if int is within bounds
       if (tmp < min || tmp > max) {
@@ -593,7 +586,6 @@ std::vector<int> Skema::parse_int_array(std::vector<std::string>& args,
                      << ",  must be in the range (" << min << ", " << max << ")"
                      << std::endl;
         error(error_string.str());
-        exit(1);
       }
       vals.push_back(tmp);
       arg_val = cend;
