@@ -175,8 +175,10 @@ include_directories(${Skema_SOURCE_DIR}/test)
 
 set(Skema_SOURCE_TEST
     ${Skema_SOURCE_DIR}/test/Unit_Tests_Main.cpp
+    ${Skema_SOURCE_DIR}/test/Skema_Test_Common.cpp
     ${Skema_SOURCE_DIR}/test/Skema_Test_DimRedux.cpp
     ${Skema_SOURCE_DIR}/test/Skema_Test_Kernel.cpp
+    ${Skema_SOURCE_DIR}/test/Skema_Test_Residuals.cpp
 )
 
 add_executable(skema_unit_tests ${Skema_SOURCE_TEST})
